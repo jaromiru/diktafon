@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../services/providers/transcription_provider.dart';
+import '../../services/providers/whisper/whisper_model_manager.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/ink_toggle.dart';
 
@@ -63,9 +67,8 @@ class SettingsScreen extends ConsumerWidget {
           _Group(title: 'On-device intelligence', rows: [
             _SettingsRow(
               title: 'Transcription model',
-              value: 'Whisper ${settings.whisperTier} — not installed yet '
-                  '(arrives with the transcription update)',
-              onTap: () => _modelInfo(context),
+              value: _modelRowValue(ref, settings),
+              onTap: () => _pickModel(context),
             ),
             _SettingsRow(
               title: 'Summaries',
@@ -179,25 +182,26 @@ class SettingsScreen extends ConsumerWidget {
         ),
       );
 
-  void _modelInfo(BuildContext context) {
+  /// "Whisper small · 181 MB — installed", "… downloading 42 %", or a nudge
+  /// to set it up (§14 guides the user here while memos wait).
+  String _modelRowValue(WidgetRef ref, AppSettings settings) {
+    final model = WhisperModel.byTier(settings.whisperTier);
+    final states = ref.watch(whisperModelStatesProvider).value;
+    final state = states?.firstWhere((s) => s.model.tier == model.tier,
+        orElse: () => WhisperModelState(model, ModelStatus.notInstalled, 0));
+    return switch (state?.status) {
+      ModelStatus.ready =>
+        '${model.label} · ${model.sizeLabel} — installed, tap to manage',
+      ModelStatus.downloading =>
+        '${model.label} — downloading ${(state!.progress * 100).round()} %',
+      _ => '${model.label} — not downloaded yet · tap to set up',
+    };
+  }
+
+  void _pickModel(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('TRANSCRIPTION MODEL'),
-        content: const Text(
-          'On-device Whisper transcription arrives with the next milestone. '
-          'The default tier is "small" (~180 MB, best size/quality for '
-          'Czech & Polish); capable devices will also be offered '
-          'large-v3-turbo (~570 MB).\n\nMemos recorded now are kept and will '
-          'be transcribed once the model is installed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (_) => const ModelPickerDialog(),
     );
   }
 
@@ -221,6 +225,221 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The model picker (§5.5, mockup 05 note 3): choose the transcription tier,
+/// download with progress, manage storage. Selecting an uninstalled tier
+/// starts its download immediately; when it lands, queued memos transcribe.
+class ModelPickerDialog extends ConsumerWidget {
+  const ModelPickerDialog({super.key});
+
+  /// large-v3-turbo needs ~2.5 GB free while transcribing (§6.6) — soft-gate
+  /// on total device RAM where /proc/meminfo exists (Linux/Android).
+  static bool deviceCanRun(WhisperModel model) {
+    if (model.tier != WhisperModel.largeV3Turbo.tier) return true;
+    try {
+      final meminfo = File('/proc/meminfo').readAsLinesSync();
+      final total = meminfo.firstWhere((l) => l.startsWith('MemTotal:'));
+      final kb = int.parse(RegExp(r'\d+').firstMatch(total)!.group(0)!);
+      return kb >= 5 * 1024 * 1024; // ≥ 5 GB
+    } catch (_) {
+      return true; // unknown platform → don't block the user
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tape = context.tape;
+    final settings = ref.watch(settingsProvider).value ?? const AppSettings();
+    final states = ref.watch(whisperModelStatesProvider).value ?? const [];
+    final manager = ref.read(whisperModelManagerProvider);
+
+    // Listed tiers always; unlisted (tiny, tests) only when present.
+    final visible = states
+        .where((s) => s.model.listed || s.status != ModelStatus.notInstalled)
+        .toList();
+    final usedMb = (manager.installedBytes() / (1024 * 1024)).round();
+
+    return SimpleDialog(
+      title: const Text('TRANSCRIPTION MODEL'),
+      contentPadding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+      children: [
+        for (final state in visible)
+          _ModelOption(
+            state: state,
+            selected: settings.whisperTier == state.model.tier,
+            enabled: deviceCanRun(state.model),
+            onSelect: () => _select(context, ref, state),
+            onDelete: state.status == ModelStatus.ready
+                ? () => manager.delete(state.model)
+                : null,
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+          child: Text(
+            'Runs on this device only. Storage used by models: $usedMb MB.',
+            style: TextStyle(fontSize: 10, color: tape.ink2),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _select(
+      BuildContext context, WidgetRef ref, WhisperModelState state) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    final manager = ref.read(whisperModelManagerProvider);
+    final queue = ref.read(jobQueueProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    await repo.setWhisperTier(state.model.tier);
+    if (state.status != ModelStatus.notInstalled) {
+      await queue.drain();
+      return;
+    }
+    try {
+      await manager.download(state.model);
+      messenger.showSnackBar(SnackBar(
+          content: Text('${state.model.label} is ready — transcribing '
+              'waiting memos.')));
+      await queue.drain();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('Download of ${state.model.label} failed — '
+              'check your connection and try again.')));
+    }
+  }
+}
+
+class _ModelOption extends StatelessWidget {
+  const _ModelOption({
+    required this.state,
+    required this.selected,
+    required this.enabled,
+    required this.onSelect,
+    this.onDelete,
+  });
+
+  final WhisperModelState state;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onSelect;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final tape = context.tape;
+    final model = state.model;
+    final status = switch (state.status) {
+      ModelStatus.ready => 'installed · ${model.sizeLabel}',
+      ModelStatus.downloading =>
+        'downloading ${(state.progress * 100).round()} %',
+      ModelStatus.notInstalled =>
+        enabled ? 'download · ${model.sizeLabel}' : 'needs ≥ 5 GB RAM',
+    };
+
+    return InkWell(
+      onTap: enabled ? onSelect : null,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    child: selected
+                        ? Icon(Icons.check, size: 16, color: tape.ink)
+                        : null,
+                  ),
+                  Expanded(
+                    child: Text(
+                      model.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected ? FontWeight.w700 : null,
+                        color: tape.ink,
+                      ),
+                    ),
+                  ),
+                  Text(status,
+                      style: TextStyle(fontSize: 10, color: tape.ink2)),
+                  if (onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      color: tape.ink2,
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Delete model file',
+                      onPressed: onDelete,
+                    ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 22, top: 1),
+                child: Text(
+                  model.description,
+                  style: TextStyle(
+                      fontSize: 9.5, height: 1.4, color: tape.ink2),
+                ),
+              ),
+              if (state.status == ModelStatus.downloading)
+                Padding(
+                  padding: const EdgeInsets.only(left: 22, top: 6, bottom: 2),
+                  child: _InkProgressBar(fraction: state.progress),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Retro determinate progress: an ink-bordered channel filling left→right.
+/// Custom-painted — fractional-width widgets have no finite intrinsic width
+/// at 0 %, which crashes inside SimpleDialog's IntrinsicWidth.
+class _InkProgressBar extends StatelessWidget {
+  const _InkProgressBar({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: double.infinity,
+        height: 10,
+        child: CustomPaint(
+          painter: _InkProgressPainter(
+              fraction.clamp(0.0, 1.0), context.tape.ink),
+        ),
+      );
+}
+
+class _InkProgressPainter extends CustomPainter {
+  const _InkProgressPainter(this.fraction, this.ink);
+
+  final double fraction;
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final border = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = ink;
+    canvas.drawRect(
+        Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
+        border);
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width * fraction, size.height),
+        Paint()..color = ink);
+  }
+
+  @override
+  bool shouldRepaint(_InkProgressPainter old) =>
+      old.fraction != fraction || old.ink != ink;
 }
 
 class _Group extends StatelessWidget {

@@ -13,8 +13,33 @@ typedef ProgressSink = void Function(double fraction);
 
 class CancelToken {
   bool _cancelled = false;
+  final List<void Function()> _listeners = [];
+
   bool get isCancelled => _cancelled;
-  void cancel() => _cancelled = true;
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    for (final listener in _listeners) {
+      listener();
+    }
+  }
+
+  /// Runs [listener] on cancellation (immediately if already cancelled) —
+  /// lets engines abort mid-inference instead of polling.
+  void addListener(void Function() listener) {
+    if (_cancelled) {
+      listener();
+    } else {
+      _listeners.add(listener);
+    }
+  }
+}
+
+/// Thrown by [TranscriptionProvider.transcribe] when the [CancelToken] fired
+/// (§14 "delete during processing" — not a failure, the memo is just gone).
+class TranscriptionCancelled implements Exception {
+  const TranscriptionCancelled();
 }
 
 /// Reference to a memo's audio on disk.
@@ -40,28 +65,3 @@ abstract interface class TranscriptionProvider {
   });
 }
 
-/// M1 placeholder: no engine shipped yet. Jobs stay queued until a real
-/// provider reports `ready` (§14 — "model missing/unavailable").
-class NotInstalledTranscriptionProvider implements TranscriptionProvider {
-  const NotInstalledTranscriptionProvider();
-
-  @override
-  String get id => 'none/transcription';
-
-  @override
-  Future<ModelStatus> modelStatus() async => ModelStatus.notInstalled;
-
-  @override
-  Future<void> ensureModel({ProgressSink? onProgress}) async {
-    throw UnsupportedError('no transcription engine shipped yet (M2)');
-  }
-
-  @override
-  Future<Transcript> transcribe(
-    AudioRef audio, {
-    String? languageCode,
-    CancelToken? cancel,
-  }) async {
-    throw StateError('transcription model not installed');
-  }
-}

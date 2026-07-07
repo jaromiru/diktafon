@@ -23,6 +23,19 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            // Whisper inference wants 64-bit; x86_64 keeps the emulator alive.
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    // libdiktafon_whisper.so — whisper.cpp behind the dk_whisper shim
+    // (same CMake project the Linux runner builds; see native/README.md).
+    externalNativeBuild {
+        cmake {
+            path = file("../../native/CMakeLists.txt")
+        }
     }
 
     buildTypes {

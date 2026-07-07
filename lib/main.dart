@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
 import 'application/providers.dart';
 import 'data/files/audio_file_store.dart';
+import 'services/providers/whisper/whisper_model_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +23,13 @@ Future<void> main() async {
   }
 
   final fileStore = await AudioFileStore.open();
+  // Models are regenerable → app-support, excluded from backup (§7.1).
+  final supportDir = await getApplicationSupportDirectory();
+  final modelManager =
+      WhisperModelManager(Directory('${supportDir.path}/models/whisper'));
   final container = ProviderContainer(overrides: [
     audioFileStoreProvider.overrideWithValue(fileStore),
+    whisperModelManagerProvider.overrideWithValue(modelManager),
   ]);
 
   // Resume any jobs persisted before the last shutdown (§6.5 durability).

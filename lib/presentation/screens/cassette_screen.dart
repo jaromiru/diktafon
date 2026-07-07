@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../application/recording_controller.dart';
+import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
 import '../../domain/tape.dart';
 import '../../services/audio/tape_player_service.dart';
+import '../../services/providers/transcription_provider.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
 import '../widgets/deck.dart';
@@ -161,7 +163,11 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
                       globalMs: playback.globalMs,
                       currentMemoIndex: playback.memoIndex,
                       playing: playback.playing,
+                      modelReady: _modelReady(),
                       onSeekGlobalMs: (ms) => player.seekGlobal(ms),
+                      onRetryMemo: (memoId) => ref
+                          .read(jobQueueProvider)
+                          .retryTranscription(memoId),
                     ),
                   ),
           ),
@@ -172,6 +178,17 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         ],
       ),
     );
+  }
+
+  /// Is the selected transcription tier provisioned? Decides the caption an
+  /// untranscribed memo shows (§14 guides the user to Settings → Models).
+  bool _modelReady() {
+    final tier =
+        (ref.watch(settingsProvider).value ?? const AppSettings()).whisperTier;
+    final states = ref.watch(whisperModelStatesProvider).value;
+    return states
+            ?.any((s) => s.model.tier == tier && s.status == ModelStatus.ready) ??
+        false;
   }
 
   Widget _summaryLine(Cassette cassette) {

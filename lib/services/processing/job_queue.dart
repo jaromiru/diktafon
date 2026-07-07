@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/db/database.dart';
 import '../../data/repositories/memo_repository.dart';
+import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
 import '../providers/transcription_provider.dart';
 
@@ -13,18 +14,26 @@ enum JobType { transcribe, summarizeMemo, updateCassetteSummary }
 /// Durable background pipeline (§6.5): jobs persist in the DB so they survive
 /// restarts; ML concurrency is 1 to bound CPU/thermals/battery.
 ///
-/// M1 ships the queue with a not-installed transcription provider, so jobs
-/// simply stay `queued` until M2 provisions a real engine (§14: "enrichment
-/// begins once the model is provisioned") — capture is never blocked.
+/// The provider is resolved through a getter on every use so a Settings tier
+/// switch takes effect without rebuilding the queue (rebuilding could let two
+/// queues drain the same jobs).
 class JobQueue {
-  JobQueue(this._db, this._memos, this._transcription);
+  JobQueue(this._db, this._memos, this._settings, this._transcription,
+      {this._retryDelayUnit = const Duration(seconds: 1)});
 
   final AppDatabase _db;
   final MemoRepository _memos;
-  final TranscriptionProvider _transcription;
+  final SettingsRepository _settings;
+  final TranscriptionProvider Function() _transcription;
+
+  /// Backoff = attempts × this; tests inject zero.
+  final Duration _retryDelayUnit;
   final _uuid = const Uuid();
 
-  bool _draining = false;
+  /// In-flight cancellation handles, by memo id (§14 delete-during-processing).
+  final Map<String, CancelToken> _active = {};
+
+  Future<void>? _draining;
   static const _maxAttempts = 5;
 
   /// Enqueued on record-stop (D7).
@@ -40,31 +49,40 @@ class JobQueue {
     unawaited(drain());
   }
 
-  /// Cancels pending work for a deleted memo (§14).
-  Future<void> cancelJobsFor(String targetId) => (_db.delete(_db.jobs)
-        ..where((j) => j.targetId.equals(targetId) & j.status.equals('queued')))
-      .go();
+  /// Failed memo → back on the queue (§14 retry affordance).
+  Future<void> retryTranscription(String memoId) async {
+    await _memos.updateStatus(memoId, MemoStatus.stored);
+    await enqueueTranscription(memoId);
+  }
 
-  /// Processes queued jobs sequentially. Call on app start (resume after
-  /// restart) and after every enqueue.
-  Future<void> drain() async {
-    if (_draining) return;
-    _draining = true;
-    try {
+  /// Cancels pending *and in-flight* work for a deleted memo (§14).
+  Future<void> cancelJobsFor(String targetId) async {
+    _active[targetId]?.cancel();
+    await (_db.delete(_db.jobs)
+          ..where(
+              (j) => j.targetId.equals(targetId) & j.status.equals('queued')))
+        .go();
+  }
+
+  /// Processes queued jobs sequentially. Called on app start (resume after
+  /// restart), after every enqueue, and when a model finishes downloading.
+  /// Awaiting joins the drain already in flight, if any.
+  Future<void> drain() => _draining ??=
+      _drainLoop().whenComplete(() => _draining = null);
+
+  Future<void> _drainLoop() async {
+    while (true) {
       // Enrichment waits for a provisioned model; jobs stay queued (§14).
-      if (await _transcription.modelStatus() != ModelStatus.ready) return;
+      // Re-checked every iteration — the model can change mid-drain.
+      if (await _transcription().modelStatus() != ModelStatus.ready) return;
 
-      while (true) {
-        final job = await (_db.select(_db.jobs)
-              ..where((j) => j.status.equals('queued'))
-              ..orderBy([(j) => OrderingTerm.asc(j.createdAt)])
-              ..limit(1))
-            .getSingleOrNull();
-        if (job == null) return;
-        await _run(job);
-      }
-    } finally {
-      _draining = false;
+      final job = await (_db.select(_db.jobs)
+            ..where((j) => j.status.equals('queued'))
+            ..orderBy([(j) => OrderingTerm.asc(j.createdAt)])
+            ..limit(1))
+          .getSingleOrNull();
+      if (job == null) return;
+      await _run(job);
     }
   }
 
@@ -80,13 +98,20 @@ class JobQueue {
           break;
       }
       await _setJob(job.id, 'done');
+    } on TranscriptionCancelled {
+      // Memo deleted while transcribing — the job is moot, not failed.
+      await (_db.delete(_db.jobs)..where((j) => j.id.equals(job.id))).go();
     } catch (_) {
-      final permanent = job.attempts + 1 >= _maxAttempts;
+      final attempts = job.attempts + 1;
+      final permanent = attempts >= _maxAttempts;
       await _setJob(job.id, permanent ? 'failed' : 'queued',
-          attempts: job.attempts + 1);
+          attempts: attempts);
       if (permanent) {
         // Memo stays playable; a retry affordance is offered (§14).
         await _memos.updateStatus(job.targetId, MemoStatus.failed);
+      } else {
+        // Brief backoff so transient failures don't hot-loop (§6.5).
+        await Future<void>.delayed(_retryDelayUnit * attempts);
       }
     }
   }
@@ -96,9 +121,30 @@ class JobQueue {
           ..where((m) => m.id.equals(memoId)))
         .getSingleOrNull();
     if (row == null) return; // deleted meanwhile (§14)
-    await _memos.updateStatus(memoId, MemoStatus.transcribing);
-    final transcript = await _transcription.transcribe(AudioRef(row.filePath));
-    await _memos.setTranscript(memoId, transcript, MemoStatus.transcribed);
+
+    final cancel = CancelToken();
+    _active[memoId] = cancel;
+    try {
+      await _memos.updateStatus(memoId, MemoStatus.transcribing);
+      final settings = await _settings.get();
+      final transcript = await _transcription().transcribe(
+        AudioRef(row.filePath),
+        languageCode: settings.appLanguage,
+        cancel: cancel,
+      );
+      await _memos.setTranscript(memoId, transcript, MemoStatus.transcribed);
+
+      // D8: no app language yet → adopt the first real detection globally.
+      // Silent memos don't count — their "detection" is noise.
+      if (settings.appLanguage == null &&
+          !transcript.isEmpty &&
+          transcript.languageCode.isNotEmpty &&
+          transcript.languageCode != 'auto') {
+        await _settings.setAppLanguage(transcript.languageCode);
+      }
+    } finally {
+      _active.remove(memoId);
+    }
   }
 
   Future<void> _setJob(String id, String status, {int? attempts}) =>

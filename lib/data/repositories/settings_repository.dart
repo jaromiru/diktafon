@@ -37,6 +37,12 @@ class SettingsRepository {
       _db.select(_db.settingsEntries).watch().map((rows) => AppSettings.fromRows(
           {for (final row in rows) row.key: row.value}));
 
+  /// One-shot read for non-UI consumers (e.g. the job queue at job time).
+  Future<AppSettings> get() async {
+    final rows = await _db.select(_db.settingsEntries).get();
+    return AppSettings.fromRows({for (final row in rows) row.key: row.value});
+  }
+
   Future<void> _set(String key, String? value) async {
     if (value == null) {
       await (_db.delete(_db.settingsEntries)..where((s) => s.key.equals(key)))

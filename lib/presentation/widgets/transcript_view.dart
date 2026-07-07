@@ -19,7 +19,9 @@ class TranscriptView extends StatefulWidget {
     required this.globalMs,
     required this.currentMemoIndex,
     required this.playing,
+    this.modelReady = false,
     this.onSeekGlobalMs,
+    this.onRetryMemo,
   });
 
   final Tape tape;
@@ -27,7 +29,14 @@ class TranscriptView extends StatefulWidget {
   final int globalMs;
   final int currentMemoIndex;
   final bool playing;
+
+  /// Whether the transcription model is provisioned — decides what a
+  /// still-untranscribed memo says while it waits (§14).
+  final bool modelReady;
   final ValueChanged<int>? onSeekGlobalMs;
+
+  /// Failed memo tapped → re-enqueue (§14 retry affordance).
+  final ValueChanged<String>? onRetryMemo;
 
   @override
   State<TranscriptView> createState() => _TranscriptViewState();
@@ -111,21 +120,39 @@ class _TranscriptViewState extends State<TranscriptView> {
     }
     return switch (memo.status) {
       MemoStatus.transcribing => const _ShimmerRows(),
-      MemoStatus.failed =>
-        _caption(context, 'transcription failed — the audio still plays'),
-      // M1: no engine yet; §14 "model missing" — captured, playable, queued.
-      _ => _caption(context, 'waiting for the transcription model…'),
+      MemoStatus.failed => _caption(
+          context,
+          'transcription failed — tap to retry (the audio still plays)',
+          onTap: widget.onRetryMemo == null
+              ? null
+              : () => widget.onRetryMemo!(memo.id),
+        ),
+      // §14 "model missing/unavailable": captured, playable, queued —
+      // enrichment starts the moment the model is provisioned.
+      _ => _caption(
+          context,
+          widget.modelReady
+              ? 'queued for transcription…'
+              : 'waiting for the transcription model — '
+                  'download it in Settings',
+        ),
     };
   }
 
-  Widget _caption(BuildContext context, String text) => Padding(
+  Widget _caption(BuildContext context, String text, {VoidCallback? onTap}) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontStyle: FontStyle.italic,
-            color: context.tape.ink2,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontStyle: FontStyle.italic,
+              color: context.tape.ink2,
+              decoration: onTap == null ? null : TextDecoration.underline,
+              decorationColor: context.tape.ink2,
+            ),
           ),
         ),
       );

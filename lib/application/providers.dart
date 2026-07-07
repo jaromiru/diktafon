@@ -11,11 +11,16 @@ import '../data/repositories/memo_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../domain/models.dart';
 import '../domain/tape.dart';
+import '../services/audio/pcm_decoder.dart';
 import '../services/audio/recorder_service.dart';
 import '../services/audio/tape_player_service.dart';
 import '../services/processing/job_queue.dart';
 import '../services/providers/summarization_provider.dart';
 import '../services/providers/transcription_provider.dart';
+import '../services/providers/whisper/whisper_bindings.dart';
+import '../services/providers/whisper/whisper_model_manager.dart';
+import '../services/providers/whisper/whisper_transcription_provider.dart';
+import '../services/providers/whisper/whisper_worker.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -36,18 +41,53 @@ final memoRepositoryProvider = Provider<MemoRepository>(
 final settingsRepositoryProvider = Provider<SettingsRepository>(
     (ref) => SettingsRepository(ref.watch(appDatabaseProvider)));
 
-/// The two swappable intelligence seams (§6.3). M2/M3 replace these stubs.
-final transcriptionProvider = Provider<TranscriptionProvider>(
-    (ref) => const NotInstalledTranscriptionProvider());
+/// Whisper model store under `<app-support>/models/whisper` (§7.1) —
+/// overridden in main() / tests with the resolved directory.
+final whisperModelManagerProvider = Provider<WhisperModelManager>(
+    (ref) => throw UnimplementedError('overridden in main'));
+
+final pcmDecoderProvider = Provider<PcmDecoder>((ref) => defaultPcmDecoder());
+
+/// One inference isolate app-wide; keeps the loaded model warm (§6.5).
+final whisperWorkerProvider = Provider<WhisperWorker>((ref) {
+  final worker = WhisperWorker(resolveWhisperLibraryPath());
+  ref.onDispose(worker.dispose);
+  return worker;
+});
+
+/// The two swappable intelligence seams (§6.3). Whisper ships in M2 (D2);
+/// summarization arrives with M3 (D3).
+final transcriptionProvider = Provider<TranscriptionProvider>((ref) {
+  final settings = ref.watch(settingsProvider).value ?? const AppSettings();
+  return WhisperCppTranscriptionProvider(
+    models: ref.watch(whisperModelManagerProvider),
+    decoder: ref.watch(pcmDecoderProvider),
+    worker: ref.watch(whisperWorkerProvider),
+    tier: settings.whisperTier,
+  );
+});
 
 final summarizationProvider = Provider<SummarizationProvider>(
     (ref) => const NotInstalledSummarizationProvider());
 
+/// Deliberately *not* watching [transcriptionProvider]: the queue survives a
+/// tier switch and resolves the provider per job instead (see JobQueue docs).
 final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
       ref.watch(appDatabaseProvider),
       ref.watch(memoRepositoryProvider),
-      ref.watch(transcriptionProvider),
+      ref.watch(settingsRepositoryProvider),
+      () => ref.read(transcriptionProvider),
     ));
+
+/// Per-tier model install/download state for the Settings picker (§5.5).
+final whisperModelStatesProvider =
+    StreamProvider<List<WhisperModelState>>((ref) async* {
+  final manager = ref.watch(whisperModelManagerProvider);
+  yield manager.snapshot();
+  await for (final _ in manager.changes) {
+    yield manager.snapshot();
+  }
+});
 
 final recorderServiceProvider = Provider<RecorderService>((ref) {
   final recorder = RecorderService(ref.watch(audioFileStoreProvider));

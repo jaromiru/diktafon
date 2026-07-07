@@ -17,6 +17,7 @@ import 'package:diktafon/data/db/database.dart';
 import 'package:diktafon/data/files/audio_file_store.dart';
 import 'package:diktafon/presentation/widgets/cassette_card.dart';
 import 'package:diktafon/presentation/widgets/deck.dart';
+import 'package:diktafon/services/providers/whisper/whisper_model_manager.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -86,6 +87,9 @@ void main() {
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       audioFileStoreProvider.overrideWithValue(AudioFileStore(audioDir)),
+      // No model installed — this flow exercises the pre-provisioning UX.
+      whisperModelManagerProvider.overrideWithValue(WhisperModelManager(
+          Directory('${_workDir.path}/models/whisper')..createSync(recursive: true))),
     ]);
     addTearDown(container.dispose);
 
