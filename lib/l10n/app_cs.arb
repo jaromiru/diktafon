@@ -98,6 +98,7 @@
 
   "firstRunWelcome": "Vítejte v Diktafonu",
   "firstRunIntro": "Poslouchá, zapisuje a shrnuje přímo ve vašem telefonu. Nahrávky, přepisy a souhrny **nikdy neopustí toto zařízení**. Žádný účet, žádný cloud.",
+  "firstRunSetupHeader": "Počáteční nastavení",
   "allowMicRow": "Povolit mikrofon",
   "micTapToGrant": "Klepnutím povolíte přístup",
   "rowMicrophone": "Mikrofon",

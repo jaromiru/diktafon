@@ -345,6 +345,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.';
 
   @override
+  String get firstRunSetupHeader => 'First-time setup';
+
+  @override
   String get allowMicRow => 'Allow microphone';
 
   @override

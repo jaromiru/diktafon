@@ -204,11 +204,15 @@ class SettingsScreen extends ConsumerWidget {
                   ? Icon(Icons.check, size: 16, color: context.tape.ink)
                   : null,
             ),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w700 : null,
-                    color: context.tape.ink)),
+            // Expanded so long options ("Auto-detect (per memo)" and its
+            // translations) wrap instead of overflowing the dialog row.
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : null,
+                      color: context.tape.ink)),
+            ),
           ],
         ),
       );

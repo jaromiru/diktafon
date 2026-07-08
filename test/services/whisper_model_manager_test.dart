@@ -15,6 +15,9 @@ void main() {
   final payload = utf8.encode('not a real ggml model, but 42 bytes long..');
   var corruptNextResponse = false;
   var stallResponses = false;
+  var dropMidResponse = false;
+  var serveRanges = false;
+  final seenRanges = <String?>[];
   late Completer<void> stallGate;
 
   WhisperModel spec(HttpServer server, {String? sha}) => WhisperModel(
@@ -32,6 +35,9 @@ void main() {
     dir = Directory.systemTemp.createTempSync('dk_models_');
     corruptNextResponse = false;
     stallResponses = false;
+    dropMidResponse = false;
+    serveRanges = false;
+    seenRanges.clear();
     stallGate = Completer<void>();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
@@ -39,7 +45,28 @@ void main() {
           ? payload.sublist(0, payload.length - 5)
           : payload;
       request.response.headers.contentType = ContentType.binary;
+      final range = request.headers.value(HttpHeaders.rangeHeader);
+      seenRanges.add(range);
       try {
+        if (dropMidResponse) {
+          // A network drop: announce the full length, deliver only the
+          // first bytes — close() then aborts the connection over the
+          // short body and the client sees a broken transfer.
+          request.response.contentLength = bytes.length;
+          request.response.bufferOutput = false;
+          request.response.add(bytes.sublist(0, 10));
+          await request.response.flush();
+          await request.response.close();
+          return;
+        }
+        if (serveRanges && range != null) {
+          final from =
+              int.parse(RegExp(r'bytes=(\d+)-').firstMatch(range)!.group(1)!);
+          request.response.statusCode = HttpStatus.partialContent;
+          request.response.add(bytes.sublist(from));
+          await request.response.close();
+          return;
+        }
         if (stallResponses) {
           // Unbuffered, or the 10-byte chunk never leaves the server.
           request.response.bufferOutput = false;
@@ -147,6 +174,53 @@ void main() {
     stallResponses = false;
     await manager.download(model);
     expect(manager.statusOf(model), ModelStatus.ready);
+  });
+
+  test('interrupted download keeps the partial file and resumes with Range',
+      () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+
+    dropMidResponse = true;
+    await expectLater(manager.download(model), throwsException);
+    final part = File('${manager.fileOf(model).path}.part');
+    expect(part.existsSync(), isTrue,
+        reason: 'a transient failure keeps the partial file for resume');
+    expect(part.lengthSync(), 10);
+    expect(seenRanges, [null]);
+
+    dropMidResponse = false;
+    serveRanges = true;
+    final fractions = <double>[];
+    await manager.download(model, onProgress: fractions.add);
+
+    expect(seenRanges.last, 'bytes=10-',
+        reason: 'the retry asks only for the missing tail');
+    expect(manager.statusOf(model), ModelStatus.ready);
+    expect(manager.fileOf(model).readAsBytesSync(), payload);
+    expect(fractions.first, greaterThanOrEqualTo(10 / payload.length),
+        reason: 'progress restarts from the resumed bytes, not 0');
+    expect(fractions.last, 1.0);
+  });
+
+  test('a server without Range support restarts the download cleanly',
+      () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+
+    dropMidResponse = true;
+    await expectLater(manager.download(model), throwsException);
+
+    // The retry sends Range, the server answers 200 with the whole file —
+    // the partial is overwritten, verification still passes.
+    dropMidResponse = false;
+    serveRanges = false;
+    await manager.download(model);
+    expect(seenRanges.last, 'bytes=10-');
+    expect(manager.statusOf(model), ModelStatus.ready);
+    expect(manager.fileOf(model).readAsBytesSync(), payload);
   });
 
   test('delete returns the tier to notInstalled', () async {

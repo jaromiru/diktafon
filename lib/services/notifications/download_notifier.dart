@@ -58,9 +58,19 @@ class ModelDownloadNotifier {
   /// Mirrors [manager]'s downloads; notification ids are `idBase + catalog
   /// index`, so give each engine its own base.
   void attach(ModelManager<ModelSpec> manager, {required int idBase}) {
+    final initial = manager.snapshot();
     final last = <String, ModelStatus>{
-      for (final state in manager.snapshot()) state.model.tier: state.status,
+      for (final state in initial) state.model.tier: state.status,
     };
+    // A process killed mid-download leaves its ongoing progress notification
+    // stranded in the shade (it can't even be swiped away) — clear every
+    // tier that isn't actually on the wire right now.
+    for (var i = 0; i < initial.length; i++) {
+      if (initial[i].status != ModelStatus.downloading) {
+        final id = idBase + i;
+        _enqueue(() => _sink.cancel(id));
+      }
+    }
     _subs.add(manager.changes.listen((_) {
       final snapshot = manager.snapshot();
       for (var i = 0; i < snapshot.length; i++) {

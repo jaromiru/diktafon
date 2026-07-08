@@ -98,6 +98,7 @@
 
   "firstRunWelcome": "Willkommen bei Diktafon",
   "firstRunIntro": "Es hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon. Aufnahmen, Transkripte und Zusammenfassungen **verlassen dieses Gerät nie**. Es gibt kein Konto und keine Cloud.",
+  "firstRunSetupHeader": "Ersteinrichtung",
   "allowMicRow": "Mikrofon erlauben",
   "micTapToGrant": "Zum Erlauben tippen",
   "rowMicrophone": "Mikrofon",

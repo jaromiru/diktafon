@@ -115,6 +115,35 @@ class TapePlayerService {
 
   TapePlaybackState get state {
     if (_tape.isEmpty) return TapePlaybackState.idle;
+    // While a seek is in flight, report its target: crossing a memo boundary
+    // the player transiently sits at the new memo's 0:00 (the deferred
+    // in-file seek hasn't landed yet) — showing that would flick the cursor
+    // to the memo start mid-scrub.
+    final seekMs = _seekDisplayMs;
+    if (seekMs != null) {
+      final clamped = seekMs.clamp(0, _tape.totalDurationMs);
+      return TapePlaybackState(
+        globalMs: clamped,
+        totalMs: _tape.totalDurationMs,
+        memoIndex: _tape.locate(clamped).memoIndex,
+        playing: _player.playing,
+        completed: false,
+      );
+    }
+    // A seek before the first playback only re-arms the initial position
+    // (see _seekTo) — the inactive player still reports 0:00, so answer
+    // from the pending position until playback actually starts.
+    final pending = _pendingIdleSeek;
+    if (pending != null && _player.processingState == ProcessingState.idle) {
+      final index = pending.memoIndex.clamp(0, _tape.memoCount - 1);
+      return TapePlaybackState(
+        globalMs: _tape.toGlobalMs(index, pending.localMs),
+        totalMs: _tape.totalDurationMs,
+        memoIndex: index,
+        playing: _player.playing,
+        completed: false,
+      );
+    }
     final index =
         (_player.currentIndex ?? 0).clamp(0, _tape.memoCount - 1);
     final localMs = _player.position.inMilliseconds
@@ -138,6 +167,7 @@ class TapePlayerService {
     final wasPlaying = _player.playing;
     final previousGlobalMs = preservePosition ? state.globalMs : 0;
     _tape = tape;
+    _pendingIdleSeek = null;
     _loading = true;
     try {
       if (tape.isEmpty) {
@@ -150,12 +180,7 @@ class TapePlayerService {
       if (previousGlobalMs > 0 && previousGlobalMs < tape.totalDurationMs) {
         position = tape.locate(previousGlobalMs);
       }
-      await _player.setAudioSources(
-        [for (final memo in tape.memos) AudioSource.file(memo.filePath)],
-        initialIndex: position?.memoIndex ?? 0,
-        initialPosition: Duration(milliseconds: position?.localMs ?? 0),
-        preload: false,
-      );
+      await _setSources(position);
       if (wasPlaying) _player.play();
     } finally {
       _lastIndex = _player.currentIndex;
@@ -178,14 +203,33 @@ class TapePlayerService {
     }
   }
 
+  /// The tape's files handed to the player without preloading; [position]
+  /// becomes the initial playhead when playback first starts.
+  Future<void> _setSources(TapePosition? position) => _player.setAudioSources(
+        [for (final memo in _tape.memos) AudioSource.file(memo.filePath)],
+        initialIndex: position?.memoIndex ?? 0,
+        initialPosition: Duration(milliseconds: position?.localMs ?? 0),
+        preload: false,
+      );
+
   /// Newest requested target while a seek is in flight — scrub gestures fire
   /// faster than seeks complete, so intermediate targets are dropped.
   int? _seekTargetMs;
   bool _seekInFlight = false;
 
+  /// The target the UI should report while a seek is in flight (see [state]).
+  int? _seekDisplayMs;
+
+  /// Where playback should start when the user seeks before ever pressing
+  /// play — the inactive player can't be seeked, only re-armed (see [state]
+  /// and [_seekTo]).
+  TapePosition? _pendingIdleSeek;
+
   Future<void> seekGlobal(int globalMs) async {
     if (_tape.isEmpty) return;
     _seekTargetMs = globalMs;
+    _seekDisplayMs = globalMs;
+    _emit(); // reflect the newest target right away
     if (_seekInFlight) return; // the running loop picks up the new target
     _seekInFlight = true;
     try {
@@ -196,6 +240,7 @@ class TapePlayerService {
       }
     } finally {
       _seekInFlight = false;
+      _seekDisplayMs = null;
     }
     _emit();
   }
@@ -209,6 +254,23 @@ class TapePlayerService {
   /// first, wait for the new entry's restart — observable as the first
   /// buffering→ready edge reported for the new index — then seek.
   Future<void> _seekTo(TapePosition position) async {
+    // Two just_audio traps around an inactive player (preload: false):
+    //  - while loading, seek() is silently dropped — wait the load out;
+    //  - while idle (nothing played yet), seek() *resets* the pending
+    //    initial position, so a later play() would start at 0:00 instead of
+    //    the sought spot. Reissue the sources with the target as the
+    //    initial position — cheap while inactive — and let play() load there.
+    if (_player.processingState == ProcessingState.loading) {
+      await _player.processingStateStream
+          .firstWhere((s) => s != ProcessingState.loading)
+          .timeout(const Duration(seconds: 3),
+              onTimeout: () => _player.processingState);
+    }
+    if (_player.processingState == ProcessingState.idle) {
+      _pendingIdleSeek = position;
+      await _setSources(position);
+      return;
+    }
     final localPosition = Duration(milliseconds: position.localMs);
     if (position.memoIndex == (_player.currentIndex ?? 0)) {
       await _player.seek(localPosition);

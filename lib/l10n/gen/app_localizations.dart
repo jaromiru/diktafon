@@ -648,6 +648,12 @@ abstract class AppLocalizations {
   /// **'It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.'**
   String get firstRunIntro;
 
+  /// No description provided for @firstRunSetupHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'First-time setup'**
+  String get firstRunSetupHeader;
+
   /// No description provided for @allowMicRow.
   ///
   /// In en, this message translates to:

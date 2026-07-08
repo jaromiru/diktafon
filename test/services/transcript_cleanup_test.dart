@@ -140,5 +140,51 @@ void main() {
     test('a blank rewrite cannot produce an empty segment', () {
       expect(identical(retimedSegment(original, '   '), original), isTrue);
     });
+
+    // original: their[500,1500] was[1500,2500] a[2500,3500] problem[3500,4500]
+
+    test('unchanged words are anchored to their engine timings', () {
+      final retimed = retimedSegment(original, 'There was a problem.');
+      expect(retimed.words.map((w) => w.text).join(' '), 'There was a problem.');
+      // 'was', 'a', 'problem.' survived (case/punctuation ignored) — their
+      // engine timings must not move because a neighbour changed.
+      expect(retimed.words[1].startMs, 1500);
+      expect(retimed.words[1].endMs, 2500);
+      expect(retimed.words[2].startMs, 2500);
+      expect(retimed.words[2].endMs, 3500);
+      expect(retimed.words[3].startMs, 3500);
+      expect(retimed.words[3].endMs, 4500);
+      // The replaced first word fills the gap up to the first anchor.
+      expect(retimed.words[0].startMs, 500);
+      expect(retimed.words[0].endMs, 1500);
+    });
+
+    test('casing and punctuation fixes never move any word', () {
+      final retimed = retimedSegment(original, 'Their was a problem.');
+      for (var i = 0; i < 4; i++) {
+        expect(retimed.words[i].startMs, original.words[i].startMs);
+        expect(retimed.words[i].endMs, original.words[i].endMs);
+      }
+    });
+
+    test('an inserted word squeezes between its neighbours', () {
+      final retimed = retimedSegment(original, 'their was a big problem');
+      expect(retimed.words[3].text, 'big');
+      expect(retimed.words[3].startMs, 3500);
+      expect(retimed.words[3].endMs, 3500);
+      expect(retimed.words[2].endMs, 3500, reason: "'a' keeps its timing");
+      expect(retimed.words[4].startMs, 3500,
+          reason: "'problem' keeps its timing");
+      expect(retimed.words[4].endMs, 4500);
+    });
+
+    test('a full rewrite falls back to proportional timings', () {
+      final retimed = retimedSegment(original, 'completely different words');
+      expect(retimed.words.first.startMs, 500);
+      expect(retimed.words.last.endMs, 4500);
+      for (var i = 1; i < retimed.words.length; i++) {
+        expect(retimed.words[i].startMs, retimed.words[i - 1].endMs);
+      }
+    });
   });
 }

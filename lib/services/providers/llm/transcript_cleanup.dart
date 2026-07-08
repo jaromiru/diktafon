@@ -122,10 +122,12 @@ String _guarded(String original, String? cleaned) {
   return cleaned;
 }
 
-/// Rebuilds a segment around [newText]: the segment's span is kept and
-/// word timings are re-estimated proportionally to word length, so
-/// tap-to-seek stays segment-accurate (approximate within it). Unchanged
-/// text keeps the engine's real timings.
+/// Rebuilds a segment around [newText]: the segment's span is kept, words
+/// the cleanup left in place (matched case-insensitively, ignoring edge
+/// punctuation) are *anchored* to their engine timings, and only the gaps
+/// between anchors are re-estimated proportionally to word length. A comma
+/// fix must not smear the timing of every other word in the line — playback
+/// highlight and tap-to-seek stay word-accurate wherever the text survived.
 Segment retimedSegment(Segment original, String newText) {
   final originalText = original.words.map((w) => w.text).join(' ');
   if (newText == originalText) return original;
@@ -133,19 +135,97 @@ Segment retimedSegment(Segment original, String newText) {
       newText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
   if (words.isEmpty) return original;
 
-  final span = original.endMs - original.startMs;
-  final weights = [for (final w in words) w.length + 1];
-  final total = weights.fold(0, (sum, w) => sum + w);
-  final timed = <Word>[];
-  var startMs = original.startMs;
-  var used = 0;
-  for (var i = 0; i < words.length; i++) {
-    used += weights[i];
-    final endMs = i == words.length - 1
-        ? original.endMs
-        : original.startMs + (span * used) ~/ total;
-    timed.add(Word(text: words[i], startMs: startMs, endMs: endMs));
-    startMs = endMs;
+  final anchors = _lcsAnchors(
+    [for (final w in original.words) _timingKey(w.text)],
+    [for (final w in words) _timingKey(w)],
+  );
+
+  final timed = List<Word?>.filled(words.length, null);
+  anchors.forEach((newIndex, originalIndex) {
+    final engine = original.words[originalIndex];
+    timed[newIndex] =
+        Word(text: words[newIndex], startMs: engine.startMs, endMs: engine.endMs);
+  });
+
+  // Each run of unanchored words shares the window between its neighbouring
+  // anchors (segment edges at the ends), split by word length.
+  var i = 0;
+  while (i < words.length) {
+    if (timed[i] != null) {
+      i++;
+      continue;
+    }
+    var j = i;
+    while (j < words.length && timed[j] == null) {
+      j++;
+    }
+    final left = i == 0 ? original.startMs : timed[i - 1]!.endMs;
+    final right = j == words.length ? original.endMs : timed[j]!.startMs;
+    final span = max(0, right - left);
+    final weights = [for (var k = i; k < j; k++) words[k].length + 1];
+    final total = weights.fold(0, (sum, w) => sum + w);
+    var startMs = left;
+    var used = 0;
+    for (var k = i; k < j; k++) {
+      used += weights[k - i];
+      final endMs =
+          max(startMs, k == j - 1 ? right : left + (span * used) ~/ total);
+      timed[k] = Word(text: words[k], startMs: startMs, endMs: endMs);
+      startMs = endMs;
+    }
+    i = j;
   }
-  return Segment(startMs: original.startMs, endMs: original.endMs, words: timed);
+
+  // Engine timings are not guaranteed monotonic across odd tokenizations —
+  // clamp so tap-to-seek never runs backwards inside the segment.
+  final ordered = <Word>[];
+  var cursor = original.startMs;
+  for (final word in timed) {
+    final startMs = max(word!.startMs, cursor);
+    final endMs = max(word.endMs, startMs);
+    ordered.add(Word(text: word.text, startMs: startMs, endMs: endMs));
+    cursor = endMs;
+  }
+  return Segment(
+      startMs: original.startMs, endMs: original.endMs, words: ordered);
+}
+
+final _edgePunctuation =
+    RegExp(r'^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$', unicode: true);
+
+/// How words are compared for anchoring: case-insensitive, edge punctuation
+/// ignored — cleanup mostly fixes casing and punctuation, and those fixes
+/// must not cost a word its real timing.
+String _timingKey(String word) =>
+    word.toLowerCase().replaceAll(_edgePunctuation, '');
+
+/// Longest common subsequence over the two key lists; returns
+/// `new index → original index` for every matched pair. Empty keys (pure
+/// punctuation) never match — there is no timing worth anchoring to.
+Map<int, int> _lcsAnchors(List<String> original, List<String> cleaned) {
+  final n = original.length, m = cleaned.length;
+  final dp = [
+    for (var i = 0; i <= n; i++) List<int>.filled(m + 1, 0),
+  ];
+  for (var i = n - 1; i >= 0; i--) {
+    for (var j = m - 1; j >= 0; j--) {
+      dp[i][j] = original[i] == cleaned[j] && original[i].isNotEmpty
+          ? dp[i + 1][j + 1] + 1
+          : max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  final anchors = <int, int>{};
+  var i = 0, j = 0;
+  while (i < n && j < m) {
+    if (original[i] == cleaned[j] && original[i].isNotEmpty) {
+      anchors[j] = i;
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return anchors;
 }

@@ -346,6 +346,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Il écoute, écrit et résume directement sur votre téléphone. Enregistrements, transcriptions et résumés **ne quittent jamais cet appareil**. Pas de compte, pas de cloud.';
 
   @override
+  String get firstRunSetupHeader => 'Configuration initiale';
+
+  @override
   String get allowMicRow => 'Autoriser le micro';
 
   @override

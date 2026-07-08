@@ -347,6 +347,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Escucha, escribe y resume aquí mismo, en tu teléfono. Las grabaciones, transcripciones y resúmenes **nunca salen de este dispositivo**. No hay cuenta ni nube.';
 
   @override
+  String get firstRunSetupHeader => 'Configuración inicial';
+
+  @override
   String get allowMicRow => 'Permitir el micrófono';
 
   @override

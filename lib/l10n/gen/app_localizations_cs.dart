@@ -347,6 +347,9 @@ class AppLocalizationsCs extends AppLocalizations {
       'Poslouchá, zapisuje a shrnuje přímo ve vašem telefonu. Nahrávky, přepisy a souhrny **nikdy neopustí toto zařízení**. Žádný účet, žádný cloud.';
 
   @override
+  String get firstRunSetupHeader => 'Počáteční nastavení';
+
+  @override
   String get allowMicRow => 'Povolit mikrofon';
 
   @override

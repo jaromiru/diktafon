@@ -104,7 +104,8 @@ class ModelManager<M extends ModelSpec> {
 
   /// Downloads and verifies a tier; concurrent calls for the same tier join
   /// the in-flight download. Progress is reported both through [onProgress]
-  /// and the [changes] stream.
+  /// and the [changes] stream. A partial file left by an interrupted attempt
+  /// is resumed with an HTTP Range request, not thrown away.
   Future<void> download(M model, {ProgressSink? onProgress}) {
     if (statusOf(model) == ModelStatus.ready) return Future.value();
     final inFlight = _downloads[model.tier];
@@ -144,16 +145,51 @@ class ModelManager<M extends ModelSpec> {
     final client = _httpClientFactory();
     _clients[model.tier] = client;
     try {
+      // An interrupted attempt (network drop, app killed mid-download) left
+      // a partial file behind — ask the server for just the rest.
+      var existing = 0;
+      if (await part.exists()) {
+        final length = await part.length();
+        if (length > 0 && length < model.sizeBytes) existing = length;
+      }
+
       final request = await client.getUrl(model.url);
+      if (existing > 0) {
+        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
+      }
       final response = await request.close();
-      if (response.statusCode != 200) {
+      final resumed = existing > 0 &&
+          response.statusCode == HttpStatus.partialContent;
+      if (response.statusCode == HttpStatus.requestedRangeNotSatisfiable) {
+        // The remote file no longer matches the partial — start over.
+        await part.delete();
+        throw HttpException('HTTP ${response.statusCode}', uri: model.url);
+      }
+      if (response.statusCode != HttpStatus.ok && !resumed) {
         throw HttpException('HTTP ${response.statusCode}', uri: model.url);
       }
 
-      final sink = part.openWrite();
       var received = 0;
       final digestSink = _DigestSink();
       final hasher = sha256.startChunkedConversion(digestSink);
+      if (resumed) {
+        // The pinned sha256 covers the whole file — feed the bytes already
+        // on disk through the hasher before appending the new ones.
+        await for (final chunk in part.openRead()) {
+          if (_cancelRequested.contains(model.tier)) {
+            throw const ModelDownloadCancelled();
+          }
+          hasher.add(chunk);
+        }
+        received = existing;
+        final fraction = (received / model.sizeBytes).clamp(0.0, 1.0);
+        _progress[model.tier] = fraction;
+        onProgress?.call(fraction);
+        _changes.add(null);
+      }
+
+      final sink =
+          part.openWrite(mode: resumed ? FileMode.append : FileMode.write);
       try {
         await for (final chunk in response) {
           if (_cancelRequested.contains(model.tier)) {
@@ -179,13 +215,17 @@ class ModelManager<M extends ModelSpec> {
             'sha256 ${digestSink.digest}');
       }
       await part.rename(fileOf(model).path);
-    } catch (_) {
-      if (await part.exists()) await part.delete();
+    } catch (e) {
+      // Proven-bad bytes and explicit aborts drop the partial file; a
+      // transient failure keeps it so the next attempt resumes.
+      final cancelled = _cancelRequested.contains(model.tier);
+      if ((cancelled || e is ModelVerificationException) &&
+          await part.exists()) {
+        await part.delete();
+      }
       // A force-closed connection surfaces as an I/O error — report the
       // cancel, not the symptom.
-      if (_cancelRequested.contains(model.tier)) {
-        throw const ModelDownloadCancelled();
-      }
+      if (cancelled) throw const ModelDownloadCancelled();
       rethrow;
     } finally {
       _cancelRequested.remove(model.tier);

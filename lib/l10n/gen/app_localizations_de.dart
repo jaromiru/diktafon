@@ -348,6 +348,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Es hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon. Aufnahmen, Transkripte und Zusammenfassungen **verlassen dieses Gerät nie**. Es gibt kein Konto und keine Cloud.';
 
   @override
+  String get firstRunSetupHeader => 'Ersteinrichtung';
+
+  @override
   String get allowMicRow => 'Mikrofon erlauben';
 
   @override

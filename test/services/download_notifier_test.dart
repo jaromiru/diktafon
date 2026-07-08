@@ -95,7 +95,9 @@ void main() {
     // Let the queued sink calls (and the trailing change event) settle.
     await Future<void>.delayed(Duration.zero);
 
-    expect(sink.calls.first, startsWith('progress#100 "Downloading Test model"'));
+    // Attach first clears any notification a previous run left behind.
+    expect(sink.calls.first, 'cancel#100');
+    expect(sink.calls[1], startsWith('progress#100 "Downloading Test model"'));
     expect(sink.calls.last, 'done#100 "Test model installed"');
     final percents = sink.calls
         .where((c) => c.startsWith('progress#'))
@@ -116,7 +118,9 @@ void main() {
 
     stallResponses = true;
     final download = manager.download(model);
-    while (sink.calls.isEmpty) {
+    // Attach itself enqueues a stale-notification cancel — wait for real
+    // progress so our cancel hits a genuinely in-flight transfer.
+    while (!sink.calls.any((c) => c.startsWith('progress#'))) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
 
@@ -126,6 +130,20 @@ void main() {
 
     expect(sink.calls.last, 'cancel#100');
     expect(sink.calls.where((c) => c.startsWith('done#')), isEmpty);
+  });
+
+  test('attach clears notifications a dead process left behind', () async {
+    // A process killed mid-download can't cancel its progress notification;
+    // the next run's attach must sweep it out of the shade.
+    final model = spec(server);
+    final manager = WhisperModelManager(dir, catalog: [model]);
+    final sink = RecordingSink();
+    final notifier = ModelDownloadNotifier(sink, texts)
+      ..attach(manager, idBase: 100);
+    addTearDown(notifier.dispose);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(sink.calls, ['cancel#100']);
   });
 
   test('a second attached manager gets its own id space', () async {

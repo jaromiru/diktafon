@@ -98,6 +98,7 @@
 
   "firstRunWelcome": "Bienvenue dans Diktafon",
   "firstRunIntro": "Il écoute, écrit et résume directement sur votre téléphone. Enregistrements, transcriptions et résumés **ne quittent jamais cet appareil**. Pas de compte, pas de cloud.",
+  "firstRunSetupHeader": "Configuration initiale",
   "allowMicRow": "Autoriser le micro",
   "micTapToGrant": "Touchez pour accorder l'accès",
   "rowMicrophone": "Micro",

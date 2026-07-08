@@ -78,12 +78,18 @@ class LocalNotificationsSink implements DownloadNotificationSink {
   }
 
   @override
-  Future<void> showDone(int id, String title) => _plugin.show(
-        id: id,
-        title: title,
-        notificationDetails:
-            NotificationDetails(android: _android(), linux: _linux),
-      );
+  Future<void> showDone(int id, String title) async {
+    // Cancel first: updating an `ongoing` progress notification in place can
+    // leave it stuck non-dismissible on some Android versions — replace it
+    // outright with the plain, swipeable "installed" notice.
+    await _plugin.cancel(id: id);
+    await _plugin.show(
+      id: id,
+      title: title,
+      notificationDetails:
+          NotificationDetails(android: _android(), linux: _linux),
+    );
+  }
 
   @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);

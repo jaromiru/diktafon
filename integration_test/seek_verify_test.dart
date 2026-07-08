@@ -4,9 +4,11 @@
 /// its playback restart finishes (see TapePlayerService._seekTo).
 ///
 /// Seeds a cassette with three ffmpeg-generated tone memos (8 s / 6 s / 10 s)
-/// and drives the real app: play, drag-scrub across two memo boundaries,
-/// rewind across boundaries, tap-to-jump — asserting the playhead lands
-/// where aimed. Desktop-only (needs the ffmpeg CLI, like the recorder):
+/// and drives the real app: a pre-play seek (the player is still inactive —
+/// it must survive the first play instead of restarting at 0:00), play,
+/// drag-scrub across two memo boundaries, rewind across boundaries,
+/// tap-to-jump — asserting the playhead lands where aimed. Desktop-only
+/// (needs the ffmpeg CLI, like the recorder):
 ///
 ///   DIKTAFON_TEST_DIR=/tmp/dk_seek \
 ///   flutter test integration_test/seek_verify_test.dart -d linux
@@ -150,18 +152,50 @@ void main() {
 
       final player = container.read(tapePlayerProvider);
       expect(player.tape.totalDurationMs, 24000);
+      final rect = tester.getRect(find.byType(TimelineBar));
+
+      // — Regression: seek before the first play (the platform player is
+      //   still inactive, preload: false) — pressing play must continue
+      //   from the sought spot, not restart at 0:00 (just_audio wipes the
+      //   pending initial position on an idle seek). —
+      final preplay = await tester
+          .startGesture(Offset(rect.left + rect.width * .05, rect.center.dy));
+      for (final f in [.08, .10, .125]) {
+        await preplay.moveTo(Offset(rect.left + rect.width * f, rect.center.dy));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await preplay.up();
+      await _wait(tester, 500);
+      var s = player.state;
+      expect(s.playing, isFalse);
+      expect(s.globalMs, closeTo(3000, 900),
+          reason: 'the pre-play seek target is reflected while paused');
+
+      await tester.tap(_key(DeckGlyph.play));
+      await _wait(tester, 1500);
+      s = player.state;
+      expect(s.playing, isTrue);
+      expect(s.globalMs, greaterThan(3200),
+          reason: 'play must continue from the pre-play seek, not 0:00');
+      expect(s.globalMs, closeTo(4500, 1500));
+
+      // Back to the top for the rest of the script (a tap inside memo 1
+      // jumps to its start = 0:00).
+      await tester.tap(_key(DeckGlyph.pause));
+      await _wait(tester, 300);
+      await tester.tapAt(Offset(rect.left + rect.width * .02, rect.center.dy));
+      await _wait(tester, 500);
 
       // — Play from the top; confirm real audio position advances —
       await tester.tap(_key(DeckGlyph.play));
       await _wait(tester, 1500);
-      var s = player.state;
+      s = player.state;
       expect(s.playing, isTrue);
       expect(s.memoIndex, 0);
       expect(s.globalMs, greaterThan(700));
 
       // — Scrub while playing: drag 5 % → 75 % (≈ 18 s, memo 3 local 4 s),
       //   many drag updates, crossing two memo boundaries —
-      final rect = tester.getRect(find.byType(TimelineBar));
       final gesture = await tester
           .startGesture(Offset(rect.left + rect.width * .05, rect.center.dy));
       const steps = 35;

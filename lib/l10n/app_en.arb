@@ -167,6 +167,7 @@
   "@firstRunIntro": {
     "description": "The **…** span is rendered bold; keep exactly one such span."
   },
+  "firstRunSetupHeader": "First-time setup",
   "allowMicRow": "Allow microphone",
   "micTapToGrant": "Tap to grant access",
   "rowMicrophone": "Microphone",

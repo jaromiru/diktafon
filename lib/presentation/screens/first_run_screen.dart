@@ -14,14 +14,16 @@ import '../widgets/ink_progress_bar.dart';
 import 'cassette_screen.dart';
 import 'settings_screen.dart';
 
-/// First-run setup (§5.6, mockup 01 r8): a single screen. The intro and the
-/// privacy promise are one plain paragraph; a setup card holds the
-/// microphone row (tapping it fires the OS prompt — the CTA's only gate)
-/// and the two model rows. Nothing downloads on its own — the user may be
-/// on a metered connection, so a row's picker (the exact one from Settings)
-/// is where a model is chosen and its download starts. Downloads finish in
-/// the background and never block the CTA. START RECORDING opens the first
-/// cassette *empty* — the record key is armed, nothing rolls until pressed.
+/// First-run setup (§5.6, mockup 01 r9): a single screen. The intro and the
+/// privacy promise are one plain paragraph; a headed "first-time setup" card
+/// holds the microphone row (tapping it fires the OS prompt) and the two
+/// model rows. Nothing downloads on its own — the user may be on a metered
+/// connection, so a row's picker (the exact one from Settings) is where a
+/// model is chosen and its download starts. Downloads finish in the
+/// background. START RECORDING sits at the bottom of the screen and is
+/// never gated — the mic permission is also asked when recording actually
+/// starts — and opens the first cassette *empty*: the record key is armed,
+/// nothing rolls until pressed.
 class FirstRunScreen extends ConsumerStatefulWidget {
   const FirstRunScreen({super.key});
 
@@ -51,16 +53,22 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
   }
 
   /// START RECORDING: the first cassette opens empty — record key armed,
-  /// nothing rolls (mockup 01 note 4). The route is pushed before
+  /// nothing rolls (mockup 01 note 4). Never gated: pressing record asks
+  /// for the mic permission itself. The route is pushed before
   /// firstRunDone flips so the home swap (FirstRunScreen → HomeScreen)
   /// happens underneath it.
   Future<void> _startRecording() async {
-    if (_finishing || _micGranted != true) return;
+    if (_finishing) return;
     _finishing = true;
     final cassette = await ref.read(cassetteRepositoryProvider).create();
     if (!mounted) return;
-    unawaited(Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => CassetteScreen(cassetteId: cassette.id))));
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CassetteScreen(cassetteId: cassette.id),
+        ),
+      ),
+    );
     await ref.read(settingsRepositoryProvider).setFirstRunDone();
   }
 
@@ -73,33 +81,50 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
+            child: Column(
               children: [
-                Text(
-                  l10n.firstRunWelcome,
-                  style: TextStyle(
-                      fontFamily: displayFont,
-                      fontSize: 34,
-                      height: 1.05,
-                      color: tape.ink),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(28, 36, 28, 8),
+                    children: [
+                      Text(
+                        l10n.firstRunWelcome,
+                        style: TextStyle(
+                          fontFamily: displayFont,
+                          fontSize: 34,
+                          height: 1.05,
+                          color: tape.ink,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: _intro(tape, l10n.firstRunIntro),
+                      ),
+                      const SizedBox(height: 18),
+                      _setupCard(tape, l10n),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: 8,
+                          left: 2,
+                          right: 2,
+                        ),
+                        child: Text(
+                          l10n.downloadsFinishInBackground,
+                          style: TextStyle(fontSize: 10.5, color: tape.ink2),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                // The primary action lives at the bottom of the screen and
+                // is never gated — setup above is optional groundwork.
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: _intro(tape, l10n.firstRunIntro),
-                ),
-                const SizedBox(height: 18),
-                _setupCard(tape, l10n),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, left: 2, right: 2),
-                  child: Text(l10n.downloadsFinishInBackground,
-                      style: TextStyle(fontSize: 10.5, color: tape.ink2)),
-                ),
-                const SizedBox(height: 30),
-                _CtaKey(
-                  icon: Icons.mic,
-                  label: l10n.startRecordingKey,
-                  onPressed: _micGranted == true ? _startRecording : null,
+                  padding: const EdgeInsets.fromLTRB(28, 12, 28, 28),
+                  child: _CtaKey(
+                    icon: Icons.mic,
+                    label: l10n.startRecordingKey,
+                    onPressed: _startRecording,
+                  ),
                 ),
               ],
             ),
@@ -114,47 +139,73 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
   Widget _intro(TapeColors tape, String text) {
     final parts = text.split('**');
     return Text.rich(
-      TextSpan(children: [
-        for (var i = 0; i < parts.length; i++)
-          TextSpan(
+      TextSpan(
+        children: [
+          for (var i = 0; i < parts.length; i++)
+            TextSpan(
               text: parts[i],
-              style:
-                  i.isOdd ? const TextStyle(fontWeight: FontWeight.w700) : null),
-      ]),
+              style: i.isOdd
+                  ? const TextStyle(fontWeight: FontWeight.w700)
+                  : null,
+            ),
+        ],
+      ),
       style: TextStyle(fontSize: 12.5, height: 1.55, color: tape.ink2),
     );
   }
 
   Widget _setupCard(TapeColors tape, AppLocalizations l10n) {
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
-    return Container(
-      decoration: BoxDecoration(
-        color: tape.surface,
-        border: Border.all(color: tape.ink, width: 1.5),
-      ),
-      child: Column(
-        children: [
-          _micRow(tape, l10n),
-          Divider(height: 1.5, color: tape.line),
-          _modelRow(
-            l10n: l10n,
-            title: l10n.rowTranscription,
-            model: _forTier(ref.read(whisperModelManagerProvider).catalog,
-                settings.whisperTier),
-            states: ref.watch(whisperModelStatesProvider).value,
-            picker: const ModelPickerDialog(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Headed like a Settings group — this card *is* first-time setup.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            l10n.firstRunSetupHeader.toUpperCase(),
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: tape.ink2,
+            ),
           ),
-          Divider(height: 1.5, color: tape.line),
-          _modelRow(
-            l10n: l10n,
-            title: l10n.rowSummaries,
-            model: _forTier(
-                ref.read(llmModelManagerProvider).catalog, settings.llmTier),
-            states: ref.watch(llmModelStatesProvider).value,
-            picker: const LlmModelPickerDialog(),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: tape.surface,
+            border: Border.all(color: tape.ink, width: 1.5),
           ),
-        ],
-      ),
+          child: Column(
+            children: [
+              _micRow(tape, l10n),
+              Divider(height: 1.5, color: tape.line),
+              _modelRow(
+                l10n: l10n,
+                title: l10n.rowTranscription,
+                model: _forTier(
+                  ref.read(whisperModelManagerProvider).catalog,
+                  settings.whisperTier,
+                ),
+                states: ref.watch(whisperModelStatesProvider).value,
+                picker: const ModelPickerDialog(),
+              ),
+              Divider(height: 1.5, color: tape.line),
+              _modelRow(
+                l10n: l10n,
+                title: l10n.rowSummaries,
+                model: _forTier(
+                  ref.read(llmModelManagerProvider).catalog,
+                  settings.llmTier,
+                ),
+                states: ref.watch(llmModelStatesProvider).value,
+                picker: const LlmModelPickerDialog(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -187,8 +238,7 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
     required Widget picker,
   }) {
     final tape = context.tape;
-    final state =
-        states?.where((s) => s.model.tier == model.tier).firstOrNull;
+    final state = states?.where((s) => s.model.tier == model.tier).firstOrNull;
     final ready = state?.status == ModelStatus.ready;
     final downloading = state?.status == ModelStatus.downloading;
     void openPicker() =>
@@ -199,8 +249,11 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
       title: title,
       caption: switch (state?.status) {
         ModelStatus.ready => l10n.provisionReady(model.label, model.sizeLabel),
-        ModelStatus.downloading => l10n.provisionDownloading(model.label,
-            model.sizeLabel, ((state?.progress ?? 0) * 100).round()),
+        ModelStatus.downloading => l10n.provisionDownloading(
+          model.label,
+          model.sizeLabel,
+          ((state?.progress ?? 0) * 100).round(),
+        ),
         _ => l10n.provisionChoose,
       },
       progress: downloading ? state?.progress : null,
@@ -249,13 +302,22 @@ class _SetupRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(caption,
-                      style: TextStyle(
-                          fontSize: 10.5, height: 1.45, color: tape.ink2)),
+                  Text(
+                    caption,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.45,
+                      color: tape.ink2,
+                    ),
+                  ),
                   if (progress != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -269,8 +331,7 @@ class _SetupRow extends StatelessWidget {
                 onTap: onChevron,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8, top: 2),
-                  child:
-                      Icon(Icons.chevron_right, size: 18, color: tape.ink2),
+                  child: Icon(Icons.chevron_right, size: 18, color: tape.ink2),
                 ),
               ),
           ],

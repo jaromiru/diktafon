@@ -1,10 +1,10 @@
-/// M4 end-to-end: the first-run flow (§5.6, mockup 01 r8) on a real
+/// M4 end-to-end: the first-run flow (§5.6, mockup 01 r9) on a real
 /// desktop — one screen: nothing downloads on its own (the user may be on a
 /// metered connection); each model row opens its picker, where choosing a
 /// tier starts the download against a local HTTP server (not HuggingFace).
-/// The microphone row is the CTA's only gate, START RECORDING opens the
-/// first cassette empty (record armed, nothing rolling). Then the Export
-/// data screen (§8) lists the new cassette.
+/// START RECORDING is never gated (recording itself asks for the mic) and
+/// opens the first cassette empty (record armed, nothing rolling). Then the
+/// Export data screen (§8) lists the new cassette.
 ///
 /// Engine seams are overridden with fakes: the "models" this test downloads
 /// are byte payloads, not runnable networks (§6.3 — that is the point of the
@@ -198,20 +198,15 @@ void main() {
     ));
     await _settle(tester);
 
-    // — One screen (mockup 01 note 1): intro paragraph + setup card —
+    // — One screen (mockup 01 note 1): intro paragraph + headed setup card —
     expect(find.text('Welcome to Diktafon'), findsOneWidget);
+    expect(find.text('FIRST-TIME SETUP'), findsOneWidget,
+        reason: 'the setup card carries its header (r9)');
     expect(find.text('Allow microphone'), findsOneWidget);
     expect(find.text('Transcription'), findsOneWidget);
     expect(find.text('Summaries'), findsOneWidget);
     expect(find.text('Downloads finish in the background.'), findsOneWidget);
     await _shot(tester, '01-first-run-open');
-
-    // The CTA is gated on the mic alone (note 2) — a tap before the grant
-    // must not leave the screen.
-    await tester.tap(find.text('START RECORDING'));
-    await _settle(tester);
-    expect(find.text('Welcome to Diktafon'), findsOneWidget,
-        reason: 'START RECORDING stays dimmed until the mic is granted');
 
     // — Nothing downloads on its own (note 3, r8): both rows wait for an
     //   explicit choice — the user may be on a metered connection —
@@ -297,5 +292,51 @@ void main() {
     expect(find.textContaining('1 memo'), findsWidgets,
         reason: 'the recorded cassette is listed for export');
     await _shot(tester, '05-backup-export');
+  });
+
+  testWidgets('M4: START RECORDING is never gated — works before any setup',
+      (tester) async {
+    final workDir = Directory('${_workDir.path}/ungated')
+      ..createSync(recursive: true);
+    final db = AppDatabase.forTesting(
+        NativeDatabase(File('${workDir.path}/diktafon.db')));
+    final audioDir = Directory('${workDir.path}/audio')
+      ..createSync(recursive: true);
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      audioFileStoreProvider.overrideWithValue(AudioFileStore(audioDir)),
+      whisperModelManagerProvider.overrideWithValue(
+          WhisperModelManager(Directory('${workDir.path}/models/whisper'))),
+      llmModelManagerProvider.overrideWithValue(
+          LlmModelManager(Directory('${workDir.path}/models/llm'))),
+      transcriptionProvider.overrideWithValue(_FakeTranscription()),
+      summarizationProvider.overrideWithValue(_FakeSummarization()),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: RepaintBoundary(key: _boundaryKey, child: const DiktafonApp()),
+    ));
+    await _settle(tester);
+    expect(find.text('Welcome to Diktafon'), findsOneWidget);
+
+    // No mic grant, no model downloads — the CTA must open the first
+    // cassette regardless (the record press asks for the permission).
+    await tester.tap(find.text('START RECORDING'));
+    await _settle(tester);
+    expect(find.text('Welcome to Diktafon'), findsNothing,
+        reason: 'the CTA is never gated (r9)');
+    expect(find.textContaining('RECORDING MEMO'), findsNothing,
+        reason: 'the cassette opens empty — nothing rolls on its own');
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is DeckKey && w.glyph == DeckGlyph.record),
+        findsOneWidget,
+        reason: 'the record key is armed');
+
+    final settings = await db.select(db.settingsEntries).get();
+    expect(
+        settings.any((s) => s.key == 'firstRunDone' && s.value == '1'), isTrue);
   });
 }

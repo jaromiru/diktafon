@@ -352,6 +352,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'Słucha, zapisuje i podsumowuje prosto w Twoim telefonie. Nagrania, transkrypcje i podsumowania **nigdy nie opuszczają tego urządzenia**. Nie ma konta ani chmury.';
 
   @override
+  String get firstRunSetupHeader => 'Konfiguracja początkowa';
+
+  @override
   String get allowMicRow => 'Zezwól na mikrofon';
 
   @override
