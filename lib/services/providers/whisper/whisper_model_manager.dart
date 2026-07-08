@@ -1,19 +1,14 @@
-/// Model provisioning (§6.6): whisper models are downloaded on demand into
-/// `<app-support>/models/whisper/` (regenerable — excluded from backup, §7.1)
-/// with streamed progress and sha256 verification against pinned upstream
-/// hashes (a truncated/corrupt model would crash native code).
+/// The whisper model catalog (§6.6): tiers pinned from the git-lfs pointers
+/// at huggingface.co/ggerganov/whisper.cpp (2026-07-07). Download/verify
+/// mechanics live in the shared ModelManager.
 library;
 
-import 'dart:async';
-import 'dart:io';
+import '../model_manager.dart';
 
-import 'package:crypto/crypto.dart';
+export '../model_manager.dart' show ModelVerificationException;
 
-import '../transcription_provider.dart';
-
-/// One downloadable model tier. Hashes/sizes pinned from the git-lfs pointers
-/// at huggingface.co/ggerganov/whisper.cpp (2026-07-07).
-class WhisperModel {
+/// One downloadable whisper tier.
+class WhisperModel implements ModelSpec {
   const WhisperModel({
     required this.tier,
     required this.label,
@@ -25,25 +20,31 @@ class WhisperModel {
     this.urlOverride,
   });
 
+  @override
   final String tier;
+  @override
   final String label;
+  @override
   final String description;
+  @override
   final String fileName;
+  @override
   final int sizeBytes;
+  @override
   final String sha256Hex;
-
-  /// Unlisted tiers don't appear in the Settings picker unless installed
-  /// (tiny exists for tests/dev — too weak for Czech/Polish, §6.6).
+  @override
   final bool listed;
 
   /// Tests point this at a local server; production uses the HF mirror.
   final Uri? urlOverride;
 
+  @override
   Uri get url =>
       urlOverride ??
       Uri.parse(
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$fileName');
 
+  @override
   String get sizeLabel => '${(sizeBytes / (1024 * 1024)).round()} MB';
 
   static const tiny = WhisperModel(
@@ -85,147 +86,12 @@ class WhisperModel {
       all.firstWhere((m) => m.tier == tier, orElse: () => small);
 }
 
-/// Snapshot of one tier for the Settings picker.
-class WhisperModelState {
-  const WhisperModelState(this.model, this.status, this.progress);
+typedef WhisperModelState = ModelState<WhisperModel>;
 
-  final WhisperModel model;
-  final ModelStatus status;
-
-  /// Download progress in [0..1]; only meaningful while [status] is
-  /// [ModelStatus.downloading].
-  final double progress;
-}
-
-class ModelVerificationException implements Exception {
-  const ModelVerificationException(this.message);
-  final String message;
-
-  @override
-  String toString() => 'ModelVerificationException: $message';
-}
-
-class WhisperModelManager {
+class WhisperModelManager extends ModelManager<WhisperModel> {
   WhisperModelManager(
-    this._dir, {
-    HttpClient Function()? httpClientFactory,
-    this.catalog = WhisperModel.all,
-  }) : _httpClientFactory = httpClientFactory ?? HttpClient.new;
-
-  final Directory _dir;
-  final HttpClient Function() _httpClientFactory;
-
-  /// The tiers this install knows about; tests swap in local specs.
-  final List<WhisperModel> catalog;
-
-  final _changes = StreamController<void>.broadcast();
-  final Map<String, double> _progress = {};
-  final Map<String, Future<void>> _downloads = {};
-
-  /// Emits whenever any tier's status/progress changes.
-  Stream<void> get changes => _changes.stream;
-
-  File fileOf(WhisperModel model) =>
-      File('${_dir.path}/${model.fileName}');
-
-  ModelStatus statusOf(WhisperModel model) {
-    if (_downloads.containsKey(model.tier)) return ModelStatus.downloading;
-    return fileOf(model).existsSync()
-        ? ModelStatus.ready
-        : ModelStatus.notInstalled;
-  }
-
-  WhisperModelState stateOf(WhisperModel model) => WhisperModelState(
-      model, statusOf(model), _progress[model.tier] ?? 0);
-
-  List<WhisperModelState> snapshot() =>
-      [for (final model in catalog) stateOf(model)];
-
-  /// Total disk footprint of installed models (Settings shows storage used).
-  int installedBytes() => catalog
-      .map((m) => fileOf(m))
-      .where((f) => f.existsSync())
-      .fold(0, (sum, f) => sum + f.lengthSync());
-
-  /// Downloads and verifies a tier; concurrent calls for the same tier join
-  /// the in-flight download. Progress is reported both through [onProgress]
-  /// and the [changes] stream.
-  Future<void> download(WhisperModel model, {ProgressSink? onProgress}) {
-    if (statusOf(model) == ModelStatus.ready) return Future.value();
-    final inFlight = _downloads[model.tier];
-    if (inFlight != null) return inFlight;
-
-    final download = _download(model, onProgress).whenComplete(() {
-      _downloads.remove(model.tier);
-      _progress.remove(model.tier);
-      _changes.add(null);
-    });
-    _downloads[model.tier] = download;
-    _progress[model.tier] = 0;
-    _changes.add(null);
-    return download;
-  }
-
-  Future<void> _download(WhisperModel model, ProgressSink? onProgress) async {
-    await _dir.create(recursive: true);
-    final part = File('${fileOf(model).path}.part');
-    final client = _httpClientFactory();
-    try {
-      final request = await client.getUrl(model.url);
-      final response = await request.close();
-      if (response.statusCode != 200) {
-        throw HttpException('HTTP ${response.statusCode}', uri: model.url);
-      }
-
-      final sink = part.openWrite();
-      var received = 0;
-      final digestSink = _DigestSink();
-      final hasher = sha256.startChunkedConversion(digestSink);
-      try {
-        await for (final chunk in response) {
-          hasher.add(chunk);
-          sink.add(chunk);
-          received += chunk.length;
-          final fraction = (received / model.sizeBytes).clamp(0.0, 1.0);
-          _progress[model.tier] = fraction;
-          onProgress?.call(fraction);
-          _changes.add(null);
-        }
-      } finally {
-        await sink.close();
-      }
-      hasher.close();
-
-      if (received != model.sizeBytes ||
-          digestSink.digest.toString() != model.sha256Hex) {
-        throw ModelVerificationException(
-            '${model.fileName}: got $received bytes, '
-            'sha256 ${digestSink.digest}');
-      }
-      await part.rename(fileOf(model).path);
-    } catch (_) {
-      if (await part.exists()) await part.delete();
-      rethrow;
-    } finally {
-      client.close(force: true);
-    }
-  }
-
-  void delete(WhisperModel model) {
-    final file = fileOf(model);
-    if (file.existsSync()) file.deleteSync();
-    _changes.add(null);
-  }
-
-  void dispose() => _changes.close();
-}
-
-class _DigestSink implements Sink<Digest> {
-  late Digest digest;
-
-  @override
-  void add(Digest data) => digest = data;
-
-  @override
-  void close() {}
+    super.dir, {
+    super.httpClientFactory,
+    super.catalog = WhisperModel.all,
+  });
 }

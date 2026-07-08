@@ -54,6 +54,20 @@ class MemoRepository {
         ),
       );
 
+  /// [summary] null → the memo yielded no usable gist (§6.7 skip).
+  Future<void> setMemoSummary(String id, String? summary, MemoStatus status) =>
+      (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
+        MemosCompanion(
+          memoSummary: Value(summary),
+          status: Value(status.name),
+        ),
+      );
+
+  /// Marks memos whose gists are now part of the cassette summary (§6.7).
+  Future<void> markFolded(List<String> ids, DateTime at) =>
+      (_db.update(_db.memos)..where((m) => m.id.isIn(ids))).write(
+          MemosCompanion(foldedAt: Value(at.millisecondsSinceEpoch)));
+
   Future<void> delete(String id) =>
       (_db.delete(_db.memos)..where((m) => m.id.equals(id))).go();
 }

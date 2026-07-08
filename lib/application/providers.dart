@@ -15,6 +15,10 @@ import '../services/audio/pcm_decoder.dart';
 import '../services/audio/recorder_service.dart';
 import '../services/audio/tape_player_service.dart';
 import '../services/processing/job_queue.dart';
+import '../services/providers/llm/llama_bindings.dart';
+import '../services/providers/llm/llama_worker.dart';
+import '../services/providers/llm/llm_model_manager.dart';
+import '../services/providers/llm/llm_summarization_provider.dart';
 import '../services/providers/summarization_provider.dart';
 import '../services/providers/transcription_provider.dart';
 import '../services/providers/whisper/whisper_bindings.dart';
@@ -46,17 +50,28 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 final whisperModelManagerProvider = Provider<WhisperModelManager>(
     (ref) => throw UnimplementedError('overridden in main'));
 
+/// LLM model store under `<app-support>/models/llm` (§7.1) — same deal.
+final llmModelManagerProvider = Provider<LlmModelManager>(
+    (ref) => throw UnimplementedError('overridden in main'));
+
 final pcmDecoderProvider = Provider<PcmDecoder>((ref) => defaultPcmDecoder());
 
-/// One inference isolate app-wide; keeps the loaded model warm (§6.5).
+/// One inference isolate per engine app-wide; keeps loaded models warm
+/// (§6.5, queue concurrency is 1 so the two never run at once).
 final whisperWorkerProvider = Provider<WhisperWorker>((ref) {
   final worker = WhisperWorker(resolveWhisperLibraryPath());
   ref.onDispose(worker.dispose);
   return worker;
 });
 
-/// The two swappable intelligence seams (§6.3). Whisper ships in M2 (D2);
-/// summarization arrives with M3 (D3).
+final llamaWorkerProvider = Provider<LlamaWorker>((ref) {
+  final worker = LlamaWorker(resolveLlamaLibraryPath());
+  ref.onDispose(worker.dispose);
+  return worker;
+});
+
+/// The two swappable intelligence seams (§6.3): whisper (D2, M2) and the
+/// local LLM (D3, M3).
 final transcriptionProvider = Provider<TranscriptionProvider>((ref) {
   final settings = ref.watch(settingsProvider).value ?? const AppSettings();
   return WhisperCppTranscriptionProvider(
@@ -67,22 +82,39 @@ final transcriptionProvider = Provider<TranscriptionProvider>((ref) {
   );
 });
 
-final summarizationProvider = Provider<SummarizationProvider>(
-    (ref) => const NotInstalledSummarizationProvider());
+final summarizationProvider = Provider<SummarizationProvider>((ref) {
+  final settings = ref.watch(settingsProvider).value ?? const AppSettings();
+  return LocalLlmSummarizationProvider(
+    models: ref.watch(llmModelManagerProvider),
+    worker: ref.watch(llamaWorkerProvider),
+    tier: settings.llmTier,
+  );
+});
 
-/// Deliberately *not* watching [transcriptionProvider]: the queue survives a
-/// tier switch and resolves the provider per job instead (see JobQueue docs).
+/// Deliberately *not* watching the two engine providers: the queue survives
+/// a tier switch and resolves them per job instead (see JobQueue docs).
 final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
       ref.watch(appDatabaseProvider),
       ref.watch(memoRepositoryProvider),
+      ref.watch(cassetteRepositoryProvider),
       ref.watch(settingsRepositoryProvider),
       () => ref.read(transcriptionProvider),
+      () => ref.read(summarizationProvider),
     ));
 
-/// Per-tier model install/download state for the Settings picker (§5.5).
+/// Per-tier model install/download state for the Settings pickers (§5.5).
 final whisperModelStatesProvider =
     StreamProvider<List<WhisperModelState>>((ref) async* {
   final manager = ref.watch(whisperModelManagerProvider);
+  yield manager.snapshot();
+  await for (final _ in manager.changes) {
+    yield manager.snapshot();
+  }
+});
+
+final llmModelStatesProvider =
+    StreamProvider<List<LlmModelState>>((ref) async* {
+  final manager = ref.watch(llmModelManagerProvider);
   yield manager.snapshot();
   await for (final _ in manager.changes) {
     yield manager.snapshot();

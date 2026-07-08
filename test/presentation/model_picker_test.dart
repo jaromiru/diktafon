@@ -7,6 +7,7 @@ import 'package:diktafon/application/providers.dart';
 import 'package:diktafon/data/db/database.dart';
 import 'package:diktafon/presentation/screens/settings_screen.dart';
 import 'package:diktafon/presentation/theme/theme.dart';
+import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
 import 'package:diktafon/services/providers/whisper/whisper_model_manager.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -63,6 +64,9 @@ void main() {
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
         whisperModelManagerProvider.overrideWithValue(manager),
+        // Selecting a tier drains the job queue, which consults the
+        // summarization seam — give it a real (empty) store.
+        llmModelManagerProvider.overrideWithValue(LlmModelManager(dir)),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light),

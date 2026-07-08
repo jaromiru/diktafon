@@ -167,7 +167,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
                       onSeekGlobalMs: (ms) => player.seekGlobal(ms),
                       onRetryMemo: (memoId) => ref
                           .read(jobQueueProvider)
-                          .retryTranscription(memoId),
+                          .retryEnrichment(memoId),
                     ),
                   ),
           ),
@@ -388,11 +388,13 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         ) ??
         false;
     if (!confirmed) return;
-    // §14 "delete during processing": cancel jobs, remove row + audio.
+    // §14 "delete during processing": cancel jobs, remove row + audio, then
+    // let the queue schedule the cassette-summary recompute.
     await ref.read(jobQueueProvider).cancelJobsFor(memo.id);
     await ref.read(memoRepositoryProvider).delete(memo.id);
     await ref.read(audioFileStoreProvider).deleteMemoFile(memo.filePath);
     await ref.read(cassetteRepositoryProvider).touch(memo.cassetteId);
+    await ref.read(jobQueueProvider).onMemoDeleted(memo);
   }
 }
 

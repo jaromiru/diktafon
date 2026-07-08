@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 import 'application/providers.dart';
 import 'data/files/audio_file_store.dart';
+import 'services/providers/llm/llm_model_manager.dart';
 import 'services/providers/whisper/whisper_model_manager.dart';
 
 Future<void> main() async {
@@ -25,11 +26,14 @@ Future<void> main() async {
   final fileStore = await AudioFileStore.open();
   // Models are regenerable → app-support, excluded from backup (§7.1).
   final supportDir = await getApplicationSupportDirectory();
-  final modelManager =
+  final whisperModels =
       WhisperModelManager(Directory('${supportDir.path}/models/whisper'));
+  final llmModels =
+      LlmModelManager(Directory('${supportDir.path}/models/llm'));
   final container = ProviderContainer(overrides: [
     audioFileStoreProvider.overrideWithValue(fileStore),
-    whisperModelManagerProvider.overrideWithValue(modelManager),
+    whisperModelManagerProvider.overrideWithValue(whisperModels),
+    llmModelManagerProvider.overrideWithValue(llmModels),
   ]);
 
   // Resume any jobs persisted before the last shutdown (§6.5 durability).

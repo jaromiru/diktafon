@@ -95,6 +95,9 @@ class _TranscriptViewState extends State<TranscriptView> {
               ordinal: i + 1,
               hue: context.tape.hues[memoHueIndex(widget.colorSeed, i)],
               first: i == 0,
+              onRetry: widget.onRetryMemo == null
+                  ? null
+                  : () => widget.onRetryMemo!(memo.id),
             ),
             _memoBody(context, memo, i),
             const SizedBox(height: 4),
@@ -164,17 +167,32 @@ class _MemoDivider extends StatelessWidget {
     required this.ordinal,
     required this.hue,
     required this.first,
+    this.onRetry,
   });
 
   final Memo memo;
   final int ordinal;
   final Color hue;
   final bool first;
+  final VoidCallback? onRetry;
+
+  /// The gist line under the stamp (§5.3): the memo summary once it exists,
+  /// a quiet progress note while the LLM works, a retry affordance when
+  /// summarization permanently failed (§14). Null → no second line.
+  (String, VoidCallback?)? _caption() {
+    if (memo.memoSummary != null) return (memo.memoSummary!, null);
+    if (memo.status == MemoStatus.summarizing) return ('summarizing…', null);
+    if (memo.status == MemoStatus.failed && memo.transcript != null) {
+      return ('summary failed — tap to retry', onRetry);
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final tape = context.tape;
     final stamp = DateFormat('dd. MM. yyyy HH:mm').format(memo.createdAt);
+    final caption = _caption();
     return Container(
       margin: EdgeInsets.only(top: first ? 0 : 13, bottom: 11),
       padding: const EdgeInsets.only(top: 10),
@@ -207,15 +225,22 @@ class _MemoDivider extends StatelessWidget {
                     color: tape.ink,
                   ),
                 ),
-                if (memo.memoSummary != null)
+                if (caption != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      memo.memoSummary!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
-                        color: tape.ink2,
+                    child: GestureDetector(
+                      onTap: caption.$2,
+                      child: Text(
+                        caption.$1,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: tape.ink2,
+                          decoration: caption.$2 == null
+                              ? null
+                              : TextDecoration.underline,
+                          decorationColor: tape.ink2,
+                        ),
                       ),
                     ),
                   ),

@@ -37,6 +37,10 @@ class Memos extends Table {
   /// Transcript stored as a JSON blob per memo (§7.2 — no search in v1).
   TextColumn get transcript => text().nullable()();
   TextColumn get memoSummary => text().nullable()();
+
+  /// When this memo's summary was folded into the rolling cassette summary
+  /// (§6.7); null → not folded yet. Queue bookkeeping, not shown in UI.
+  IntColumn get foldedAt => integer().nullable()();  // epoch ms
   TextColumn get status => text()();
 
   @override
@@ -75,10 +79,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // M3: cassette-summary fold bookkeeping.
+            await m.addColumn(memos, memos.foldedAt);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },

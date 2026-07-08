@@ -623,6 +623,17 @@ class $MemosTable extends Memos with TableInfo<$MemosTable, MemoRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _foldedAtMeta = const VerificationMeta(
+    'foldedAt',
+  );
+  @override
+  late final GeneratedColumn<int> foldedAt = GeneratedColumn<int>(
+    'folded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -642,6 +653,7 @@ class $MemosTable extends Memos with TableInfo<$MemosTable, MemoRow> {
     detectedLang,
     transcript,
     memoSummary,
+    foldedAt,
     status,
   ];
   @override
@@ -717,6 +729,12 @@ class $MemosTable extends Memos with TableInfo<$MemosTable, MemoRow> {
         ),
       );
     }
+    if (data.containsKey('folded_at')) {
+      context.handle(
+        _foldedAtMeta,
+        foldedAt.isAcceptableOrUnknown(data['folded_at']!, _foldedAtMeta),
+      );
+    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -766,6 +784,10 @@ class $MemosTable extends Memos with TableInfo<$MemosTable, MemoRow> {
         DriftSqlType.string,
         data['${effectivePrefix}memo_summary'],
       ),
+      foldedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}folded_at'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -790,6 +812,10 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
   /// Transcript stored as a JSON blob per memo (§7.2 — no search in v1).
   final String? transcript;
   final String? memoSummary;
+
+  /// When this memo's summary was folded into the rolling cassette summary
+  /// (§6.7); null → not folded yet. Queue bookkeeping, not shown in UI.
+  final int? foldedAt;
   final String status;
   const MemoRow({
     required this.id,
@@ -800,6 +826,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
     this.detectedLang,
     this.transcript,
     this.memoSummary,
+    this.foldedAt,
     required this.status,
   });
   @override
@@ -818,6 +845,9 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
     }
     if (!nullToAbsent || memoSummary != null) {
       map['memo_summary'] = Variable<String>(memoSummary);
+    }
+    if (!nullToAbsent || foldedAt != null) {
+      map['folded_at'] = Variable<int>(foldedAt);
     }
     map['status'] = Variable<String>(status);
     return map;
@@ -839,6 +869,9 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
       memoSummary: memoSummary == null && nullToAbsent
           ? const Value.absent()
           : Value(memoSummary),
+      foldedAt: foldedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(foldedAt),
       status: Value(status),
     );
   }
@@ -857,6 +890,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
       detectedLang: serializer.fromJson<String?>(json['detectedLang']),
       transcript: serializer.fromJson<String?>(json['transcript']),
       memoSummary: serializer.fromJson<String?>(json['memoSummary']),
+      foldedAt: serializer.fromJson<int?>(json['foldedAt']),
       status: serializer.fromJson<String>(json['status']),
     );
   }
@@ -872,6 +906,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
       'detectedLang': serializer.toJson<String?>(detectedLang),
       'transcript': serializer.toJson<String?>(transcript),
       'memoSummary': serializer.toJson<String?>(memoSummary),
+      'foldedAt': serializer.toJson<int?>(foldedAt),
       'status': serializer.toJson<String>(status),
     };
   }
@@ -885,6 +920,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
     Value<String?> detectedLang = const Value.absent(),
     Value<String?> transcript = const Value.absent(),
     Value<String?> memoSummary = const Value.absent(),
+    Value<int?> foldedAt = const Value.absent(),
     String? status,
   }) => MemoRow(
     id: id ?? this.id,
@@ -895,6 +931,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
     detectedLang: detectedLang.present ? detectedLang.value : this.detectedLang,
     transcript: transcript.present ? transcript.value : this.transcript,
     memoSummary: memoSummary.present ? memoSummary.value : this.memoSummary,
+    foldedAt: foldedAt.present ? foldedAt.value : this.foldedAt,
     status: status ?? this.status,
   );
   MemoRow copyWithCompanion(MemosCompanion data) {
@@ -917,6 +954,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
       memoSummary: data.memoSummary.present
           ? data.memoSummary.value
           : this.memoSummary,
+      foldedAt: data.foldedAt.present ? data.foldedAt.value : this.foldedAt,
       status: data.status.present ? data.status.value : this.status,
     );
   }
@@ -932,6 +970,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
           ..write('detectedLang: $detectedLang, ')
           ..write('transcript: $transcript, ')
           ..write('memoSummary: $memoSummary, ')
+          ..write('foldedAt: $foldedAt, ')
           ..write('status: $status')
           ..write(')'))
         .toString();
@@ -947,6 +986,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
     detectedLang,
     transcript,
     memoSummary,
+    foldedAt,
     status,
   );
   @override
@@ -961,6 +1001,7 @@ class MemoRow extends DataClass implements Insertable<MemoRow> {
           other.detectedLang == this.detectedLang &&
           other.transcript == this.transcript &&
           other.memoSummary == this.memoSummary &&
+          other.foldedAt == this.foldedAt &&
           other.status == this.status);
 }
 
@@ -973,6 +1014,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
   final Value<String?> detectedLang;
   final Value<String?> transcript;
   final Value<String?> memoSummary;
+  final Value<int?> foldedAt;
   final Value<String> status;
   final Value<int> rowid;
   const MemosCompanion({
@@ -984,6 +1026,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
     this.detectedLang = const Value.absent(),
     this.transcript = const Value.absent(),
     this.memoSummary = const Value.absent(),
+    this.foldedAt = const Value.absent(),
     this.status = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -996,6 +1039,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
     this.detectedLang = const Value.absent(),
     this.transcript = const Value.absent(),
     this.memoSummary = const Value.absent(),
+    this.foldedAt = const Value.absent(),
     required String status,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1013,6 +1057,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
     Expression<String>? detectedLang,
     Expression<String>? transcript,
     Expression<String>? memoSummary,
+    Expression<int>? foldedAt,
     Expression<String>? status,
     Expression<int>? rowid,
   }) {
@@ -1025,6 +1070,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
       if (detectedLang != null) 'detected_lang': detectedLang,
       if (transcript != null) 'transcript': transcript,
       if (memoSummary != null) 'memo_summary': memoSummary,
+      if (foldedAt != null) 'folded_at': foldedAt,
       if (status != null) 'status': status,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1039,6 +1085,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
     Value<String?>? detectedLang,
     Value<String?>? transcript,
     Value<String?>? memoSummary,
+    Value<int?>? foldedAt,
     Value<String>? status,
     Value<int>? rowid,
   }) {
@@ -1051,6 +1098,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
       detectedLang: detectedLang ?? this.detectedLang,
       transcript: transcript ?? this.transcript,
       memoSummary: memoSummary ?? this.memoSummary,
+      foldedAt: foldedAt ?? this.foldedAt,
       status: status ?? this.status,
       rowid: rowid ?? this.rowid,
     );
@@ -1083,6 +1131,9 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
     if (memoSummary.present) {
       map['memo_summary'] = Variable<String>(memoSummary.value);
     }
+    if (foldedAt.present) {
+      map['folded_at'] = Variable<int>(foldedAt.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -1103,6 +1154,7 @@ class MemosCompanion extends UpdateCompanion<MemoRow> {
           ..write('detectedLang: $detectedLang, ')
           ..write('transcript: $transcript, ')
           ..write('memoSummary: $memoSummary, ')
+          ..write('foldedAt: $foldedAt, ')
           ..write('status: $status, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2121,6 +2173,7 @@ typedef $$MemosTableCreateCompanionBuilder =
       Value<String?> detectedLang,
       Value<String?> transcript,
       Value<String?> memoSummary,
+      Value<int?> foldedAt,
       required String status,
       Value<int> rowid,
     });
@@ -2134,6 +2187,7 @@ typedef $$MemosTableUpdateCompanionBuilder =
       Value<String?> detectedLang,
       Value<String?> transcript,
       Value<String?> memoSummary,
+      Value<int?> foldedAt,
       Value<String> status,
       Value<int> rowid,
     });
@@ -2200,6 +2254,11 @@ class $$MemosTableFilterComposer extends Composer<_$AppDatabase, $MemosTable> {
 
   ColumnFilters<String> get memoSummary => $composableBuilder(
     column: $table.memoSummary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get foldedAt => $composableBuilder(
+    column: $table.foldedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2276,6 +2335,11 @@ class $$MemosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get foldedAt => $composableBuilder(
+    column: $table.foldedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -2343,6 +2407,9 @@ class $$MemosTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get foldedAt =>
+      $composableBuilder(column: $table.foldedAt, builder: (column) => column);
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -2406,6 +2473,7 @@ class $$MemosTableTableManager
                 Value<String?> detectedLang = const Value.absent(),
                 Value<String?> transcript = const Value.absent(),
                 Value<String?> memoSummary = const Value.absent(),
+                Value<int?> foldedAt = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MemosCompanion(
@@ -2417,6 +2485,7 @@ class $$MemosTableTableManager
                 detectedLang: detectedLang,
                 transcript: transcript,
                 memoSummary: memoSummary,
+                foldedAt: foldedAt,
                 status: status,
                 rowid: rowid,
               ),
@@ -2430,6 +2499,7 @@ class $$MemosTableTableManager
                 Value<String?> detectedLang = const Value.absent(),
                 Value<String?> transcript = const Value.absent(),
                 Value<String?> memoSummary = const Value.absent(),
+                Value<int?> foldedAt = const Value.absent(),
                 required String status,
                 Value<int> rowid = const Value.absent(),
               }) => MemosCompanion.insert(
@@ -2441,6 +2511,7 @@ class $$MemosTableTableManager
                 detectedLang: detectedLang,
                 transcript: transcript,
                 memoSummary: memoSummary,
+                foldedAt: foldedAt,
                 status: status,
                 rowid: rowid,
               ),

@@ -6,6 +6,7 @@ class AppSettings {
     this.appLanguage,
     this.chimeEnabled = true,
     this.whisperTier = 'small',
+    this.llmTier = 'qwen3-1.7b',
     this.summariesEnabled = true,
     this.theme = 'system',
   });
@@ -14,6 +15,7 @@ class AppSettings {
   final String? appLanguage;
   final bool chimeEnabled;
   final String whisperTier;
+  final String llmTier;
   final bool summariesEnabled;
 
   /// 'system' | 'light' | 'dark'.
@@ -23,6 +25,7 @@ class AppSettings {
         appLanguage: rows['appLanguage'],
         chimeEnabled: rows['chimeEnabled'] != '0',
         whisperTier: rows['whisperTier'] ?? 'small',
+        llmTier: rows['llmTier'] ?? 'qwen3-1.7b',
         summariesEnabled: rows['summariesEnabled'] != '0',
         theme: rows['theme'] ?? 'system',
       );
@@ -57,6 +60,7 @@ class SettingsRepository {
   Future<void> setAppLanguage(String? code) => _set('appLanguage', code);
   Future<void> setChimeEnabled(bool on) => _set('chimeEnabled', on ? '1' : '0');
   Future<void> setWhisperTier(String tier) => _set('whisperTier', tier);
+  Future<void> setLlmTier(String tier) => _set('llmTier', tier);
   Future<void> setSummariesEnabled(bool on) =>
       _set('summariesEnabled', on ? '1' : '0');
   Future<void> setTheme(String theme) => _set('theme', theme);

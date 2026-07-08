@@ -18,6 +18,7 @@ import 'package:diktafon/application/providers.dart';
 import 'package:diktafon/data/db/database.dart';
 import 'package:diktafon/data/files/audio_file_store.dart';
 import 'package:diktafon/presentation/widgets/deck.dart';
+import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
 import 'package:diktafon/services/providers/whisper/whisper_model_manager.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
@@ -93,6 +94,12 @@ void main() {
         audioFileStoreProvider.overrideWithValue(AudioFileStore(audioDir)),
         whisperModelManagerProvider
             .overrideWithValue(WhisperModelManager(modelDir)),
+        // No LLM installed: with a silent (headless-mic) memo the transcript
+        // is empty and enrichment completes at 'ready' without it; a memo
+        // with real words parks at 'transcribed' until the model lands.
+        llmModelManagerProvider.overrideWithValue(LlmModelManager(
+            Directory('${_workDir.path}/models/llm')
+              ..createSync(recursive: true))),
       ]);
       addTearDown(container.dispose);
 
@@ -118,10 +125,13 @@ void main() {
       await _settle(tester);
 
       // — The memo must land in a terminal transcription state (D7): the
-      //   tiny model on 4 s of audio takes a few seconds incl. model load —
+      //   tiny model on 4 s of audio takes a few seconds incl. model load.
+      //   Silence (headless mic) → empty transcript → 'ready' (§6.7 summary
+      //   skipped); real words → 'transcribed', gist parked (no LLM here) —
       MemoRow? memo;
       final deadline = DateTime.now().add(const Duration(seconds: 90));
       var sawTranscribing = false;
+      const terminal = {'ready', 'transcribed', 'failed'};
       while (DateTime.now().isBefore(deadline)) {
         memo = await (db.select(db.memos)
               ..orderBy([(m) => drift.OrderingTerm.asc(m.createdAt)])
@@ -131,12 +141,12 @@ void main() {
           sawTranscribing = true;
           await _shot(tester, '10-transcribing-shimmer');
         }
-        if (memo?.status == 'transcribed' || memo?.status == 'failed') break;
+        if (terminal.contains(memo?.status)) break;
         await _settle(tester, frames: 4);
       }
 
       expect(memo, isNotNull);
-      expect(memo!.status, 'transcribed',
+      expect(memo!.status, isIn(['ready', 'transcribed']),
           reason: 'memo must reach a good terminal state '
               '(sawTranscribing=$sawTranscribing, now=${memo.status})');
       await _settle(tester, frames: 8);

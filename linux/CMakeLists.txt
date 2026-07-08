@@ -110,9 +110,10 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     COMPONENT Runtime)
 endforeach(bundled_library)
 
-# The whisper engine ships next to the plugin libraries; the Dart side loads
-# it from <bundle>/lib/libdiktafon_whisper.so (whisper_bindings.dart).
-install(TARGETS diktafon_whisper
+# The ML engines ship next to the plugin libraries; the Dart side loads them
+# from <bundle>/lib/libdiktafon_*.so (whisper_bindings.dart /
+# llama_bindings.dart).
+install(TARGETS diktafon_whisper diktafon_llama
   LIBRARY DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 

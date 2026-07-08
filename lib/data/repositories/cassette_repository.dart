@@ -74,6 +74,23 @@ class CassetteRepository {
     return cassetteFromRow(row);
   }
 
+  /// Rolling summary refresh (§6.7); null clears it (tape emptied out).
+  Future<void> setSummary(String id, String? summary) =>
+      (_db.update(_db.cassettes)..where((c) => c.id.equals(id))).write(
+        CassettesCompanion(
+          summary: Value(summary),
+          summaryUpdatedAt: Value(
+              summary == null ? null : DateTime.now().millisecondsSinceEpoch),
+        ),
+      );
+
+  /// Auto-suggested title (D10): the WHERE guard makes sure a user rename
+  /// that lands mid-suggestion is never overwritten.
+  Future<void> setSuggestedLabel(String id, String label) =>
+      (_db.update(_db.cassettes)
+            ..where((c) => c.id.equals(id) & c.titleIsUserSet.equals(false)))
+          .write(CassettesCompanion(label: Value(label)));
+
   /// User rename: sets the D10 override flag so auto-suggestions stop.
   Future<void> rename(String id, String label) =>
       (_db.update(_db.cassettes)..where((c) => c.id.equals(id))).write(
