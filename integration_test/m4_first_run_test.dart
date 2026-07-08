@@ -1,8 +1,10 @@
-/// M4 end-to-end: the first-run flow (§5.6, mockup 01 r7) on a real
-/// desktop — one screen: model downloads auto-start against a local HTTP
-/// server (not HuggingFace), the microphone row is the CTA's only gate,
-/// START RECORDING opens the first cassette empty (record armed, nothing
-/// rolling). Then the Backup & export screen (§8) lists the new cassette.
+/// M4 end-to-end: the first-run flow (§5.6, mockup 01 r8) on a real
+/// desktop — one screen: nothing downloads on its own (the user may be on a
+/// metered connection); each model row opens its picker, where choosing a
+/// tier starts the download against a local HTTP server (not HuggingFace).
+/// The microphone row is the CTA's only gate, START RECORDING opens the
+/// first cassette empty (record armed, nothing rolling). Then the Export
+/// data screen (§8) lists the new cassette.
 ///
 /// Engine seams are overridden with fakes: the "models" this test downloads
 /// are byte payloads, not runnable networks (§6.3 — that is the point of the
@@ -89,6 +91,11 @@ class _FakeSummarization implements SummarizationProvider {
 
   @override
   Future<void> ensureModel({ProgressSink? onProgress}) async {}
+
+  @override
+  Future<Transcript> cleanTranscript(Transcript t,
+          {required String languageCode}) async =>
+      t;
 
   @override
   Future<String> summarizeMemo(Transcript t,
@@ -206,14 +213,37 @@ void main() {
     expect(find.text('Welcome to Diktafon'), findsOneWidget,
         reason: 'START RECORDING stays dimmed until the mic is granted');
 
-    // — Downloads auto-started with the screen (note 3): both rows land
-    //   without any user action —
-    for (var i = 0; i < 40; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      if (find.textContaining('· ready').evaluate().length == 2) break;
+    // — Nothing downloads on its own (note 3, r8): both rows wait for an
+    //   explicit choice — the user may be on a metered connection —
+    await _settle(tester);
+    expect(find.text('tap to choose a model to download'), findsNWidgets(2),
+        reason: 'downloads must not start without the user choosing a model');
+
+    // Choosing a tier inside a row's picker is what starts its download.
+    Future<void> provision(String row, String option) async {
+      await tester.tap(find.text(row));
+      await _settle(tester);
+      await tester.tap(find.text(option));
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        if (find.textContaining('installed ·').evaluate().isNotEmpty) break;
+      }
+      expect(find.textContaining('installed ·'), findsOneWidget,
+          reason: '$option downloaded once chosen');
+      await tester.tapAt(const Offset(5, 5)); // dismiss the picker
+      await _settle(tester);
     }
+
+    await provision('Transcription', 'Whisper small');
+    await provision('Summaries', 'Qwen3 1.7B');
     expect(find.textContaining('· ready'), findsNWidgets(2),
-        reason: 'both models downloaded from the local server unprompted');
+        reason: 'both rows reflect the finished downloads');
+    // The pickers' "ready" snackbars would otherwise still hover over the
+    // deck keys when the cassette opens below.
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger).first)
+        .clearSnackBars();
+    await _settle(tester);
 
     // — The mic row itself fires the permission prompt (note 2) —
     await tester.tap(find.text('Allow microphone'));
@@ -258,10 +288,10 @@ void main() {
     expect(find.text('Welcome to Diktafon'), findsNothing,
         reason: 'first-run never comes back');
 
-    // — Backup & export (§8): the cassette is offered for export —
+    // — Export data (§8): the cassette is offered for export —
     await tester.tap(find.byTooltip('Settings'));
     await _settle(tester);
-    await tester.tap(find.text('Backup & export'));
+    await tester.tap(find.text('Export data'));
     await _settle(tester);
     expect(find.text('Export all cassettes'), findsOneWidget);
     expect(find.textContaining('1 memo'), findsWidgets,

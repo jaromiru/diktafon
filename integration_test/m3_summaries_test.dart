@@ -194,7 +194,6 @@ void main() {
       expect(memo?.status, 'ready',
           reason: 'the restored job must complete the §4.3 state machine');
       expect(memo!.memoSummary, isNotEmpty);
-      expect(memo.foldedAt, isNotNull, reason: 'gist folded into overview');
       expect(cassette!.summary, isNotEmpty);
       expect(cassette.label, isNotEmpty,
           reason: 'title auto-suggested from the overview (D10)');

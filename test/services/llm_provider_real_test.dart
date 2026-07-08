@@ -71,6 +71,20 @@ void main() {
       expect(title, isNotEmpty);
       expect(title.length, lessThanOrEqualTo(60));
       expect(title, isNot(contains('\n')));
+
+      // §6.8 cleanup smoke: the structural contract must hold regardless of
+      // what the model decides to fix — same segments/spans/language, no
+      // empty rewrites. (Actual corrections are not asserted: a 0.6B tier
+      // is too erratic for content expectations.)
+      final cleaned =
+          await provider.cleanTranscript(transcript, languageCode: 'cs');
+      expect(cleaned.languageCode, transcript.languageCode);
+      expect(cleaned.segments, hasLength(transcript.segments.length));
+      for (final (i, segment) in cleaned.segments.indexed) {
+        expect(segment.startMs, transcript.segments[i].startMs);
+        expect(segment.endMs, transcript.segments[i].endMs);
+        expect(segment.words, isNotEmpty);
+      }
     },
     skip: available ? false : skipNote,
     timeout: const Timeout(Duration(minutes: 5)),

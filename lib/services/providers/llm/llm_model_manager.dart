@@ -79,8 +79,7 @@ class LlmModel implements ModelSpec {
   static const qwen3_1_7b = LlmModel(
     tier: 'qwen3-1.7b',
     label: 'Qwen3 1.7B',
-    description: 'Recommended — compact multilingual summaries in all seven '
-        'languages, incl. Czech & Polish.',
+    description: 'Recommended — compact multilingual summaries.',
     repo: 'Qwen/Qwen3-1.7B-GGUF',
     fileName: 'Qwen3-1.7B-Q8_0.gguf',
     sizeBytes: 1834426016,

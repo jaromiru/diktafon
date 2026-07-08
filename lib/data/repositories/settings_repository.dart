@@ -8,16 +8,21 @@ class AppSettings {
     this.whisperTier = 'small',
     this.llmTier = 'qwen3-1.7b',
     this.summariesEnabled = true,
+    this.cleanupEnabled = true,
     this.theme = 'system',
     this.firstRunDone = false,
   });
 
-  /// Null → auto-detect from the first memo (D8).
+  /// Null → auto-detect per memo (D8), so one tape may mix languages; set →
+  /// a forced override for speakers whisper keeps mis-detecting.
   final String? appLanguage;
   final bool chimeEnabled;
   final String whisperTier;
   final String llmTier;
   final bool summariesEnabled;
+
+  /// LLM cleanup of fresh transcripts (§6.8) — best-effort polish.
+  final bool cleanupEnabled;
 
   /// 'system' | 'light' | 'dark'.
   final String theme;
@@ -31,6 +36,7 @@ class AppSettings {
         whisperTier: rows['whisperTier'] ?? 'small',
         llmTier: rows['llmTier'] ?? 'qwen3-1.7b',
         summariesEnabled: rows['summariesEnabled'] != '0',
+        cleanupEnabled: rows['transcriptCleanup'] != '0',
         theme: rows['theme'] ?? 'system',
         firstRunDone: rows['firstRunDone'] == '1',
       );
@@ -68,6 +74,8 @@ class SettingsRepository {
   Future<void> setLlmTier(String tier) => _set('llmTier', tier);
   Future<void> setSummariesEnabled(bool on) =>
       _set('summariesEnabled', on ? '1' : '0');
+  Future<void> setCleanupEnabled(bool on) =>
+      _set('transcriptCleanup', on ? '1' : '0');
   Future<void> setTheme(String theme) => _set('theme', theme);
   Future<void> setFirstRunDone() => _set('firstRunDone', '1');
 }

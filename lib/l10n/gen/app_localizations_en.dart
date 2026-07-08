@@ -197,10 +197,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcriptionLanguage => 'Transcription language';
 
   @override
-  String get autoDetectValue => 'Auto-detect — set from your first memo';
+  String get autoDetectValue =>
+      'Auto-detect — each memo keeps its own language';
 
   @override
-  String get autoDetectOption => 'Auto-detect (from first recording)';
+  String get autoDetectOption => 'Auto-detect (per memo)';
 
   @override
   String get transcriptionLanguageTitle => 'TRANSCRIPTION LANGUAGE';
@@ -268,7 +269,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupYourData => 'Your data';
 
   @override
-  String get backupExport => 'Backup & export';
+  String get backupExport => 'Export data';
 
   @override
   String get backupExportDesc =>
@@ -376,10 +377,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'waiting to download…';
-
-  @override
-  String get provisionFailedRetry => 'download failed — tap to retry';
+  String get provisionChoose => 'tap to choose a model to download';
 
   @override
   String get downloadsFinishInBackground =>
@@ -389,7 +387,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startRecordingKey => 'START RECORDING';
 
   @override
-  String get backupTitle => 'BACKUP & EXPORT';
+  String get backupTitle => 'EXPORT DATA';
 
   @override
   String get backupIntro =>
@@ -442,4 +440,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(not transcribed)';
+
+  @override
+  String get openSystemSettings => 'SETTINGS';
+
+  @override
+  String get changeColor => 'Change color';
+
+  @override
+  String get colorPickerTitle => 'CASSETTE COLOR';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Color $n';
+  }
+
+  @override
+  String get copyTranscript => 'Copy transcription';
+
+  @override
+  String get transcriptCopied => 'Transcription copied.';
+
+  @override
+  String get deleteMemo => 'Delete memo';
+
+  @override
+  String get memoActions => 'Memo actions';
+
+  @override
+  String get cleanupRow => 'Transcript cleanup';
+
+  @override
+  String get cleanupRowDesc =>
+      'The summary model tidies fresh transcripts — spelling & recognition slips';
+
+  @override
+  String notifDownloading(String label) {
+    return 'Downloading $label';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return '$label installed';
+  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../data/repositories/cassette_repository.dart';
+import '../../domain/palette.dart';
 import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/cassette_card.dart';
@@ -105,6 +106,10 @@ class HomeScreen extends ConsumerWidget {
               onTap: () => Navigator.pop(sheetContext, 'rename'),
             ),
             ListTile(
+              title: Text(context.l10n.changeColor),
+              onTap: () => Navigator.pop(sheetContext, 'color'),
+            ),
+            ListTile(
               title: Text(context.l10n.delete),
               onTap: () => Navigator.pop(sheetContext, 'delete'),
             ),
@@ -118,6 +123,10 @@ class HomeScreen extends ConsumerWidget {
         await showRenameCassetteDialog(context, ref,
             cassetteId: overview.cassette.id,
             currentLabel: overview.cassette.label);
+      case 'color':
+        await showCassetteColorDialog(context, ref,
+            cassetteId: overview.cassette.id,
+            currentSeed: overview.cassette.colorSeed);
       case 'delete':
         await confirmDeleteCassette(context, ref,
             cassetteId: overview.cassette.id,
@@ -161,6 +170,58 @@ Future<void> showRenameCassetteDialog(
   );
   if (label != null) {
     await ref.read(cassetteRepositoryProvider).rename(cassetteId, label);
+  }
+}
+
+/// Shared with the cassette screen's overflow menu: one of the six tape hues
+/// (§10.2), as hard-cornered swatches. The stored seed is the tapped hue's
+/// index, so the accent stripe lands exactly on it and the memo palette
+/// rotates along.
+Future<void> showCassetteColorDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required String cassetteId,
+  required int currentSeed,
+}) async {
+  final l10n = context.l10n;
+  final selectedHue = cassetteHueIndex(currentSeed);
+  final seed = await showDialog<int>(
+    context: context,
+    builder: (dialogContext) {
+      final tape = dialogContext.tape;
+      return AlertDialog(
+        title: Text(l10n.colorPickerTitle),
+        content: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (var i = 0; i < tape.hues.length; i++)
+              Semantics(
+                button: true,
+                selected: i == selectedHue,
+                label: l10n.colorSwatch(i + 1),
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dialogContext, i),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: tape.hues[i],
+                      border: Border.all(
+                        color: i == selectedHue ? tape.ink : tape.line,
+                        width: i == selectedHue ? 2.5 : 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+  if (seed != null) {
+    await ref.read(cassetteRepositoryProvider).setColorSeed(cassetteId, seed);
   }
 }
 

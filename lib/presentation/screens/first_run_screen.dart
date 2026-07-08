@@ -14,14 +14,14 @@ import '../widgets/ink_progress_bar.dart';
 import 'cassette_screen.dart';
 import 'settings_screen.dart';
 
-/// First-run setup (§5.6, mockup 01 r7): a single screen. The intro and the
+/// First-run setup (§5.6, mockup 01 r8): a single screen. The intro and the
 /// privacy promise are one plain paragraph; a setup card holds the
 /// microphone row (tapping it fires the OS prompt — the CTA's only gate)
-/// and the two model rows, whose downloads start automatically and in
-/// parallel the moment the screen opens. The chevrons open the exact model
-/// pickers from Settings; downloads finish in the background and never
-/// block the CTA. START RECORDING opens the first cassette *empty* — the
-/// record key is armed, nothing rolls until pressed.
+/// and the two model rows. Nothing downloads on its own — the user may be
+/// on a metered connection, so a row's picker (the exact one from Settings)
+/// is where a model is chosen and its download starts. Downloads finish in
+/// the background and never block the CTA. START RECORDING opens the first
+/// cassette *empty* — the record key is armed, nothing rolls until pressed.
 class FirstRunScreen extends ConsumerStatefulWidget {
   const FirstRunScreen({super.key});
 
@@ -29,34 +29,9 @@ class FirstRunScreen extends ConsumerStatefulWidget {
   ConsumerState<FirstRunScreen> createState() => _FirstRunScreenState();
 }
 
-/// Download tracking for one engine: which tier this screen is awaiting,
-/// and whether that attempt failed (drives the row's retry caption).
-class _EngineWatch {
-  String? tier;
-  bool failed = false;
-}
-
 class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
   bool? _micGranted; // null → not asked yet
   bool _finishing = false;
-  final _whisper = _EngineWatch();
-  final _llm = _EngineWatch();
-
-  @override
-  void initState() {
-    super.initState();
-    // Both model downloads auto-start for the selected tiers (§5.6). The
-    // same listener re-arms after a picker switches a tier mid-download:
-    // the picker cancels & starts the new download, this join tracks it.
-    ref.listenManual(settingsProvider, fireImmediately: true, (_, next) {
-      final settings = next.value;
-      if (settings == null) return;
-      unawaited(_arm(
-          _whisper, ref.read(whisperModelManagerProvider), settings.whisperTier));
-      unawaited(
-          _arm(_llm, ref.read(llmModelManagerProvider), settings.llmTier));
-    });
-  }
 
   /// The selected tier out of a manager's catalog (not the static one —
   /// tests swap in local-server specs). A plain loop on purpose: the
@@ -67,33 +42,6 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
       if (model.tier == tier) return model;
     }
     return catalog.first;
-  }
-
-  /// Joins (or starts) the download of [tier] and keeps [watch] honest:
-  /// failures flip the row to its retry caption, a cancel means a newer
-  /// tier pick took over and stays silent.
-  Future<void> _arm(
-      _EngineWatch watch, ModelManager<ModelSpec> manager, String tier) async {
-    if (watch.tier == tier) return;
-    watch.tier = tier;
-    manager.cancelExcept(tier);
-    if (watch.failed && mounted) setState(() => watch.failed = false);
-    try {
-      await manager.download(_forTier(manager.catalog, tier));
-      // A model landing releases any memo already parked in the queue.
-      if (mounted) unawaited(ref.read(jobQueueProvider).drain());
-    } on ModelDownloadCancelled {
-      // Superseded mid-download — the new tier's download reports.
-    } catch (_) {
-      if (mounted && watch.tier == tier) setState(() => watch.failed = true);
-    }
-  }
-
-  void _retry(_EngineWatch watch, ModelManager<ModelSpec> manager) {
-    final tier = watch.tier;
-    if (tier == null) return;
-    watch.tier = null; // force _arm through its tier-unchanged guard
-    unawaited(_arm(watch, manager, tier));
   }
 
   Future<void> _requestMicrophone() async {
@@ -191,8 +139,6 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
           _modelRow(
             l10n: l10n,
             title: l10n.rowTranscription,
-            watch: _whisper,
-            manager: ref.read(whisperModelManagerProvider),
             model: _forTier(ref.read(whisperModelManagerProvider).catalog,
                 settings.whisperTier),
             states: ref.watch(whisperModelStatesProvider).value,
@@ -202,8 +148,6 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
           _modelRow(
             l10n: l10n,
             title: l10n.rowSummaries,
-            watch: _llm,
-            manager: ref.read(llmModelManagerProvider),
             model: _forTier(
                 ref.read(llmModelManagerProvider).catalog, settings.llmTier),
             states: ref.watch(llmModelStatesProvider).value,
@@ -231,11 +175,13 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
     );
   }
 
+  /// One engine row: a mirror of the selected tier's state. Choosing (and
+  /// thereby downloading) happens in the picker — the row never starts a
+  /// download by itself; failures report through the picker's snackbar and
+  /// the row simply falls back to its "tap to choose" caption.
   Widget _modelRow({
     required AppLocalizations l10n,
     required String title,
-    required _EngineWatch watch,
-    required ModelManager<ModelSpec> manager,
     required ModelSpec model,
     required List<ModelState<ModelSpec>>? states,
     required Widget picker,
@@ -251,18 +197,14 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
       icon: ready ? Icons.check : Icons.download,
       iconColor: ready ? tape.ok : tape.ink2,
       title: title,
-      caption: watch.failed
-          ? l10n.provisionFailedRetry
-          : switch (state?.status) {
-              ModelStatus.ready =>
-                l10n.provisionReady(model.label, model.sizeLabel),
-              ModelStatus.downloading => l10n.provisionDownloading(model.label,
-                  model.sizeLabel, ((state?.progress ?? 0) * 100).round()),
-              _ => l10n.provisionWaiting,
-            },
-      captionUnderlined: watch.failed,
+      caption: switch (state?.status) {
+        ModelStatus.ready => l10n.provisionReady(model.label, model.sizeLabel),
+        ModelStatus.downloading => l10n.provisionDownloading(model.label,
+            model.sizeLabel, ((state?.progress ?? 0) * 100).round()),
+        _ => l10n.provisionChoose,
+      },
       progress: downloading ? state?.progress : null,
-      onTap: watch.failed ? () => _retry(watch, manager) : openPicker,
+      onTap: openPicker,
       onChevron: openPicker,
     );
   }
@@ -276,7 +218,6 @@ class _SetupRow extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.caption,
-    this.captionUnderlined = false,
     this.progress,
     this.onTap,
     this.onChevron,
@@ -286,7 +227,6 @@ class _SetupRow extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String caption;
-  final bool captionUnderlined;
   final double? progress;
   final VoidCallback? onTap;
   final VoidCallback? onChevron;
@@ -315,13 +255,7 @@ class _SetupRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(caption,
                       style: TextStyle(
-                          fontSize: 10.5,
-                          height: 1.45,
-                          color: tape.ink2,
-                          decoration: captionUnderlined
-                              ? TextDecoration.underline
-                              : null,
-                          decorationColor: tape.ink2)),
+                          fontSize: 10.5, height: 1.45, color: tape.ink2)),
                   if (progress != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),

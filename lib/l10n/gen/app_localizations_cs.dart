@@ -200,10 +200,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get transcriptionLanguage => 'Jazyk přepisu';
 
   @override
-  String get autoDetectValue => 'Automaticky — určí se z prvního záznamu';
+  String get autoDetectValue => 'Automaticky — každý záznam si drží svůj jazyk';
 
   @override
-  String get autoDetectOption => 'Automaticky (z první nahrávky)';
+  String get autoDetectOption => 'Automaticky (pro každý záznam)';
 
   @override
   String get transcriptionLanguageTitle => 'JAZYK PŘEPISU';
@@ -271,7 +271,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get groupYourData => 'Vaše data';
 
   @override
-  String get backupExport => 'Záloha a export';
+  String get backupExport => 'Export dat';
 
   @override
   String get backupExportDesc =>
@@ -379,11 +379,7 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'čeká na stažení…';
-
-  @override
-  String get provisionFailedRetry =>
-      'stažení selhalo — klepnutím to zkusíte znovu';
+  String get provisionChoose => 'klepnutím vyberte model ke stažení';
 
   @override
   String get downloadsFinishInBackground => 'Stahování doběhne na pozadí.';
@@ -392,7 +388,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get startRecordingKey => 'ZAČÍT NAHRÁVAT';
 
   @override
-  String get backupTitle => 'ZÁLOHA A EXPORT';
+  String get backupTitle => 'EXPORT DAT';
 
   @override
   String get backupIntro =>
@@ -446,4 +442,47 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(bez přepisu)';
+
+  @override
+  String get openSystemSettings => 'NASTAVENÍ';
+
+  @override
+  String get changeColor => 'Změnit barvu';
+
+  @override
+  String get colorPickerTitle => 'BARVA KAZETY';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Barva $n';
+  }
+
+  @override
+  String get copyTranscript => 'Kopírovat přepis';
+
+  @override
+  String get transcriptCopied => 'Přepis zkopírován.';
+
+  @override
+  String get deleteMemo => 'Smazat záznam';
+
+  @override
+  String get memoActions => 'Akce záznamu';
+
+  @override
+  String get cleanupRow => 'Čištění přepisů';
+
+  @override
+  String get cleanupRowDesc =>
+      'Model pro shrnutí opraví čerstvé přepisy — překlepy a přeslechy';
+
+  @override
+  String notifDownloading(String label) {
+    return 'Stahuje se $label';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return '$label — nainstalováno';
+  }
 }

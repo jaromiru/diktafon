@@ -199,12 +199,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get transcriptionLanguage => 'Langue de transcription';
 
   @override
-  String get autoDetectValue =>
-      'Auto — déterminée à partir de votre premier mémo';
+  String get autoDetectValue => 'Auto — chaque mémo garde sa propre langue';
 
   @override
-  String get autoDetectOption =>
-      'Détection automatique (au premier enregistrement)';
+  String get autoDetectOption => 'Détection automatique (par mémo)';
 
   @override
   String get transcriptionLanguageTitle => 'LANGUE DE TRANSCRIPTION';
@@ -272,7 +270,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get groupYourData => 'Vos données';
 
   @override
-  String get backupExport => 'Sauvegarde & export';
+  String get backupExport => 'Exporter les données';
 
   @override
   String get backupExportDesc =>
@@ -380,11 +378,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'en attente de téléchargement…';
-
-  @override
-  String get provisionFailedRetry =>
-      'téléchargement échoué — touchez pour réessayer';
+  String get provisionChoose => 'touchez pour choisir un modèle à télécharger';
 
   @override
   String get downloadsFinishInBackground =>
@@ -394,7 +388,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get startRecordingKey => 'ENREGISTRER';
 
   @override
-  String get backupTitle => 'SAUVEGARDE & EXPORT';
+  String get backupTitle => 'EXPORTER LES DONNÉES';
 
   @override
   String get backupIntro =>
@@ -447,4 +441,47 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(non transcrit)';
+
+  @override
+  String get openSystemSettings => 'RÉGLAGES';
+
+  @override
+  String get changeColor => 'Changer la couleur';
+
+  @override
+  String get colorPickerTitle => 'COULEUR DE LA CASSETTE';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Couleur $n';
+  }
+
+  @override
+  String get copyTranscript => 'Copier la transcription';
+
+  @override
+  String get transcriptCopied => 'Transcription copiée.';
+
+  @override
+  String get deleteMemo => 'Supprimer le mémo';
+
+  @override
+  String get memoActions => 'Actions du mémo';
+
+  @override
+  String get cleanupRow => 'Nettoyage des transcriptions';
+
+  @override
+  String get cleanupRowDesc =>
+      'Le modèle de résumé corrige les transcriptions — fautes et erreurs de reconnaissance';
+
+  @override
+  String notifDownloading(String label) {
+    return 'Téléchargement de $label';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return '$label installé';
+  }
 }

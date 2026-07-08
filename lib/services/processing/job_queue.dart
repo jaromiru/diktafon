@@ -12,16 +12,20 @@ import '../../domain/models.dart';
 import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
 
-/// The three §6.5 job types plus `recomputeCassetteSummary`: incremental
-/// folding (§6.7) cannot *remove* a deleted memo's content from the rolling
-/// summary, so deletions schedule a from-scratch recompute instead (§14).
+/// The §6.5 job types. `cleanupTranscript` (§6.8) slots between
+/// transcription and the gist. The cassette overview is always rebuilt from
+/// *all* memo gists (§6.7 revised 2026-07-08), so `recomputeCassetteSummary`
+/// and `updateCassetteSummary` run the same code — the former stays only so
+/// job rows persisted by older builds keep draining.
 enum JobType {
   transcribe,
+  cleanupTranscript,
   summarizeMemo,
   updateCassetteSummary,
   recomputeCassetteSummary;
 
-  bool get targetsMemo => this == transcribe || this == summarizeMemo;
+  bool get targetsMemo =>
+      this == transcribe || this == cleanupTranscript || this == summarizeMemo;
 }
 
 /// Durable background pipeline (§6.5): jobs persist in the DB so they survive
@@ -60,7 +64,8 @@ class JobQueue {
 
   /// Failed memo → back on the queue at the right stage (§14 retry
   /// affordance): no transcript yet → transcribe again; transcript already
-  /// there → only the summarization is redone.
+  /// there → re-enter at cleanup when it is still owed (§6.8), otherwise
+  /// only the summarization is redone.
   Future<void> retryEnrichment(String memoId) async {
     final row = await _memoRow(memoId);
     if (row == null) return;
@@ -69,7 +74,11 @@ class JobQueue {
       await _insertJob(JobType.transcribe, memoId);
     } else {
       await _memos.updateStatus(memoId, MemoStatus.transcribed);
-      await _insertJob(JobType.summarizeMemo, memoId);
+      final cleanupOwed =
+          (await _settings.get()).cleanupEnabled && row.rawTranscript == null;
+      await _insertJob(
+          cleanupOwed ? JobType.cleanupTranscript : JobType.summarizeMemo,
+          memoId);
     }
     unawaited(drain());
   }
@@ -84,11 +93,11 @@ class JobQueue {
   }
 
   /// Call after a memo's row is gone: if its gist was part of the cassette
-  /// summary, schedule the from-scratch recompute (§14 "cassette summary is
-  /// scheduled to update").
+  /// summary, schedule the rebuild (§14 "cassette summary is scheduled to
+  /// update").
   Future<void> onMemoDeleted(Memo memo) async {
     if (memo.memoSummary == null) return;
-    await _enqueueCassetteUpdate(memo.cassetteId, recompute: true);
+    await _enqueueCassetteUpdate(memo.cassetteId);
     unawaited(drain());
   }
 
@@ -104,12 +113,19 @@ class JobQueue {
       // Enrichment waits for a provisioned model (§14) — and summarization
       // additionally for the Settings toggle; blocked jobs stay queued.
       // Re-checked every iteration: models/settings can change mid-drain.
+      final settings = await _settings.get();
+      final llmReady =
+          await _summarization().modelStatus() == ModelStatus.ready;
       final runnable = <String>[];
       if (await _transcription().modelStatus() == ModelStatus.ready) {
         runnable.add(JobType.transcribe.name);
       }
-      if ((await _settings.get()).summariesEnabled &&
-          await _summarization().modelStatus() == ModelStatus.ready) {
+      // Cleanup jobs also run with the toggle off — they pass the memo
+      // through to the gist stage instead of parking it forever.
+      if (llmReady || !settings.cleanupEnabled) {
+        runnable.add(JobType.cleanupTranscript.name);
+      }
+      if (settings.summariesEnabled && llmReady) {
         runnable.addAll([
           JobType.summarizeMemo.name,
           JobType.updateCassetteSummary.name,
@@ -135,12 +151,13 @@ class JobQueue {
       switch (type) {
         case JobType.transcribe:
           await _transcribe(job.targetId);
+        case JobType.cleanupTranscript:
+          await _cleanupTranscript(job.targetId);
         case JobType.summarizeMemo:
           await _summarizeMemo(job.targetId);
         case JobType.updateCassetteSummary:
-          await _updateCassetteSummary(job.targetId, recompute: false);
         case JobType.recomputeCassetteSummary:
-          await _updateCassetteSummary(job.targetId, recompute: true);
+          await _updateCassetteSummary(job.targetId);
       }
       await _setJob(job.id, 'done');
     } on TranscriptionCancelled {
@@ -186,22 +203,48 @@ class JobQueue {
         await _memos.setTranscript(memoId, transcript, MemoStatus.ready);
       } else {
         await _memos.setTranscript(memoId, transcript, MemoStatus.transcribed);
-        // The gist job waits in the queue while summaries are disabled or
-        // the model is missing — the drain gate holds it, never the memo.
-        await _insertJob(JobType.summarizeMemo, memoId);
-      }
-
-      // D8: no app language yet → adopt the first real detection globally.
-      // Silent memos don't count — their "detection" is noise.
-      if (settings.appLanguage == null &&
-          !transcript.isEmpty &&
-          transcript.languageCode.isNotEmpty &&
-          transcript.languageCode != 'auto') {
-        await _settings.setAppLanguage(transcript.languageCode);
+        // Cleanup (§6.8) slots in front of the gist when enabled. Either
+        // job waits in the queue while its model is missing or summaries
+        // are disabled — the drain gate holds it, never the memo.
+        await _insertJob(
+            settings.cleanupEnabled
+                ? JobType.cleanupTranscript
+                : JobType.summarizeMemo,
+            memoId);
       }
     } finally {
       _active.remove(memoId);
     }
+  }
+
+  /// Best-effort polish (§6.8): the raw transcript is already readable, so
+  /// any cleanup trouble — engine error, model gone mid-job — degrades to
+  /// "keep the original" and the pipeline moves on to the gist. The raw
+  /// take is preserved next to the rewrite (schema v3).
+  Future<void> _cleanupTranscript(String memoId) async {
+    final row = await _memoRow(memoId);
+    if (row == null) return; // deleted meanwhile (§14)
+    final transcriptJson = row.transcript;
+    if (transcriptJson == null) return; // can't happen; be safe
+
+    final settings = await _settings.get();
+    // Only fresh transcripts are cleaned (rawTranscript set → already done);
+    // a mid-queue toggle-off just passes the memo through.
+    if (settings.cleanupEnabled && row.rawTranscript == null) {
+      final transcript = Transcript.fromJson(
+          (jsonDecode(transcriptJson) as Map).cast<String, dynamic>());
+      if (!transcript.isEmpty) {
+        final language = await _languageFor(row.detectedLang);
+        try {
+          final cleaned = await _summarization()
+              .cleanTranscript(transcript, languageCode: language);
+          await _memos.setCleanedTranscript(memoId, cleaned, transcriptJson);
+        } catch (_) {
+          // Keep the original; the gist still runs.
+        }
+      }
+    }
+    await _insertJob(JobType.summarizeMemo, memoId);
   }
 
   Future<void> _summarizeMemo(String memoId) async {
@@ -234,15 +277,17 @@ class JobQueue {
     }
   }
 
-  Future<void> _updateCassetteSummary(String cassetteId,
-      {required bool recompute}) async {
+  /// Rebuilds the overview from *all* memo gists, in tape order (§6.7
+  /// revised): always faithful to the tape's current content — additions
+  /// and deletions alike — at the cost of re-reading every digest (bounded
+  /// by the prompt's char budget).
+  Future<void> _updateCassetteSummary(String cassetteId) async {
     final cassette = await (_db.select(_db.cassettes)
           ..where((c) => c.id.equals(cassetteId)))
         .getSingleOrNull();
     if (cassette == null) return; // deleted meanwhile (§14)
 
-    // Digests in tape order; incremental folds only what's new (§6.7).
-    var rows = await (_db.select(_db.memos)
+    final rows = await (_db.select(_db.memos)
           ..where((m) =>
               m.cassetteId.equals(cassetteId) & m.memoSummary.isNotNull())
           ..orderBy([
@@ -250,21 +295,16 @@ class JobQueue {
             (m) => OrderingTerm.asc(m.id),
           ]))
         .get();
-    if (!recompute) {
-      rows = rows.where((r) => r.foldedAt == null).toList();
-    }
     if (rows.isEmpty) {
-      if (recompute) {
-        // The last summarized memo was deleted — the overview no longer
-        // describes anything; the (possibly user-set) label stays.
-        await _cassettes.setSummary(cassetteId, null);
-      }
+      // The last summarized memo was deleted — the overview no longer
+      // describes anything; the (possibly user-set) label stays.
+      await _cassettes.setSummary(cassetteId, null);
       return;
     }
 
     final language = await _languageFor(rows.first.detectedLang);
     final summary = (await _summarization().updateCassetteSummary(
-      previousSummary: recompute ? null : cassette.summary,
+      previousSummary: null,
       newMemos: [
         for (final row in rows)
           MemoDigest(
@@ -278,12 +318,11 @@ class JobQueue {
     if (summary.isEmpty) return;
 
     await _cassettes.setSummary(cassetteId, summary);
-    await _memos.markFolded(
-        [for (final row in rows) row.id], DateTime.now());
 
-    // D10: suggest until the user renames; best-effort — a lost suggestion
-    // just waits for the next summary update.
-    if (!cassette.titleIsUserSet) {
+    // D10 (revised): a title is suggested only while the label is blank —
+    // effectively once, with the first overview; after that the name stays
+    // put until the user renames.
+    if (cassette.label == null && !cassette.titleIsUserSet) {
       final title = await _summarization()
           .suggestTitle(summary, languageCode: language);
       if (title.trim().isNotEmpty) {
@@ -292,16 +331,16 @@ class JobQueue {
     }
   }
 
-  /// One app-wide language (D8), with the memo's own detection as fallback
-  /// while the global setting is still unset.
+  /// D8: languages are per memo — an explicit Settings override wins (for
+  /// speakers whisper keeps mis-detecting), otherwise the memo's own
+  /// detection; 'en' only as the last resort.
   Future<String> _languageFor(String? detectedLang) async =>
       (await _settings.get()).appLanguage ?? detectedLang ?? 'en';
 
-  /// Coalescing (§6.5 debounce): a queued cassette job already covers any
-  /// digests that land before it runs, so bursts collapse into one update.
-  /// A recompute supersedes queued incremental updates, never vice versa.
-  Future<void> _enqueueCassetteUpdate(String cassetteId,
-      {bool recompute = false}) async {
+  /// Coalescing (§6.5 debounce): the rebuild reads the tape's state at run
+  /// time, so one queued cassette job covers every gist (or deletion) that
+  /// lands before it runs — bursts collapse into a single update.
+  Future<void> _enqueueCassetteUpdate(String cassetteId) async {
     final queued = await (_db.select(_db.jobs)
           ..where((j) =>
               j.targetId.equals(cassetteId) &
@@ -311,21 +350,8 @@ class JobQueue {
                 JobType.recomputeCassetteSummary.name,
               ])))
         .get();
-    if (!recompute) {
-      if (queued.isNotEmpty) return;
-      await _insertJob(JobType.updateCassetteSummary, cassetteId);
-      return;
-    }
-    if (queued.any((j) => j.type == JobType.recomputeCassetteSummary.name)) {
-      return;
-    }
-    await (_db.delete(_db.jobs)
-          ..where((j) =>
-              j.targetId.equals(cassetteId) &
-              j.status.equals('queued') &
-              j.type.equals(JobType.updateCassetteSummary.name)))
-        .go();
-    await _insertJob(JobType.recomputeCassetteSummary, cassetteId);
+    if (queued.isNotEmpty) return;
+    await _insertJob(JobType.updateCassetteSummary, cassetteId);
   }
 
   Future<MemoRow?> _memoRow(String memoId) =>

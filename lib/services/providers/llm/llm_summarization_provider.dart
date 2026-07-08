@@ -13,6 +13,7 @@ import '../transcription_provider.dart' show ModelStatus, ProgressSink;
 import 'llama_worker.dart';
 import 'llm_model_manager.dart';
 import 'summary_prompts.dart';
+import 'transcript_cleanup.dart';
 
 class LocalLlmSummarizationProvider implements SummarizationProvider {
   LocalLlmSummarizationProvider({
@@ -41,6 +42,31 @@ class LocalLlmSummarizationProvider implements SummarizationProvider {
   @override
   Future<void> ensureModel({ProgressSink? onProgress}) =>
       _models.download(_model, onProgress: onProgress);
+
+  @override
+  Future<Transcript> cleanTranscript(Transcript t,
+      {required String languageCode}) async {
+    // Segment texts go out as numbered lines, batch by batch; every
+    // guardrail in transcript_cleanup.dart falls back to the original, so a
+    // confused reply degrades to a no-op, never a loss.
+    final cleanedTexts = <int, String>{};
+    for (final batch in cleanupBatches(t)) {
+      final reply = await _run(batch.prompt(languageCode));
+      final lines = applyCleanupReply(batch, reply);
+      for (var i = 0; i < lines.length; i++) {
+        cleanedTexts[batch.startIndex + i] = lines[i];
+      }
+    }
+    return Transcript(
+      languageCode: t.languageCode,
+      segments: [
+        for (var i = 0; i < t.segments.length; i++)
+          cleanedTexts.containsKey(i)
+              ? retimedSegment(t.segments[i], cleanedTexts[i]!)
+              : t.segments[i],
+      ],
+    );
+  }
 
   @override
   Future<String> summarizeMemo(Transcript t,

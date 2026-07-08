@@ -97,6 +97,13 @@ class Transcript {
       };
 
   bool get isEmpty => segments.every((s) => s.words.isEmpty);
+
+  /// The transcript flattened to plain text — one line per segment (clipboard
+  /// copy, LLM prompts; words are stored trimmed).
+  String get plainText => segments
+      .map((s) => s.words.map((w) => w.text).join(' '))
+      .where((line) => line.isNotEmpty)
+      .join('\n');
 }
 
 class Segment {

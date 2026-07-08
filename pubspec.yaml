@@ -49,6 +49,7 @@ dependencies:
   intl: ^0.20.2  # pinned by flutter_localizations
   ffi: ^2.1.0
   crypto: ^3.0.3
+  flutter_local_notifications: ^22.0.1
 
 dev_dependencies:
   flutter_test:

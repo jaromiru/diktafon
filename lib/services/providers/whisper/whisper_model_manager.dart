@@ -62,8 +62,7 @@ class WhisperModel implements ModelSpec {
   static const small = WhisperModel(
     tier: 'small',
     label: 'Whisper small',
-    description: 'Recommended — best size/quality balance for all seven '
-        'languages, incl. Czech & Polish.',
+    description: 'Recommended — best size/quality balance.',
     fileName: 'ggml-small-q5_1.bin',
     sizeBytes: 190085487,
     sha256Hex:

@@ -93,6 +93,19 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
             ),
+            SettingsRow(
+              title: l10n.cleanupRow,
+              value: l10n.cleanupRowDesc,
+              trailing: InkToggle(
+                value: settings.cleanupEnabled,
+                onChanged: (on) async {
+                  await repo.setCleanupEnabled(on);
+                  // Either flip can release parked cleanup jobs: on → they
+                  // may now run, off → they pass memos through (§6.8).
+                  await ref.read(jobQueueProvider).drain();
+                },
+              ),
+            ),
           ]),
           SettingsGroup(title: l10n.groupAppearance, rows: [
             SettingsRow(

@@ -205,10 +205,10 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get autoDetectValue =>
-      'Automatycznie — na podstawie pierwszego nagrania';
+      'Automatycznie — każde nagranie zachowuje swój język';
 
   @override
-  String get autoDetectOption => 'Automatycznie (z pierwszego nagrania)';
+  String get autoDetectOption => 'Automatycznie (dla każdego nagrania)';
 
   @override
   String get transcriptionLanguageTitle => 'JĘZYK TRANSKRYPCJI';
@@ -276,7 +276,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get groupYourData => 'Twoje dane';
 
   @override
-  String get backupExport => 'Kopia i eksport';
+  String get backupExport => 'Eksport danych';
 
   @override
   String get backupExportDesc =>
@@ -384,11 +384,7 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'czeka na pobranie…';
-
-  @override
-  String get provisionFailedRetry =>
-      'pobieranie nie powiodło się — dotknij, aby ponowić';
+  String get provisionChoose => 'dotknij, aby wybrać model do pobrania';
 
   @override
   String get downloadsFinishInBackground => 'Pobieranie dokończy się w tle.';
@@ -397,7 +393,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get startRecordingKey => 'ZACZNIJ NAGRYWAĆ';
 
   @override
-  String get backupTitle => 'KOPIA I EKSPORT';
+  String get backupTitle => 'EKSPORT DANYCH';
 
   @override
   String get backupIntro =>
@@ -452,4 +448,47 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(bez transkrypcji)';
+
+  @override
+  String get openSystemSettings => 'USTAWIENIA';
+
+  @override
+  String get changeColor => 'Zmień kolor';
+
+  @override
+  String get colorPickerTitle => 'KOLOR KASETY';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Kolor $n';
+  }
+
+  @override
+  String get copyTranscript => 'Kopiuj transkrypcję';
+
+  @override
+  String get transcriptCopied => 'Skopiowano transkrypcję.';
+
+  @override
+  String get deleteMemo => 'Usuń nagranie';
+
+  @override
+  String get memoActions => 'Działania nagrania';
+
+  @override
+  String get cleanupRow => 'Czyszczenie transkrypcji';
+
+  @override
+  String get cleanupRowDesc =>
+      'Model streszczeń poprawia świeże transkrypcje — literówki i przesłyszenia';
+
+  @override
+  String notifDownloading(String label) {
+    return 'Pobieranie: $label';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return 'Zainstalowano $label';
+  }
 }

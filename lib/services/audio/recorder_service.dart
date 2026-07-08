@@ -44,6 +44,8 @@ class RecorderService {
           {Duration interval = const Duration(milliseconds: 120)}) =>
       _recorder.onAmplitudeChanged(interval);
 
+  /// Asks the OS for the mic permission when it's missing (the plugin shows
+  /// the prompt); false → denied, or silenced after repeated denials.
   Future<bool> hasPermission() => _recorder.hasPermission();
 
   Future<void> start(String cassetteId) async {

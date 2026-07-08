@@ -101,8 +101,8 @@
   "settingsTitle": "SETTINGS",
   "groupLanguage": "Language",
   "transcriptionLanguage": "Transcription language",
-  "autoDetectValue": "Auto-detect — set from your first memo",
-  "autoDetectOption": "Auto-detect (from first recording)",
+  "autoDetectValue": "Auto-detect — each memo keeps its own language",
+  "autoDetectOption": "Auto-detect (per memo)",
   "transcriptionLanguageTitle": "TRANSCRIPTION LANGUAGE",
   "groupPlayback": "Playback",
   "boundaryChime": "Boundary chime",
@@ -135,7 +135,7 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "groupYourData": "Your data",
-  "backupExport": "Backup & export",
+  "backupExport": "Export data",
   "backupExportDesc": "Take your cassettes with you — audio, transcripts and summaries",
   "aboutPrivacy": "About & privacy",
   "aboutPrivacyDesc": "Audio never leaves this device",
@@ -189,12 +189,11 @@
       "pct": {"type": "int"}
     }
   },
-  "provisionWaiting": "waiting to download…",
-  "provisionFailedRetry": "download failed — tap to retry",
+  "provisionChoose": "tap to choose a model to download",
   "downloadsFinishInBackground": "Downloads finish in the background.",
   "startRecordingKey": "START RECORDING",
 
-  "backupTitle": "BACKUP & EXPORT",
+  "backupTitle": "EXPORT DATA",
   "backupIntro": "Your device's own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export writes a folder with the audio files, the transcript and the summaries. Nothing is uploaded by Diktafon.",
   "groupExport": "Export",
   "exportAll": "Export all cassettes",
@@ -216,5 +215,21 @@
   "exportNote": "Exported from Diktafon on {date}.",
   "@exportNote": {"placeholders": {"date": {"type": "String"}}},
   "exportSummaryHeading": "Summary",
-  "exportNotTranscribed": "(not transcribed)"
+  "exportNotTranscribed": "(not transcribed)",
+
+  "openSystemSettings": "SETTINGS",
+  "changeColor": "Change color",
+  "colorPickerTitle": "CASSETTE COLOR",
+  "colorSwatch": "Color {n}",
+  "@colorSwatch": {"placeholders": {"n": {"type": "int"}}},
+  "copyTranscript": "Copy transcription",
+  "transcriptCopied": "Transcription copied.",
+  "deleteMemo": "Delete memo",
+  "memoActions": "Memo actions",
+  "cleanupRow": "Transcript cleanup",
+  "cleanupRowDesc": "The summary model tidies fresh transcripts — spelling & recognition slips",
+  "notifDownloading": "Downloading {label}",
+  "@notifDownloading": {"placeholders": {"label": {"type": "String"}}},
+  "notifModelInstalled": "{label} installed",
+  "@notifModelInstalled": {"placeholders": {"label": {"type": "String"}}}
 }

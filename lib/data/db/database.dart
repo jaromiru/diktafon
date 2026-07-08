@@ -35,11 +35,18 @@ class Memos extends Table {
   TextColumn get detectedLang => text().nullable()();
 
   /// Transcript stored as a JSON blob per memo (§7.2 — no search in v1).
+  /// After LLM cleanup (§6.8) this is the *cleaned* transcript.
   TextColumn get transcript => text().nullable()();
+
+  /// The engine's original transcript, kept when cleanup (§6.8) rewrote
+  /// [transcript] — cleanup is lossy about word timings, so the raw take
+  /// stays recoverable. Null → transcript untouched.
+  TextColumn get rawTranscript => text().nullable()();
   TextColumn get memoSummary => text().nullable()();
 
-  /// When this memo's summary was folded into the rolling cassette summary
-  /// (§6.7); null → not folded yet. Queue bookkeeping, not shown in UI.
+  /// Legacy M3 fold bookkeeping — no longer written since the cassette
+  /// summary is rebuilt from all gists (§6.7 revised 2026-07-08); kept so
+  /// existing databases need no migration.
   IntColumn get foldedAt => integer().nullable()();  // epoch ms
   TextColumn get status => text()();
 
@@ -79,7 +86,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +94,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             // M3: cassette-summary fold bookkeeping.
             await m.addColumn(memos, memos.foldedAt);
+          }
+          if (from < 3) {
+            // Transcript cleanup (§6.8): the raw take survives the rewrite.
+            await m.addColumn(memos, memos.rawTranscript);
           }
         },
         beforeOpen: (details) async {

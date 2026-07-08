@@ -43,15 +43,9 @@ const digestsCharBudget = 6000;
 String truncate(String text, int budget) =>
     text.length <= budget ? text : '${text.substring(0, budget)} …';
 
-/// Flattens a transcript to plain text (words are stored trimmed).
-String transcriptText(Transcript t) => t.segments
-    .map((s) => s.words.map((w) => w.text).join(' '))
-    .where((line) => line.isNotEmpty)
-    .join('\n');
-
 /// The 1–2 sentence "what the speaker meant to say" gist (§6.7).
 LlmPrompt memoSummaryPrompt(Transcript t, {required String languageCode}) {
-  final text = truncate(transcriptText(t), transcriptCharBudget);
+  final text = truncate(t.plainText, transcriptCharBudget);
   return LlmPrompt(
     _system,
     'Voice memo transcript:\n$text\n\n'

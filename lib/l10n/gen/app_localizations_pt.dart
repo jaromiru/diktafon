@@ -200,10 +200,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get transcriptionLanguage => 'Idioma da transcrição';
 
   @override
-  String get autoDetectValue => 'Automático — definido pela sua primeira nota';
+  String get autoDetectValue =>
+      'Automático — cada nota mantém o seu próprio idioma';
 
   @override
-  String get autoDetectOption => 'Detecção automática (da primeira gravação)';
+  String get autoDetectOption => 'Detecção automática (por nota)';
 
   @override
   String get transcriptionLanguageTitle => 'IDIOMA DA TRANSCRIÇÃO';
@@ -271,7 +272,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get groupYourData => 'Seus dados';
 
   @override
-  String get backupExport => 'Backup e exportação';
+  String get backupExport => 'Exportar dados';
 
   @override
   String get backupExportDesc =>
@@ -379,11 +380,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'aguardando o download…';
-
-  @override
-  String get provisionFailedRetry =>
-      'o download falhou — toque para tentar de novo';
+  String get provisionChoose => 'toque para escolher um modelo para baixar';
 
   @override
   String get downloadsFinishInBackground =>
@@ -393,7 +390,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get startRecordingKey => 'COMEÇAR A GRAVAR';
 
   @override
-  String get backupTitle => 'BACKUP E EXPORTAÇÃO';
+  String get backupTitle => 'EXPORTAR DADOS';
 
   @override
   String get backupIntro =>
@@ -446,4 +443,47 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(não transcrito)';
+
+  @override
+  String get openSystemSettings => 'CONFIGURAÇÕES';
+
+  @override
+  String get changeColor => 'Mudar a cor';
+
+  @override
+  String get colorPickerTitle => 'COR DA CASSETE';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Cor $n';
+  }
+
+  @override
+  String get copyTranscript => 'Copiar transcrição';
+
+  @override
+  String get transcriptCopied => 'Transcrição copiada.';
+
+  @override
+  String get deleteMemo => 'Excluir nota';
+
+  @override
+  String get memoActions => 'Ações da nota';
+
+  @override
+  String get cleanupRow => 'Limpeza de transcrições';
+
+  @override
+  String get cleanupRowDesc =>
+      'O modelo de resumos corrige as transcrições — erros de grafia e de reconhecimento';
+
+  @override
+  String notifDownloading(String label) {
+    return 'Baixando $label';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return '$label instalado';
+  }
 }

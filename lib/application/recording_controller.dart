@@ -32,7 +32,8 @@ class RecordingController extends Notifier<RecordingState> {
   }
 
   /// Tap record → capture starts, appended to this cassette's tape (D6).
-  /// Returns false when the mic permission is missing.
+  /// A missing mic permission is requested right here (the recorder fires
+  /// the OS prompt); false means the user denied it.
   Future<bool> start(String cassetteId) async {
     final recorder = ref.read(recorderServiceProvider);
     if (state.isRecording) return true;

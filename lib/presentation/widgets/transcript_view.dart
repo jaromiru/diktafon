@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:intl/intl.dart';
 
 import '../../domain/models.dart';
@@ -23,6 +24,7 @@ class TranscriptView extends StatefulWidget {
     this.modelReady = false,
     this.onSeekGlobalMs,
     this.onRetryMemo,
+    this.onDeleteMemo,
   });
 
   final Tape tape;
@@ -38,6 +40,10 @@ class TranscriptView extends StatefulWidget {
 
   /// Failed memo tapped → re-enqueue (§14 retry affordance).
   final ValueChanged<String>? onRetryMemo;
+
+  /// Delete from the divider's memo menu, by ordinal index — same confirm
+  /// flow as the timeline's long-press (§5.3).
+  final ValueChanged<int>? onDeleteMemo;
 
   @override
   State<TranscriptView> createState() => _TranscriptViewState();
@@ -99,6 +105,12 @@ class _TranscriptViewState extends State<TranscriptView> {
               onRetry: widget.onRetryMemo == null
                   ? null
                   : () => widget.onRetryMemo!(memo.id),
+              onCopy: memo.transcript?.isEmpty == false
+                  ? () => _copyTranscript(memo)
+                  : null,
+              onDelete: widget.onDeleteMemo == null
+                  ? null
+                  : () => widget.onDeleteMemo!(i),
             ),
             _memoBody(context, memo, i),
             const SizedBox(height: 4),
@@ -106,6 +118,17 @@ class _TranscriptViewState extends State<TranscriptView> {
         );
       },
     );
+  }
+
+  /// The memo's words land on the clipboard as plain text (long-press on
+  /// the paragraph, or the divider menu).
+  Future<void> _copyTranscript(Memo memo) async {
+    final text = memo.transcript?.plainText ?? '';
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.transcriptCopied)));
   }
 
   Widget _memoBody(BuildContext context, Memo memo, int index) {
@@ -120,6 +143,7 @@ class _TranscriptViewState extends State<TranscriptView> {
         tape: widget.tape,
         globalMs: widget.globalMs,
         onSeekGlobalMs: widget.onSeekGlobalMs,
+        onCopy: () => _copyTranscript(memo),
       );
     }
     return switch (memo.status) {
@@ -168,6 +192,8 @@ class _MemoDivider extends StatelessWidget {
     required this.hue,
     required this.first,
     this.onRetry,
+    this.onCopy,
+    this.onDelete,
   });
 
   final Memo memo;
@@ -175,6 +201,12 @@ class _MemoDivider extends StatelessWidget {
   final Color hue;
   final bool first;
   final VoidCallback? onRetry;
+
+  /// The quiet per-memo menu at the stamp's right edge; entries appear only
+  /// when their action is possible (copy needs words on the clipboard's
+  /// side, delete a wired-up confirm flow).
+  final VoidCallback? onCopy;
+  final VoidCallback? onDelete;
 
   /// The gist line under the stamp (§5.3): the memo summary once it exists,
   /// a quiet progress note while the LLM works, a retry affordance when
@@ -251,13 +283,43 @@ class _MemoDivider extends StatelessWidget {
               ],
             ),
           ),
+          if (onCopy != null || onDelete != null) _menu(context),
         ],
       ),
     );
   }
+
+  Widget _menu(BuildContext context) => SizedBox(
+        width: 26,
+        height: 18,
+        child: PopupMenuButton<String>(
+          tooltip: context.l10n.memoActions,
+          padding: EdgeInsets.zero,
+          icon: Icon(Icons.more_horiz, size: 16, color: context.tape.ink2),
+          onSelected: (action) =>
+              action == 'copy' ? onCopy!() : onDelete!(),
+          itemBuilder: (menuContext) => [
+            if (onCopy != null)
+              PopupMenuItem(
+                value: 'copy',
+                height: 38,
+                child: Text(menuContext.l10n.copyTranscript,
+                    style: const TextStyle(fontSize: 12.5)),
+              ),
+            if (onDelete != null)
+              PopupMenuItem(
+                value: 'delete',
+                height: 38,
+                child: Text(menuContext.l10n.deleteMemo,
+                    style: const TextStyle(fontSize: 12.5)),
+              ),
+          ],
+        ),
+      );
 }
 
-/// One memo's words as tappable spans with the current word highlighted.
+/// One memo's words as tappable spans with the current word highlighted;
+/// a long-press anywhere in the paragraph copies the memo's transcription.
 class _MemoParagraph extends StatefulWidget {
   const _MemoParagraph({
     required this.memo,
@@ -265,6 +327,7 @@ class _MemoParagraph extends StatefulWidget {
     required this.tape,
     required this.globalMs,
     required this.onSeekGlobalMs,
+    required this.onCopy,
   });
 
   final Memo memo;
@@ -272,6 +335,7 @@ class _MemoParagraph extends StatefulWidget {
   final Tape tape;
   final int globalMs;
   final ValueChanged<int>? onSeekGlobalMs;
+  final VoidCallback onCopy;
 
   @override
   State<_MemoParagraph> createState() => _MemoParagraphState();
@@ -323,9 +387,12 @@ class _MemoParagraphState extends State<_MemoParagraph> {
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text.rich(
-        TextSpan(children: spans),
-        style: TextStyle(fontSize: 12.5, height: 1.75, color: tape.ink),
+      child: GestureDetector(
+        onLongPress: widget.onCopy,
+        child: Text.rich(
+          TextSpan(children: spans),
+          style: TextStyle(fontSize: 12.5, height: 1.75, color: tape.ink),
+        ),
       ),
     );
   }

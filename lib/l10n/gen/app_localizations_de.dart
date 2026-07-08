@@ -201,10 +201,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get autoDetectValue =>
-      'Automatisch — wird aus dem ersten Memo bestimmt';
+      'Automatisch — jedes Memo behält seine eigene Sprache';
 
   @override
-  String get autoDetectOption => 'Automatisch (aus der ersten Aufnahme)';
+  String get autoDetectOption => 'Automatisch (pro Memo)';
 
   @override
   String get transcriptionLanguageTitle => 'TRANSKRIPTIONSSPRACHE';
@@ -272,7 +272,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get groupYourData => 'Deine Daten';
 
   @override
-  String get backupExport => 'Sicherung & Export';
+  String get backupExport => 'Daten exportieren';
 
   @override
   String get backupExportDesc =>
@@ -380,11 +380,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get provisionWaiting => 'wartet auf Download…';
-
-  @override
-  String get provisionFailedRetry =>
-      'Download fehlgeschlagen — zum Wiederholen tippen';
+  String get provisionChoose =>
+      'tippen, um ein Modell zum Herunterladen zu wählen';
 
   @override
   String get downloadsFinishInBackground =>
@@ -394,7 +391,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get startRecordingKey => 'AUFNAHME STARTEN';
 
   @override
-  String get backupTitle => 'SICHERUNG & EXPORT';
+  String get backupTitle => 'DATEN EXPORTIEREN';
 
   @override
   String get backupIntro =>
@@ -447,4 +444,47 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get exportNotTranscribed => '(nicht transkribiert)';
+
+  @override
+  String get openSystemSettings => 'EINSTELLUNGEN';
+
+  @override
+  String get changeColor => 'Farbe ändern';
+
+  @override
+  String get colorPickerTitle => 'KASSETTENFARBE';
+
+  @override
+  String colorSwatch(int n) {
+    return 'Farbe $n';
+  }
+
+  @override
+  String get copyTranscript => 'Transkript kopieren';
+
+  @override
+  String get transcriptCopied => 'Transkript kopiert.';
+
+  @override
+  String get deleteMemo => 'Memo löschen';
+
+  @override
+  String get memoActions => 'Memo-Aktionen';
+
+  @override
+  String get cleanupRow => 'Transkript-Korrektur';
+
+  @override
+  String get cleanupRowDesc =>
+      'Das Zusammenfassungsmodell glättet frische Transkripte — Tipp- und Hörfehler';
+
+  @override
+  String notifDownloading(String label) {
+    return '$label wird heruntergeladen';
+  }
+
+  @override
+  String notifModelInstalled(String label) {
+    return '$label installiert';
+  }
 }

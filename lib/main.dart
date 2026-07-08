@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -9,6 +10,9 @@ import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 import 'application/providers.dart';
 import 'data/files/audio_file_store.dart';
+import 'l10n/gen/app_localizations.dart';
+import 'services/notifications/download_notifier.dart';
+import 'services/notifications/local_notifications_sink.dart';
 import 'services/providers/llm/llm_model_manager.dart';
 import 'services/providers/whisper/whisper_model_manager.dart';
 
@@ -39,6 +43,9 @@ Future<void> main() async {
         await _materializeChime(supportDir.path)),
   ]);
 
+  // Model downloads mirror into the notification area while they run.
+  _attachDownloadNotifications(whisperModels, llmModels);
+
   // Resume any jobs persisted before the last shutdown (§6.5 durability).
   Future<void>.microtask(() => container.read(jobQueueProvider).drain());
 
@@ -46,6 +53,33 @@ Future<void> main() async {
     container: container,
     child: const DiktafonApp(),
   ));
+}
+
+/// Best-effort, off the critical startup path: no notification backend →
+/// no notifier, downloads run exactly as before. Copy is localized through
+/// the system locale (the UI follows it too, §13); the notifier lives for
+/// the whole process, so it is never disposed.
+Future<void> _attachDownloadNotifications(
+  WhisperModelManager whisperModels,
+  LlmModelManager llmModels,
+) async {
+  final sink = await LocalNotificationsSink.init();
+  if (sink == null) return;
+  AppLocalizations l10n;
+  try {
+    l10n = lookupAppLocalizations(ui.PlatformDispatcher.instance.locale);
+  } catch (_) {
+    l10n = lookupAppLocalizations(const Locale('en'));
+  }
+  ModelDownloadNotifier(
+    sink,
+    DownloadNotificationTexts(
+      downloading: l10n.notifDownloading,
+      installed: l10n.notifModelInstalled,
+    ),
+  )
+    ..attach(whisperModels, idBase: 100)
+    ..attach(llmModels, idBase: 200);
 }
 
 /// just_audio's media_kit backend plays files, not bundle assets — copy the

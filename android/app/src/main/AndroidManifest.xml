@@ -5,6 +5,9 @@
     <!-- D13: recording keeps running with the app backgrounded / screen off. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <!-- Model-download progress notifications (Android 13+ runtime-gated;
+         requested lazily when the first download starts). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Backup policy (§8): DB auto-backs-up; audio/models excluded — see res/xml. -->
     <application
         android:label="Diktafon"

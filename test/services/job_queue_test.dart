@@ -69,10 +69,14 @@ class FakeSummarizationProvider implements SummarizationProvider {
   FakeSummarizationProvider({this.status = ModelStatus.ready});
 
   ModelStatus status;
-  int memoCalls = 0, cassetteCalls = 0, titleCalls = 0;
+  int memoCalls = 0, cassetteCalls = 0, titleCalls = 0, cleanCalls = 0;
   int memoFailuresBeforeSuccess = 0;
   String memoResult = 'gist';
   String titleResult = 'Suggested Title';
+
+  /// Rewrites applied by cleanTranscript; identity when null.
+  Transcript Function(Transcript)? cleanTransform;
+  bool cleanThrows = false;
 
   String? lastLanguageCode;
   String? lastPreviousSummary;
@@ -86,6 +90,14 @@ class FakeSummarizationProvider implements SummarizationProvider {
 
   @override
   Future<void> ensureModel({ProgressSink? onProgress}) async {}
+
+  @override
+  Future<Transcript> cleanTranscript(Transcript t,
+      {required String languageCode}) async {
+    cleanCalls++;
+    if (cleanThrows) throw StateError('flaky cleanup');
+    return cleanTransform?.call(t) ?? t;
+  }
 
   @override
   Future<String> summarizeMemo(Transcript t,
@@ -218,19 +230,43 @@ void main() {
       expect((await jobs()).map((j) => j.status), everyElement('done'));
     });
 
-    test('D8: unset app language adopts the first real detection', () async {
+    test('D8: no override → per-memo auto-detect; nothing adopted globally',
+        () async {
       await seedMemo('m1');
       await queue.enqueueTranscription('m1');
       await queue.drain();
 
       expect(engine.lastLanguageCode, isNull,
-          reason: 'no app language yet → provider auto-detects');
-      expect((await settings.get()).appLanguage, 'cs');
+          reason: 'no override → provider auto-detects per memo');
+      expect((await settings.get()).appLanguage, isNull,
+          reason: 'detection stays per memo — never adopted app-wide');
       expect(llm.lastLanguageCode, 'cs',
-          reason: 'summaries follow the freshly adopted language (D8)');
+          reason: 'summaries follow the memo\'s own detection (D8)');
     });
 
-    test('D8: explicit app language is passed through and never overwritten',
+    test('D8: memos keep their own language — a tape can mix languages',
+        () async {
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1'); // detected 'cs'
+      await queue.drain();
+      expect(llm.lastLanguageCode, 'cs');
+
+      engine.result = Transcript(languageCode: 'de', segments: [
+        Segment(startMs: 0, endMs: 900, words: const [
+          Word(text: 'hallo', startMs: 0, endMs: 400),
+        ]),
+      ]);
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+
+      expect(engine.lastLanguageCode, isNull,
+          reason: 'the second memo auto-detects too');
+      expect(llm.lastLanguageCode, 'de',
+          reason: 'its summary follows its own detection');
+    });
+
+    test('D8: the Settings override is forced onto every transcription',
         () async {
       await settings.setAppLanguage('pl');
       engine.result = const Transcript(languageCode: 'pl', segments: []);
@@ -242,7 +278,7 @@ void main() {
       expect((await settings.get()).appLanguage, 'pl');
     });
 
-    test('D8: a silent first memo does not lock in a language', () async {
+    test('a silent memo completes without summarization', () async {
       engine.result = const Transcript(languageCode: 'en', segments: []);
       await seedMemo('m1');
       await queue.enqueueTranscription('m1');
@@ -309,6 +345,101 @@ void main() {
     });
   });
 
+  group('§6.8 transcript cleanup', () {
+    test('cleanup slots between transcription and the gist; raw preserved',
+        () async {
+      llm.cleanTransform = (t) => Transcript(
+            languageCode: t.languageCode,
+            segments: [
+              Segment(startMs: 0, endMs: 900, words: const [
+                Word(text: 'Ahoj,', startMs: 0, endMs: 450),
+                Word(text: 'světe!', startMs: 450, endMs: 900),
+              ]),
+            ],
+          );
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      final memo = await memoRow('m1');
+      expect(memo.status, 'ready');
+      expect(llm.cleanCalls, 1);
+      expect(memo.transcript, contains('světe!'),
+          reason: 'the cleaned transcript is the one shown');
+      expect(memo.rawTranscript, isNotNull,
+          reason: 'the engine\'s original take stays recoverable');
+      expect(memo.rawTranscript, isNot(contains('světe!')));
+      expect(memo.memoSummary, 'gist',
+          reason: 'the gist runs after (and on) the cleaned transcript');
+      expect((await jobs()).map((j) => j.status), everyElement('done'));
+    });
+
+    test('toggled off → straight to the gist, transcript untouched',
+        () async {
+      await settings.setCleanupEnabled(false);
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      expect(llm.cleanCalls, 0);
+      final memo = await memoRow('m1');
+      expect(memo.status, 'ready');
+      expect(memo.rawTranscript, isNull);
+    });
+
+    test('cleanup is best-effort: an engine error keeps the original and '
+        'still summarizes', () async {
+      llm.cleanThrows = true;
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      final memo = await memoRow('m1');
+      expect(memo.status, 'ready');
+      expect(memo.rawTranscript, isNull, reason: 'nothing was rewritten');
+      expect(memo.transcript, contains('světe'));
+      expect(memo.memoSummary, 'gist');
+      expect((await jobs()).map((j) => j.status), everyElement('done'),
+          reason: 'a cleanup hiccup never fails the pipeline');
+    });
+
+    test('cleanup waits for the LLM; toggling off releases the memo as a '
+        'pass-through', () async {
+      llm.status = ModelStatus.notInstalled;
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'transcribed',
+          reason: 'cleanup parked on the missing model (§14)');
+      expect(llm.cleanCalls, 0);
+
+      await settings.setCleanupEnabled(false);
+      await queue.drain();
+      expect(llm.cleanCalls, 0,
+          reason: 'released as a pass-through, not run');
+      expect((await memoRow('m1')).rawTranscript, isNull);
+
+      llm.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+      expect((await memoRow('m1')).memoSummary, 'gist');
+    });
+
+    test('an already-cleaned memo is not cleaned twice on retry', () async {
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect(llm.cleanCalls, 1);
+      expect((await memoRow('m1')).rawTranscript, isNotNull);
+
+      await queue.retryEnrichment('m1');
+      await queue.drain();
+      expect(llm.cleanCalls, 1,
+          reason: 'rawTranscript marks the cleanup as done');
+      expect((await memoRow('m1')).status, 'ready');
+    });
+  });
+
   group('M3 pipeline (summaries)', () {
     test('record-stop → transcribed → summarized → cassette overview + title',
         () async {
@@ -319,8 +450,6 @@ void main() {
       final memo = await memoRow('m1');
       expect(memo.status, 'ready');
       expect(memo.memoSummary, 'gist');
-      expect(memo.foldedAt, isNotNull,
-          reason: 'the gist was folded into the cassette summary');
 
       final cassette = await cassetteRow();
       expect(cassette.summary, 'overview[gist]');
@@ -381,7 +510,7 @@ void main() {
       expect((await cassetteRow()).summary, 'overview[gist | gist]');
     });
 
-    test('incremental fold: a later memo updates, not recomputes (§6.7)',
+    test('the overview is rebuilt from every gist on each update (§6.7)',
         () async {
       await seedMemo('m1');
       await queue.enqueueTranscription('m1');
@@ -394,10 +523,30 @@ void main() {
       await queue.drain();
 
       expect(llm.cassetteCalls, 2);
-      expect(llm.lastPreviousSummary, 'overview[gist]',
-          reason: 'incremental: previous overview folded, not rebuilt');
-      expect(llm.lastDigests!.map((d) => d.memoSummary), ['gist2']);
-      expect((await cassetteRow()).summary, 'overview[gist] + [gist2]');
+      expect(llm.lastPreviousSummary, isNull,
+          reason: 'rebuilt from scratch — no rolling summary to fold into');
+      expect(llm.lastDigests!.map((d) => d.memoSummary), ['gist', 'gist2'],
+          reason: 'every memo\'s gist contributes, in tape order');
+      expect((await cassetteRow()).summary, 'overview[gist | gist2]');
+    });
+
+    test('D10: a title is suggested only while the label is blank', () async {
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await cassetteRow()).label, 'Suggested Title');
+      expect(llm.titleCalls, 1);
+
+      llm.titleResult = 'A Better Title';
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+
+      expect(llm.titleCalls, 1,
+          reason: 'the label is set — no further suggestions');
+      expect((await cassetteRow()).label, 'Suggested Title');
+      expect((await cassetteRow()).summary, 'overview[gist | gist]',
+          reason: 'only the title is frozen; the overview still updates');
     });
 
     test('D10: user-set titles are never overwritten by suggestions',
@@ -459,14 +608,13 @@ void main() {
       expect((await memoRow('m1')).memoSummary, 'gist');
     });
 
-    test('deleting a folded memo schedules a from-scratch recompute (§14)',
+    test('deleting a summarized memo schedules the overview rebuild (§14)',
         () async {
       final m1 = await seedMemo('m1');
       await seedMemo('m2');
       await queue.enqueueTranscription('m1');
       await queue.enqueueTranscription('m2');
       await queue.drain();
-      expect((await memoRow('m1')).foldedAt, isNotNull);
 
       // The screen's delete flow: cancel, remove row, notify the queue.
       final deleted = Memo(
@@ -484,8 +632,8 @@ void main() {
       await queue.drain();
 
       expect(llm.lastPreviousSummary, isNull,
-          reason: 'recompute starts from scratch — the deleted memo\'s '
-              'content cannot be subtracted incrementally');
+          reason: 'the rebuild starts from scratch — the deleted memo\'s '
+              'content simply is not among the inputs');
       expect(llm.lastDigests!.map((d) => d.memoSummary), ['gist'],
           reason: 'only the surviving memo contributes');
     });
@@ -528,11 +676,11 @@ void main() {
       expect(llm.memoCalls, 0, reason: 'nothing to summarize (§6.7)');
     });
 
-    test('a queued recompute supersedes queued incremental updates', () async {
+    test('a delete coalesces with an already-queued cassette update', () async {
       // Gate the LLM so the queue can't drain the jobs we assert on.
       llm.status = ModelStatus.notInstalled;
       await seedTranscribed('m1', jobCreatedAt: 1);
-      // Park an incremental update as if a gist had landed earlier.
+      // Park an update as if a gist had landed earlier.
       await db.into(db.jobs).insert(JobRow(
             id: 'job-update',
             type: JobType.updateCassetteSummary.name,
@@ -555,17 +703,15 @@ void main() {
       // teardown closes the database under it.
       await queue.drain();
 
-      final queued = (await jobs()).where((j) => j.status == 'queued');
-      expect(
-          queued
-              .where((j) => j.type == JobType.updateCassetteSummary.name),
-          isEmpty,
-          reason: 'incremental update was superseded');
-      expect(
-          queued
-              .where((j) => j.type == JobType.recomputeCassetteSummary.name)
-              .length,
-          1);
+      final queued = (await jobs())
+          .where((j) =>
+              j.status == 'queued' &&
+              (j.type == JobType.updateCassetteSummary.name ||
+                  j.type == JobType.recomputeCassetteSummary.name))
+          .toList();
+      expect(queued, hasLength(1),
+          reason: 'the rebuild reads the tape at run time, so the queued '
+              'update already covers the deletion — nothing new to add');
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import '../../domain/tape.dart';
 import '../../l10n/l10n.dart';
 import '../../services/audio/tape_player_service.dart';
 import '../../services/providers/transcription_provider.dart';
+import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
 import '../widgets/deck.dart';
@@ -112,11 +114,19 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
             icon: const Icon(Icons.more_vert, size: 22),
             onSelected: (action) => switch (action) {
               'rename' => _rename(cassette),
+              'color' => showCassetteColorDialog(
+                  context,
+                  ref,
+                  cassetteId: cassette.id,
+                  currentSeed: cassette.colorSeed,
+                ),
               _ => _deleteCassette(cassette, tape.memoCount),
             },
             itemBuilder: (_) => [
               PopupMenuItem(
                   value: 'rename', child: Text(context.l10n.rename)),
+              PopupMenuItem(
+                  value: 'color', child: Text(context.l10n.changeColor)),
               PopupMenuItem(
                   value: 'delete', child: Text(context.l10n.deleteCassette)),
             ],
@@ -171,6 +181,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
                       onRetryMemo: (memoId) => ref
                           .read(jobQueueProvider)
                           .retryEnrichment(memoId),
+                      onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
                     ),
                   ),
           ),
@@ -345,13 +356,23 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
     );
   }
 
+  /// The record tap itself asks for the mic permission (the recorder fires
+  /// the OS prompt when it's missing) — the bubble appears only after a
+  /// denial, with a road back for the "don't ask again" case.
   Future<void> _startRecording() async {
     final ok = await ref
         .read(recordingControllerProvider.notifier)
         .start(widget.cassetteId);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.l10n.micPermissionNeeded)));
+        content: Text(context.l10n.micPermissionNeeded),
+        action: !Platform.isAndroid
+            ? null
+            : SnackBarAction(
+                label: context.l10n.openSystemSettings,
+                onPressed: openAppSystemSettings,
+              ),
+      ));
     }
   }
 

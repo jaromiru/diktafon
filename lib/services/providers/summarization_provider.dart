@@ -21,6 +21,14 @@ abstract interface class SummarizationProvider {
   Future<ModelStatus> modelStatus();
   Future<void> ensureModel({ProgressSink? onProgress});
 
+  /// Fixes obvious recognition errors in a fresh transcript (§6.8):
+  /// misheard words, spelling, punctuation — never the language, meaning or
+  /// segment structure. Best-effort by contract: where the engine is
+  /// unsure, the input's text comes back verbatim. Word timings inside a
+  /// changed segment are re-estimated.
+  Future<Transcript> cleanTranscript(Transcript t,
+      {required String languageCode});
+
   /// The 1–2 sentence "what the user meant to say" gist (§6.7).
   Future<String> summarizeMemo(Transcript t, {required String languageCode});
 

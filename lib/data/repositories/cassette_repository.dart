@@ -84,11 +84,14 @@ class CassetteRepository {
         ),
       );
 
-  /// Auto-suggested title (D10): the WHERE guard makes sure a user rename
-  /// that lands mid-suggestion is never overwritten.
+  /// Auto-suggested title (D10 revised): only ever fills a *blank* label —
+  /// the WHERE guard also keeps a rename that lands mid-suggestion safe.
   Future<void> setSuggestedLabel(String id, String label) =>
       (_db.update(_db.cassettes)
-            ..where((c) => c.id.equals(id) & c.titleIsUserSet.equals(false)))
+            ..where((c) =>
+                c.id.equals(id) &
+                c.titleIsUserSet.equals(false) &
+                c.label.isNull()))
           .write(CassettesCompanion(label: Value(label)));
 
   /// User rename: sets the D10 override flag so auto-suggestions stop.
@@ -100,6 +103,13 @@ class CassetteRepository {
           updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
         ),
       );
+
+  /// User-picked cassette color: the seed is stored so `cassetteHueIndex`
+  /// lands exactly on the chosen hue; the memo palette rotates with it
+  /// (§10.2). Cosmetic — recency is deliberately not bumped.
+  Future<void> setColorSeed(String id, int seed) =>
+      (_db.update(_db.cassettes)..where((c) => c.id.equals(id)))
+          .write(CassettesCompanion(colorSeed: Value(seed)));
 
   /// Bumps recency so the cassette floats to the top of the grid (§5.2).
   Future<void> touch(String id) =>

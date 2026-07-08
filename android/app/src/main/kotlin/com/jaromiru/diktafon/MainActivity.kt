@@ -1,11 +1,14 @@
 package com.jaromiru.diktafon
 
+import android.content.Intent
 import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -43,6 +46,20 @@ class MainActivity : FlutterActivity() {
                         mainHandler.post { result.error("decode_failed", e.message, null) }
                     }
                 }
+            }
+        // Escape hatch for a permanently denied mic permission (the OS stops
+        // showing the prompt): the snackbar's action lands on the app's page
+        // in the system settings.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "diktafon/system")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "openAppSettings") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", packageName, null)))
+                result.success(null)
             }
     }
 

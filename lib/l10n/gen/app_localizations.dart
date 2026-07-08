@@ -411,13 +411,13 @@ abstract class AppLocalizations {
   /// No description provided for @autoDetectValue.
   ///
   /// In en, this message translates to:
-  /// **'Auto-detect — set from your first memo'**
+  /// **'Auto-detect — each memo keeps its own language'**
   String get autoDetectValue;
 
   /// No description provided for @autoDetectOption.
   ///
   /// In en, this message translates to:
-  /// **'Auto-detect (from first recording)'**
+  /// **'Auto-detect (per memo)'**
   String get autoDetectOption;
 
   /// No description provided for @transcriptionLanguageTitle.
@@ -537,7 +537,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupExport.
   ///
   /// In en, this message translates to:
-  /// **'Backup & export'**
+  /// **'Export data'**
   String get backupExport;
 
   /// No description provided for @backupExportDesc.
@@ -702,17 +702,11 @@ abstract class AppLocalizations {
   /// **'{label} · {size} · downloading — {pct} %'**
   String provisionDownloading(String label, String size, int pct);
 
-  /// No description provided for @provisionWaiting.
+  /// No description provided for @provisionChoose.
   ///
   /// In en, this message translates to:
-  /// **'waiting to download…'**
-  String get provisionWaiting;
-
-  /// No description provided for @provisionFailedRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'download failed — tap to retry'**
-  String get provisionFailedRetry;
+  /// **'tap to choose a model to download'**
+  String get provisionChoose;
 
   /// No description provided for @downloadsFinishInBackground.
   ///
@@ -729,7 +723,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupTitle.
   ///
   /// In en, this message translates to:
-  /// **'BACKUP & EXPORT'**
+  /// **'EXPORT DATA'**
   String get backupTitle;
 
   /// No description provided for @backupIntro.
@@ -803,6 +797,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'(not transcribed)'**
   String get exportNotTranscribed;
+
+  /// No description provided for @openSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'SETTINGS'**
+  String get openSystemSettings;
+
+  /// No description provided for @changeColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Change color'**
+  String get changeColor;
+
+  /// No description provided for @colorPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CASSETTE COLOR'**
+  String get colorPickerTitle;
+
+  /// No description provided for @colorSwatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Color {n}'**
+  String colorSwatch(int n);
+
+  /// No description provided for @copyTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy transcription'**
+  String get copyTranscript;
+
+  /// No description provided for @transcriptCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription copied.'**
+  String get transcriptCopied;
+
+  /// No description provided for @deleteMemo.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete memo'**
+  String get deleteMemo;
+
+  /// No description provided for @memoActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Memo actions'**
+  String get memoActions;
+
+  /// No description provided for @cleanupRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript cleanup'**
+  String get cleanupRow;
+
+  /// No description provided for @cleanupRowDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The summary model tidies fresh transcripts — spelling & recognition slips'**
+  String get cleanupRowDesc;
+
+  /// No description provided for @notifDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {label}'**
+  String notifDownloading(String label);
+
+  /// No description provided for @notifModelInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} installed'**
+  String notifModelInstalled(String label);
 }
 
 class _AppLocalizationsDelegate
