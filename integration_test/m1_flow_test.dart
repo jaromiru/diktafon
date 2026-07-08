@@ -96,6 +96,10 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
+    // M4: skip the first-run flow — this test exercises the app proper.
+    await db.into(db.settingsEntries).insert(
+        const SettingRow(key: 'firstRunDone', value: '1'));
+
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child: RepaintBoundary(key: _boundaryKey, child: const DiktafonApp()),

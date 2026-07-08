@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../data/repositories/cassette_repository.dart';
 import '../../domain/palette.dart';
+import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
 
@@ -25,10 +26,11 @@ class CassetteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cassette = overview.cassette;
     final label = cassette.label;
+    final l10n = context.l10n;
     return Semantics(
       button: true,
-      label:
-          '${label ?? 'Untitled cassette'}, ${overview.memoCount} memos',
+      label: l10n.cardSemantics(label ?? l10n.untitledCassette,
+          l10n.memoCount(overview.memoCount)),
       child: GestureDetector(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -38,7 +40,8 @@ class CassetteCard extends StatelessWidget {
             painter: _CassettePainter(
               colors: context.tape,
               name: label,
-              meta: _metaLine(),
+              meta: _metaLine(context),
+              untitled: l10n.untitledCassette,
               stripeHue: cassette.titleIsUserSet || label != null
                   ? cassetteHueIndex(cassette.colorSeed)
                   : null,
@@ -50,14 +53,16 @@ class CassetteCard extends StatelessWidget {
     );
   }
 
-  String _metaLine() {
+  String _metaLine(BuildContext context) {
+    final l10n = context.l10n;
     final count = overview.memoCount;
-    final memoPart = count == 1 ? '1 memo' : '$count memos';
-    if (count == 0) return 'empty · press to open';
+    if (count == 0) return l10n.cardEmptyMeta;
+    final memoPart = l10n.memoCount(count);
     if (overview.cassette.label == null) {
-      return '$memoPart · naming itself…';
+      return l10n.cardMetaNaming(memoPart);
     }
-    return '$memoPart · ${relativeDate(overview.cassette.updatedAt)}';
+    return l10n.cardMetaUpdated(
+        memoPart, relativeDate(context, overview.cassette.updatedAt));
   }
 
   /// 0..1 → left reel radius; a glanceable fullness cue (§5.2). Saturates
@@ -67,14 +72,19 @@ class CassetteCard extends StatelessWidget {
 }
 
 /// "today 14:02" / "yesterday" / "28 Jun" — the grid meta format (mockup 02).
-String relativeDate(DateTime t) {
+String relativeDate(BuildContext context, DateTime t) {
+  final locale = Localizations.localeOf(context).toString();
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(t.year, t.month, t.day);
-  if (day == today) return 'today ${DateFormat.Hm().format(t)}';
-  if (day == today.subtract(const Duration(days: 1))) return 'yesterday';
-  if (t.year == now.year) return DateFormat('d MMM').format(t);
-  return DateFormat('d MMM yyyy').format(t);
+  if (day == today) {
+    return context.l10n.todayAt(DateFormat.Hm(locale).format(t));
+  }
+  if (day == today.subtract(const Duration(days: 1))) {
+    return context.l10n.yesterday;
+  }
+  if (t.year == now.year) return DateFormat('d MMM', locale).format(t);
+  return DateFormat('d MMM yyyy', locale).format(t);
 }
 
 class _CassettePainter extends CustomPainter {
@@ -82,6 +92,7 @@ class _CassettePainter extends CustomPainter {
     required this.colors,
     required this.name,
     required this.meta,
+    required this.untitled,
     required this.stripeHue,
     required this.fullness,
   });
@@ -89,6 +100,9 @@ class _CassettePainter extends CustomPainter {
   final TapeColors colors;
   final String? name;
   final String meta;
+
+  /// Localized placeholder painted when [name] is null.
+  final String untitled;
 
   /// Null → placeholder cassette (stripe in line color, italic name).
   final int? stripeHue;
@@ -141,7 +155,7 @@ class _CassettePainter extends CustomPainter {
           style: TextStyle(
               fontFamily: displayFont, fontSize: 15, color: colors.ink));
     } else {
-      _text(canvas, 'Untitled cassette', 33,
+      _text(canvas, untitled, 33,
           style: TextStyle(
               fontFamily: bodyFont,
               fontSize: 8,
@@ -227,6 +241,7 @@ class _CassettePainter extends CustomPainter {
       old.colors != colors ||
       old.name != name ||
       old.meta != meta ||
+      old.untitled != untitled ||
       old.stripeHue != stripeHue ||
       old.fullness != fullness;
 }

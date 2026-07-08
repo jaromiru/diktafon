@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup policy for API ≤ 30 — same intent as data_extraction_rules.xml:
+     DB backs up, audio and models don't (design.md §8). -->
+<full-backup-content>
+    <exclude domain="root" path="app_flutter/audio" />
+    <exclude domain="file" path="models" />
+</full-backup-content>

@@ -127,10 +127,21 @@ final recorderServiceProvider = Provider<RecorderService>((ref) {
   return recorder;
 });
 
+/// Boundary-chime file, materialized from the bundled asset by main().
+/// Null (tests, missing asset) → playback stays chime-free.
+final chimeFileProvider = Provider<String?>((ref) => null);
+
 /// One tape player app-wide — only one cassette is open at a time.
 final tapePlayerProvider = Provider<TapePlayerService>((ref) {
-  final player = TapePlayerService();
+  final player =
+      TapePlayerService(chimeFilePath: ref.watch(chimeFileProvider));
   ref.onDispose(player.dispose);
+  // D5: the chime toggle follows settings live, without rebuilding the
+  // player (a rebuild would drop the loaded tape mid-session).
+  ref.listen(settingsProvider, (_, s) {
+    final enabled = s.value?.chimeEnabled;
+    if (enabled != null) player.chimeEnabled = enabled;
+  }, fireImmediately: true);
   return player;
 });
 

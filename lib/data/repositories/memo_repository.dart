@@ -12,16 +12,24 @@ class MemoRepository {
   final AppDatabase _db;
 
   /// Tape order: chronological, append-only (§4.1, D6).
-  Stream<List<Memo>> watchMemosOf(String cassetteId) {
-    final query = _db.select(_db.memos)
-      ..where((m) => m.cassetteId.equals(cassetteId))
-      // id as tie-break keeps tape order deterministic within the same ms.
-      ..orderBy([
-        (m) => OrderingTerm.asc(m.createdAt),
-        (m) => OrderingTerm.asc(m.id),
-      ]);
-    return query.watch().map((rows) => rows.map(memoFromRow).toList());
-  }
+  Stream<List<Memo>> watchMemosOf(String cassetteId) =>
+      _memosOfQuery(cassetteId)
+          .watch()
+          .map((rows) => rows.map(memoFromRow).toList());
+
+  /// One-shot tape-order read (export, §8).
+  Future<List<Memo>> memosOf(String cassetteId) async =>
+      (await _memosOfQuery(cassetteId).get()).map(memoFromRow).toList();
+
+  SimpleSelectStatement<$MemosTable, MemoRow> _memosOfQuery(
+          String cassetteId) =>
+      _db.select(_db.memos)
+        ..where((m) => m.cassetteId.equals(cassetteId))
+        // id as tie-break keeps tape order deterministic within the same ms.
+        ..orderBy([
+          (m) => OrderingTerm.asc(m.createdAt),
+          (m) => OrderingTerm.asc(m.id),
+        ]);
 
   Future<void> insert(Memo memo) => _db.into(_db.memos).insert(MemoRow(
         id: memo.id,

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:diktafon/application/providers.dart';
 import 'package:diktafon/data/db/database.dart';
+import 'package:diktafon/l10n/l10n.dart';
 import 'package:diktafon/presentation/screens/settings_screen.dart';
 import 'package:diktafon/presentation/theme/theme.dart';
 import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
@@ -69,6 +70,9 @@ void main() {
         llmModelManagerProvider.overrideWithValue(LlmModelManager(dir)),
       ],
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
         theme: buildTheme(Brightness.light),
         home: Builder(
           builder: (context) => Scaffold(

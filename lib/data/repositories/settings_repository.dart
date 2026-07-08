@@ -9,6 +9,7 @@ class AppSettings {
     this.llmTier = 'qwen3-1.7b',
     this.summariesEnabled = true,
     this.theme = 'system',
+    this.firstRunDone = false,
   });
 
   /// Null → auto-detect from the first memo (D8).
@@ -21,6 +22,9 @@ class AppSettings {
   /// 'system' | 'light' | 'dark'.
   final String theme;
 
+  /// The first-run setup (§5.6) has been walked through (or skipped).
+  final bool firstRunDone;
+
   static AppSettings fromRows(Map<String, String> rows) => AppSettings(
         appLanguage: rows['appLanguage'],
         chimeEnabled: rows['chimeEnabled'] != '0',
@@ -28,6 +32,7 @@ class AppSettings {
         llmTier: rows['llmTier'] ?? 'qwen3-1.7b',
         summariesEnabled: rows['summariesEnabled'] != '0',
         theme: rows['theme'] ?? 'system',
+        firstRunDone: rows['firstRunDone'] == '1',
       );
 }
 
@@ -64,4 +69,5 @@ class SettingsRepository {
   Future<void> setSummariesEnabled(bool on) =>
       _set('summariesEnabled', on ? '1' : '0');
   Future<void> setTheme(String theme) => _set('theme', theme);
+  Future<void> setFirstRunDone() => _set('firstRunDone', '1');
 }

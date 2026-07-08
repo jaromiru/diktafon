@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../domain/palette.dart';
 import '../../domain/tape.dart';
+import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
+import '../theme/theme.dart';
 
 /// The timeline — the hero of the cassette view (D11, mockup 03): one clean
 /// bar of per-memo colored segments with 2 px boundary gaps, an ink playhead,
@@ -103,6 +105,27 @@ class _TimelineBarState extends State<TimelineBar>
   @override
   Widget build(BuildContext context) {
     final interactive = widget.recordingElapsed == null && !widget.tape.isEmpty;
+    // §13: to a screen reader the timeline is a slider — a position value
+    // with increase/decrease stepping ±5 s on the global timeline.
+    String positionValue(int ms) => context.l10n.timelinePosition(
+        formatMs(ms), formatMs(widget.tape.totalDurationMs));
+    int stepped(int delta) =>
+        (widget.globalMs + delta).clamp(0, widget.tape.totalDurationMs);
+    return Semantics(
+      slider: true,
+      label: context.l10n.timelineLabel,
+      value: positionValue(widget.globalMs),
+      increasedValue: interactive ? positionValue(stepped(5000)) : null,
+      decreasedValue: interactive ? positionValue(stepped(-5000)) : null,
+      onIncrease:
+          interactive ? () => widget.onScrub?.call(stepped(5000)) : null,
+      onDecrease:
+          interactive ? () => widget.onScrub?.call(stepped(-5000)) : null,
+      child: _gestures(context, interactive),
+    );
+  }
+
+  Widget _gestures(BuildContext context, bool interactive) {
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
       return GestureDetector(

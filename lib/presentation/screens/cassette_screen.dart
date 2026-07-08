@@ -8,6 +8,7 @@ import '../../application/recording_controller.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
 import '../../domain/tape.dart';
+import '../../l10n/l10n.dart';
 import '../../services/audio/tape_player_service.dart';
 import '../../services/providers/transcription_provider.dart';
 import '../theme/tape_colors.dart';
@@ -21,9 +22,16 @@ import 'home_screen.dart';
 /// Cassette view — the core screen (§5.3, mockups 03/04): header, LCD
 /// counter, the timeline, the whole-tape transcript and the deck keys.
 class CassetteScreen extends ConsumerStatefulWidget {
-  const CassetteScreen({super.key, required this.cassetteId});
+  const CassetteScreen({
+    super.key,
+    required this.cassetteId,
+    this.autoRecord = false,
+  });
 
   final String cassetteId;
+
+  /// First-run's START RECORDING (§5.6): open with the mic already rolling.
+  final bool autoRecord;
 
   @override
   ConsumerState<CassetteScreen> createState() => _CassetteScreenState();
@@ -43,6 +51,10 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
       (_, tape) => _loadTape(tape),
       fireImmediately: true,
     );
+    if (widget.autoRecord) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _startRecording());
+    }
   }
 
   Future<void> _loadTape(Tape tape) async {
@@ -87,13 +99,13 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         titleSpacing: 0,
         leading: IconButton(
           icon: const Icon(Icons.chevron_left, size: 28),
-          tooltip: 'Back',
+          tooltip: context.l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: GestureDetector(
           onTap: () => _rename(cassette),
           child: Text(
-            cassette.label ?? 'Untitled cassette',
+            cassette.label ?? context.l10n.untitledCassette,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: cassette.label == null
@@ -113,9 +125,11 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
               'rename' => _rename(cassette),
               _ => _deleteCassette(cassette, tape.memoCount),
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'rename', child: Text('Rename')),
-              PopupMenuItem(value: 'delete', child: Text('Delete cassette')),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'rename', child: Text(context.l10n.rename)),
+              PopupMenuItem(
+                  value: 'delete', child: Text(context.l10n.deleteCassette)),
             ],
           ),
         ],
@@ -145,7 +159,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
             child: tape.isEmpty && !isRecordingHere
                 ? Center(
                     child: Text(
-                      'A blank tape.\nPress the red key to record.',
+                      context.l10n.blankTape,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 13,
@@ -193,37 +207,41 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
 
   Widget _summaryLine(Cassette cassette) {
     final tapeColors = context.tape;
-    final summary = cassette.summary ??
-        'The cassette summary appears once memos are transcribed.';
-    return GestureDetector(
-      onTap: () => setState(() => _summaryExpanded = !_summaryExpanded),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                summary,
-                maxLines: _summaryExpanded ? null : 2,
-                overflow: _summaryExpanded ? null : TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.5,
-                  color: tapeColors.ink2,
-                  fontStyle:
-                      cassette.summary == null ? FontStyle.italic : null,
+    final summary =
+        cassette.summary ?? context.l10n.summaryPlaceholder;
+    return Semantics(
+      button: true,
+      expanded: _summaryExpanded,
+      child: GestureDetector(
+        onTap: () => setState(() => _summaryExpanded = !_summaryExpanded),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  summary,
+                  maxLines: _summaryExpanded ? null : 2,
+                  overflow: _summaryExpanded ? null : TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.5,
+                    color: tapeColors.ink2,
+                    fontStyle:
+                        cassette.summary == null ? FontStyle.italic : null,
+                  ),
                 ),
               ),
-            ),
-            Icon(
-              _summaryExpanded
-                  ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,
-              size: 16,
-              color: tapeColors.ink2,
-            ),
-          ],
+              Icon(
+                _summaryExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                size: 16,
+                color: tapeColors.ink2,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -242,7 +260,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
           const SizedBox(width: 5),
           Expanded(
             child: Text(
-              'RECORDING MEMO ${tape.memoCount + 1}',
+              context.l10n.recordingMemo(tape.memoCount + 1),
               style: TextStyle(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
@@ -264,8 +282,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         Expanded(
           child: Text(
             tape.isEmpty
-                ? 'EMPTY TAPE'
-                : 'MEMO ${playback.memoIndex + 1} / ${tape.memoCount}',
+                ? context.l10n.emptyTape
+                : context.l10n
+                    .memoCounter(playback.memoIndex + 1, tape.memoCount),
             style: TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
@@ -305,7 +324,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
           children: [
             DeckKey(
               glyph: DeckGlyph.rewind,
-              semanticLabel: 'Back 15 seconds',
+              semanticLabel: context.l10n.back15,
               onPressed: tape.isEmpty ? null : () => player.skipBy(-15000),
             ),
             const SizedBox(width: 10),
@@ -313,20 +332,22 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
               glyph: playback.playing ? DeckGlyph.pause : DeckGlyph.play,
               style: DeckKeyStyle.ink,
               width: 64,
-              semanticLabel: playback.playing ? 'Pause' : 'Play',
+              semanticLabel: playback.playing
+                  ? context.l10n.pause
+                  : context.l10n.play,
               onPressed: tape.isEmpty ? null : player.playPause,
             ),
             const SizedBox(width: 10),
             DeckKey(
               glyph: DeckGlyph.fastForward,
-              semanticLabel: 'Forward 15 seconds',
+              semanticLabel: context.l10n.forward15,
               onPressed: tape.isEmpty ? null : () => player.skipBy(15000),
             ),
             const Spacer(),
             DeckKey(
               glyph: DeckGlyph.record,
               style: DeckKeyStyle.record,
-              semanticLabel: 'Record a new memo',
+              semanticLabel: context.l10n.recordNewMemo,
               onPressed: _startRecording,
             ),
           ],
@@ -340,8 +361,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         .read(recordingControllerProvider.notifier)
         .start(widget.cassetteId);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Microphone permission is required to record.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.micPermissionNeeded)));
     }
   }
 
@@ -365,23 +386,22 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
 
   /// Long-press a segment → delete memo (§5.3); the tape re-flows (§4.2).
   Future<void> _deleteMemo(Memo memo, int ordinalIndex) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('DELETE MEMO?'),
-            content: Text(
-                'Memo ${ordinalIndex + 1} will be removed and the tape '
-                'closes the gap. This cannot be undone.'),
+            title: Text(l10n.deleteMemoTitle),
+            content: Text(l10n.deleteMemoBody(ordinalIndex + 1)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('CANCEL'),
+                child: Text(l10n.cancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 style: TextButton.styleFrom(
                     foregroundColor: dialogContext.tape.rec),
-                child: const Text('DELETE'),
+                child: Text(l10n.deleteAction),
               ),
             ],
           ),
@@ -504,7 +524,7 @@ class _RecordingPanelState extends ConsumerState<_RecordingPanel> {
               style: DeckKeyStyle.record,
               width: 70,
               height: 56,
-              semanticLabel: 'Stop recording',
+              semanticLabel: context.l10n.stopRecording,
               onPressed: () =>
                   ref.read(recordingControllerProvider.notifier).stop(),
             ),
@@ -513,13 +533,4 @@ class _RecordingPanelState extends ConsumerState<_RecordingPanel> {
       ),
     );
   }
-}
-
-/// "18:22", "1:02:47" — LCD counter format.
-String formatMs(int ms) {
-  final total = ms ~/ 1000;
-  final h = total ~/ 3600, m = (total % 3600) ~/ 60, s = total % 60;
-  final mm = m.toString().padLeft(2, '0');
-  final ss = s.toString().padLeft(2, '0');
-  return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
 }

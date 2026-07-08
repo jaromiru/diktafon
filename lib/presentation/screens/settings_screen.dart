@@ -5,20 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/l10n.dart';
 import '../../services/providers/llm/llm_model_manager.dart';
 import '../../services/providers/model_manager.dart';
 import '../../services/providers/transcription_provider.dart';
 import '../../services/providers/whisper/whisper_model_manager.dart';
 import '../theme/tape_colors.dart';
+import '../widgets/ink_progress_bar.dart';
 import '../widgets/ink_toggle.dart';
+import '../widgets/settings_rows.dart';
+import 'backup_screen.dart';
 
 /// Settings (§5.5, mockup 05): grouped ink-bordered cards, rectangular
 /// toggles. Model & backup rows are honest about what ships in M1.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const languages = <String?, String>{
-    null: 'Auto-detect (from first recording)',
+  /// Endonyms on purpose — a language list reads best in its own words.
+  static const languages = <String, String>{
     'en': 'English',
     'fr': 'Français',
     'es': 'Español',
@@ -32,54 +36,54 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final repo = ref.read(settingsRepositoryProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         leading: IconButton(
           icon: const Icon(Icons.chevron_left, size: 28),
-          tooltip: 'Back',
+          tooltip: l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('SETTINGS'),
+        title: Text(l10n.settingsTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          _Group(title: 'Language', rows: [
-            _SettingsRow(
-              title: 'Transcription language',
+          SettingsGroup(title: l10n.groupLanguage, rows: [
+            SettingsRow(
+              title: l10n.transcriptionLanguage,
               value: settings.appLanguage == null
-                  ? 'Auto-detect — set from your first memo (D8)'
+                  ? l10n.autoDetectValue
                   : languages[settings.appLanguage] ?? settings.appLanguage!,
               onTap: () => _pickLanguage(context, repo, settings),
             ),
           ]),
-          _Group(title: 'Playback', rows: [
-            _SettingsRow(
-              title: 'Boundary chime',
-              value:
-                  'A soft cue as the tape rolls into the next memo. Off = fully seamless.',
+          SettingsGroup(title: l10n.groupPlayback, rows: [
+            SettingsRow(
+              title: l10n.boundaryChime,
+              value: l10n.boundaryChimeDesc,
               trailing: InkToggle(
                 value: settings.chimeEnabled,
                 onChanged: repo.setChimeEnabled,
               ),
             ),
           ]),
-          _Group(title: 'On-device intelligence', rows: [
-            _SettingsRow(
-              title: 'Transcription model',
-              value: _whisperRowValue(ref, settings),
+          SettingsGroup(title: l10n.groupIntelligence, rows: [
+            SettingsRow(
+              title: l10n.transcriptionModel,
+              value: _whisperRowValue(context, ref, settings),
               onTap: () => _pickModel(context, const ModelPickerDialog()),
             ),
-            _SettingsRow(
-              title: 'Summary model',
-              value: _llmRowValue(ref, settings),
+            SettingsRow(
+              title: l10n.summaryModel,
+              value: _llmRowValue(context, ref, settings),
               onTap: () => _pickModel(context, const LlmModelPickerDialog()),
             ),
-            _SettingsRow(
-              title: 'Summaries',
-              value: 'Memo gists & cassette overviews, generated locally',
+            SettingsRow(
+              title: l10n.summariesRow,
+              value: l10n.summariesRowDesc,
               trailing: InkToggle(
                 value: settings.summariesEnabled,
                 onChanged: (on) async {
@@ -90,30 +94,27 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ]),
-          _Group(title: 'Appearance', rows: [
-            _SettingsRow(
-              title: 'Theme',
+          SettingsGroup(title: l10n.groupAppearance, rows: [
+            SettingsRow(
+              title: l10n.themeRow,
               value: switch (settings.theme) {
-                'light' => 'Light',
-                'dark' => 'Dark',
-                _ => 'System',
+                'light' => l10n.themeLight,
+                'dark' => l10n.themeDark,
+                _ => l10n.themeSystem,
               },
               onTap: () => _pickTheme(context, repo, settings),
             ),
           ]),
-          _Group(title: 'Your data', rows: [
-            _SettingsRow(
-              title: 'Backup & export',
-              value: 'Explicit, user-initiated — coming with the polish update',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        Text('Backup & export ship in a later milestone.')),
-              ),
+          SettingsGroup(title: l10n.groupYourData, rows: [
+            SettingsRow(
+              title: l10n.backupExport,
+              value: l10n.backupExportDesc,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const BackupScreen())),
             ),
-            _SettingsRow(
-              title: 'About & privacy',
-              value: 'Audio never leaves this device',
+            SettingsRow(
+              title: l10n.aboutPrivacy,
+              value: l10n.aboutPrivacyDesc,
               onTap: () => _about(context),
             ),
           ]),
@@ -124,23 +125,29 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _pickLanguage(
       BuildContext context, SettingsRepository repo, AppSettings s) async {
-    final choice = await showDialog<Object>(
+    final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
-        title: const Text('TRANSCRIPTION LANGUAGE'),
+        title: Text(context.l10n.transcriptionLanguageTitle),
         children: [
+          _dialogOption(
+            dialogContext,
+            label: context.l10n.autoDetectOption,
+            selected: s.appLanguage == null,
+            result: 'auto',
+          ),
           for (final entry in languages.entries)
             _dialogOption(
               dialogContext,
               label: entry.value,
               selected: s.appLanguage == entry.key,
-              result: entry.key ?? 'auto',
+              result: entry.key,
             ),
         ],
       ),
     );
     if (choice != null) {
-      await repo.setAppLanguage(choice == 'auto' ? null : choice as String);
+      await repo.setAppLanguage(choice == 'auto' ? null : choice);
     }
   }
 
@@ -149,12 +156,12 @@ class SettingsScreen extends ConsumerWidget {
     final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
-        title: const Text('THEME'),
+        title: Text(context.l10n.themeTitle),
         children: [
-          for (final (value, label) in const [
-            ('system', 'System'),
-            ('light', 'Light'),
-            ('dark', 'Dark'),
+          for (final (value, label) in [
+            ('system', context.l10n.themeSystem),
+            ('light', context.l10n.themeLight),
+            ('dark', context.l10n.themeDark),
           ])
             _dialogOption(
               dialogContext,
@@ -172,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
     BuildContext context, {
     required String label,
     required bool selected,
-    required Object result,
+    required String result,
   }) =>
       SimpleDialogOption(
         onPressed: () => Navigator.pop(context, result),
@@ -195,29 +202,31 @@ class SettingsScreen extends ConsumerWidget {
 
   /// "Whisper small · 181 MB — installed", "… downloading 42 %", or a nudge
   /// to set it up (§14 guides the user here while memos wait).
-  String _whisperRowValue(WidgetRef ref, AppSettings settings) {
+  String _whisperRowValue(
+      BuildContext context, WidgetRef ref, AppSettings settings) {
     final model = WhisperModel.byTier(settings.whisperTier);
-    return _modelRowValue(
-        model, ref.watch(whisperModelStatesProvider).value, model.sizeLabel);
+    return _modelRowValue(context, model,
+        ref.watch(whisperModelStatesProvider).value, model.sizeLabel);
   }
 
-  String _llmRowValue(WidgetRef ref, AppSettings settings) {
+  String _llmRowValue(
+      BuildContext context, WidgetRef ref, AppSettings settings) {
     final model = LlmModel.byTier(settings.llmTier);
-    return _modelRowValue(
-        model, ref.watch(llmModelStatesProvider).value, model.sizeLabel);
+    return _modelRowValue(context, model,
+        ref.watch(llmModelStatesProvider).value, model.sizeLabel);
   }
 
-  String _modelRowValue(ModelSpec model,
+  String _modelRowValue(BuildContext context, ModelSpec model,
       List<ModelState<ModelSpec>>? states, String sizeLabel) {
     final state = states
         ?.where((s) => s.model.tier == model.tier)
         .firstOrNull;
     return switch (state?.status ?? ModelStatus.notInstalled) {
       ModelStatus.ready =>
-        '${model.label} · $sizeLabel — installed, tap to manage',
-      ModelStatus.downloading =>
-        '${model.label} — downloading ${(state!.progress * 100).round()} %',
-      _ => '${model.label} — not downloaded yet · tap to set up',
+        context.l10n.modelInstalled(model.label, sizeLabel),
+      ModelStatus.downloading => context.l10n
+          .modelDownloading(model.label, (state!.progress * 100).round()),
+      _ => context.l10n.modelNotDownloaded(model.label),
     };
   }
 
@@ -229,17 +238,12 @@ class SettingsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('ABOUT & PRIVACY'),
-        content: const Text(
-          'Diktafon listens, writes and summarizes right here on your phone.\n\n'
-          'Recordings, transcripts and summaries never leave the device. '
-          'There is no account, no cloud and no analytics. The only way data '
-          'leaves is a backup or export you start yourself.',
-        ),
+        title: Text(context.l10n.aboutTitle),
+        content: Text(context.l10n.aboutBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('OK'),
+            child: Text(context.l10n.ok),
           ),
         ],
       ),
@@ -278,11 +282,11 @@ class ModelPickerDialog extends ConsumerWidget {
     final manager = ref.read(whisperModelManagerProvider);
 
     return _EnginePickerDialog(
-      title: 'TRANSCRIPTION MODEL',
+      title: context.l10n.modelPickerTranscriptionTitle,
       states: states,
       selectedTier: settings.whisperTier,
       enabledOf: (model) => deviceCanRun(model as WhisperModel),
-      disabledReason: 'needs ≥ 5 GB RAM',
+      disabledReason: context.l10n.needsRam(5),
       installedBytes: manager.installedBytes(),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as WhisperModel),
@@ -294,10 +298,12 @@ class ModelPickerDialog extends ConsumerWidget {
     final repo = ref.read(settingsRepositoryProvider);
     final manager = ref.read(whisperModelManagerProvider);
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     await repo.setWhisperTier(state.model.tier);
     await downloadAndDrain(messenger, ref, state,
         download: () => manager.download(state.model as WhisperModel),
-        readyNote: 'transcribing waiting memos');
+        readyMessage: l10n.modelReadyTranscribe(state.model.label),
+        failedMessage: l10n.downloadFailed(state.model.label));
   }
 }
 
@@ -313,11 +319,11 @@ class LlmModelPickerDialog extends ConsumerWidget {
     final manager = ref.read(llmModelManagerProvider);
 
     return _EnginePickerDialog(
-      title: 'SUMMARY MODEL',
+      title: context.l10n.modelPickerSummaryTitle,
       states: states,
       selectedTier: settings.llmTier,
       enabledOf: (model) => deviceHasRamGb((model as LlmModel).minRamGb),
-      disabledReason: 'needs ≥ ${LlmModel.qwen3_4b.minRamGb} GB RAM',
+      disabledReason: context.l10n.needsRam(LlmModel.qwen3_4b.minRamGb),
       installedBytes: manager.installedBytes(),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as LlmModel),
@@ -329,10 +335,12 @@ class LlmModelPickerDialog extends ConsumerWidget {
     final repo = ref.read(settingsRepositoryProvider);
     final manager = ref.read(llmModelManagerProvider);
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     await repo.setLlmTier(state.model.tier);
     await downloadAndDrain(messenger, ref, state,
         download: () => manager.download(state.model as LlmModel),
-        readyNote: 'summarizing waiting memos');
+        readyMessage: l10n.modelReadySummarize(state.model.label),
+        failedMessage: l10n.downloadFailed(state.model.label));
   }
 }
 
@@ -343,7 +351,8 @@ Future<void> downloadAndDrain(
   WidgetRef ref,
   ModelState<ModelSpec> state, {
   required Future<void> Function() download,
-  required String readyNote,
+  required String readyMessage,
+  required String failedMessage,
 }) async {
   final queue = ref.read(jobQueueProvider);
 
@@ -353,13 +362,10 @@ Future<void> downloadAndDrain(
   }
   try {
     await download();
-    messenger.showSnackBar(SnackBar(
-        content: Text('${state.model.label} is ready — $readyNote.')));
+    messenger.showSnackBar(SnackBar(content: Text(readyMessage)));
     await queue.drain();
   } catch (_) {
-    messenger.showSnackBar(SnackBar(
-        content: Text('Download of ${state.model.label} failed — '
-            'check your connection and try again.')));
+    messenger.showSnackBar(SnackBar(content: Text(failedMessage)));
   }
 }
 
@@ -411,7 +417,7 @@ class _EnginePickerDialog extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
           child: Text(
-            'Runs on this device only. Storage used by models: $usedMb MB.',
+            context.l10n.storageNote(usedMb),
             style: TextStyle(fontSize: 10, color: tape.ink2),
           ),
         ),
@@ -442,11 +448,12 @@ class _ModelOption extends StatelessWidget {
     final tape = context.tape;
     final model = state.model;
     final status = switch (state.status) {
-      ModelStatus.ready => 'installed · ${model.sizeLabel}',
+      ModelStatus.ready => context.l10n.pickerInstalled(model.sizeLabel),
       ModelStatus.downloading =>
-        'downloading ${(state.progress * 100).round()} %',
-      ModelStatus.notInstalled =>
-        enabled ? 'download · ${model.sizeLabel}' : disabledReason,
+        context.l10n.pickerDownloading((state.progress * 100).round()),
+      ModelStatus.notInstalled => enabled
+          ? context.l10n.pickerDownload(model.sizeLabel)
+          : disabledReason,
     };
 
     return InkWell(
@@ -483,7 +490,7 @@ class _ModelOption extends StatelessWidget {
                       icon: const Icon(Icons.delete_outline, size: 16),
                       color: tape.ink2,
                       visualDensity: VisualDensity.compact,
-                      tooltip: 'Delete model file',
+                      tooltip: context.l10n.deleteModelTooltip,
                       onPressed: onDelete,
                     ),
                 ],
@@ -499,7 +506,7 @@ class _ModelOption extends StatelessWidget {
               if (state.status == ModelStatus.downloading)
                 Padding(
                   padding: const EdgeInsets.only(left: 22, top: 6, bottom: 2),
-                  child: _InkProgressBar(fraction: state.progress),
+                  child: InkProgressBar(fraction: state.progress),
                 ),
             ],
           ),
@@ -509,138 +516,3 @@ class _ModelOption extends StatelessWidget {
   }
 }
 
-/// Retro determinate progress: an ink-bordered channel filling left→right.
-/// Custom-painted — fractional-width widgets have no finite intrinsic width
-/// at 0 %, which crashes inside SimpleDialog's IntrinsicWidth.
-class _InkProgressBar extends StatelessWidget {
-  const _InkProgressBar({required this.fraction});
-
-  final double fraction;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 10,
-        child: CustomPaint(
-          painter: _InkProgressPainter(
-              fraction.clamp(0.0, 1.0), context.tape.ink),
-        ),
-      );
-}
-
-class _InkProgressPainter extends CustomPainter {
-  const _InkProgressPainter(this.fraction, this.ink);
-
-  final double fraction;
-  final Color ink;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final border = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = ink;
-    canvas.drawRect(
-        Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
-        border);
-    canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width * fraction, size.height),
-        Paint()..color = ink);
-  }
-
-  @override
-  bool shouldRepaint(_InkProgressPainter old) =>
-      old.fraction != fraction || old.ink != ink;
-}
-
-class _Group extends StatelessWidget {
-  const _Group({required this.title, required this.rows});
-
-  final String title;
-  final List<Widget> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    final tape = context.tape;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                color: tape.ink2,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: tape.surface,
-              border: Border.all(color: tape.ink, width: 1.5),
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < rows.length; i++) ...[
-                  if (i > 0) Divider(height: 1.5, color: tape.line),
-                  rows[i],
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.title,
-    required this.value,
-    this.trailing,
-    this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tape = context.tape;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(value,
-                      style: TextStyle(
-                          fontSize: 10.5, height: 1.45, color: tape.ink2)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            trailing ??
-                Icon(Icons.chevron_right, size: 18, color: tape.ink2),
-          ],
-        ),
-      ),
-    );
-  }
-}

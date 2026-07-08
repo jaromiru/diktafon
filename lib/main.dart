@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,6 +35,8 @@ Future<void> main() async {
     audioFileStoreProvider.overrideWithValue(fileStore),
     whisperModelManagerProvider.overrideWithValue(whisperModels),
     llmModelManagerProvider.overrideWithValue(llmModels),
+    chimeFileProvider.overrideWithValue(
+        await _materializeChime(supportDir.path)),
   ]);
 
   // Resume any jobs persisted before the last shutdown (§6.5 durability).
@@ -43,4 +46,20 @@ Future<void> main() async {
     container: container,
     child: const DiktafonApp(),
   ));
+}
+
+/// just_audio's media_kit backend plays files, not bundle assets — copy the
+/// chime out of the bundle once. Null (asset missing) → no chime, D5's "off"
+/// behavior, rather than a startup failure.
+Future<String?> _materializeChime(String supportDir) async {
+  try {
+    final file = File('$supportDir/chime.wav');
+    if (!await file.exists()) {
+      final data = await rootBundle.load('assets/audio/chime.wav');
+      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    }
+    return file.path;
+  } catch (_) {
+    return null;
+  }
 }

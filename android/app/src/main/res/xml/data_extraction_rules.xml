@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup policy (design.md §8), API 31+.
+
+     Cloud (Auto Backup, ~25 MB quota): the Drift DB — cassettes, transcripts,
+     summaries — restores automatically. Audio is excluded so a large library
+     can never blow the quota and silently kill the whole backup; users carry
+     audio via the explicit export (Settings → Backup & export). Models are
+     regenerable downloads (§7.1) and stay out of every backup.
+
+     Device-to-device transfer has no quota, so audio moves to a new phone. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="app_flutter/audio" />
+        <exclude domain="file" path="models" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="models" />
+    </device-transfer>
+</data-extraction-rules>

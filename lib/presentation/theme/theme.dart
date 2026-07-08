@@ -123,3 +123,12 @@ TextStyle lcdStyle(BuildContext context,
       color: color,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
+
+/// "18:22", "1:02:47" — LCD counter format.
+String formatMs(int ms) {
+  final total = ms ~/ 1000;
+  final h = total ~/ 3600, m = (total % 3600) ~/ 60, s = total % 60;
+  final mm = m.toString().padLeft(2, '0');
+  final ss = s.toString().padLeft(2, '0');
+  return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
+}

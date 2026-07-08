@@ -31,11 +31,23 @@ class TapePlaybackState {
   final bool completed;
 }
 
+/// The chime fires only when the tape rolls forward into the next memo by
+/// itself (§5.4): playing, one step ahead, and not because a seek/scrub/±15 s
+/// or a tape (re)load moved the index.
+bool isNaturalAdvance({
+  required int? from,
+  required int? to,
+  required bool playing,
+  required bool seeking,
+  required bool loading,
+}) =>
+    playing && !seeking && !loading && from != null && to == from + 1;
+
 /// Continuous playback (§6.4, D5): the tape is a concatenation of the memos'
 /// files in chronological order — gapless auto-advance, one global position.
 /// All seeks/scrubs/±15 s translate through Tape.locate (§4.2).
 class TapePlayerService {
-  TapePlayerService() {
+  TapePlayerService({this.chimeFilePath}) {
     _positionSub = _player
         .createPositionStream(
           minPeriod: const Duration(milliseconds: 100),
@@ -43,11 +55,21 @@ class TapePlayerService {
         )
         .listen((_) => _emit());
     _playingSub = _player.playingStream.listen((_) => _emit());
-    _indexSub = _player.currentIndexStream.listen((_) => _emit());
+    _indexSub = _player.currentIndexStream.listen((index) {
+      final from = _lastIndex;
+      _lastIndex = index;
+      if (isNaturalAdvance(
+        from: from,
+        to: index,
+        playing: _player.playing,
+        seeking: _seekInFlight,
+        loading: _loading,
+      )) {
+        _playChime();
+      }
+      _emit();
+    });
     _stateSub = _player.processingStateStream.listen((state) {
-      // NOTE(M4): natural forward advance across a memo boundary is where the
-      // boundary chime hooks in (D5) — overlaid on a second player so the
-      // main tape stays gapless.
       if (state == ProcessingState.completed) _player.pause();
       _emit();
     });
@@ -55,6 +77,31 @@ class TapePlayerService {
 
   final AudioPlayer _player = AudioPlayer();
   final _stateController = StreamController<TapePlaybackState>.broadcast();
+
+  /// D5: a short cue as the tape rolls into the next memo, overlaid on a
+  /// second player so the main tape stays gapless. Off → fully seamless.
+  bool chimeEnabled = true;
+
+  /// Materialized by main(); null (tests, missing asset) → no chime.
+  final String? chimeFilePath;
+  AudioPlayer? _chimePlayer;
+  int? _lastIndex;
+  bool _loading = false;
+
+  Future<void> _playChime() async {
+    final path = chimeFilePath;
+    if (!chimeEnabled || path == null) return;
+    try {
+      final chime = _chimePlayer ??= AudioPlayer();
+      if (chime.audioSource == null) {
+        await chime.setAudioSource(AudioSource.file(path));
+      }
+      await chime.seek(Duration.zero);
+      unawaited(chime.play());
+    } catch (_) {
+      // Best-effort orientation cue — never disturb playback over it.
+    }
+  }
 
   late final StreamSubscription<void> _positionSub;
   late final StreamSubscription<void> _playingSub;
@@ -91,23 +138,29 @@ class TapePlayerService {
     final wasPlaying = _player.playing;
     final previousGlobalMs = preservePosition ? state.globalMs : 0;
     _tape = tape;
-    if (tape.isEmpty) {
-      await _player.stop();
-      await _player.clearAudioSources();
-      _emit();
-      return;
+    _loading = true;
+    try {
+      if (tape.isEmpty) {
+        await _player.stop();
+        await _player.clearAudioSources();
+        _emit();
+        return;
+      }
+      TapePosition? position;
+      if (previousGlobalMs > 0 && previousGlobalMs < tape.totalDurationMs) {
+        position = tape.locate(previousGlobalMs);
+      }
+      await _player.setAudioSources(
+        [for (final memo in tape.memos) AudioSource.file(memo.filePath)],
+        initialIndex: position?.memoIndex ?? 0,
+        initialPosition: Duration(milliseconds: position?.localMs ?? 0),
+        preload: false,
+      );
+      if (wasPlaying) _player.play();
+    } finally {
+      _lastIndex = _player.currentIndex;
+      _loading = false;
     }
-    TapePosition? position;
-    if (previousGlobalMs > 0 && previousGlobalMs < tape.totalDurationMs) {
-      position = tape.locate(previousGlobalMs);
-    }
-    await _player.setAudioSources(
-      [for (final memo in tape.memos) AudioSource.file(memo.filePath)],
-      initialIndex: position?.memoIndex ?? 0,
-      initialPosition: Duration(milliseconds: position?.localMs ?? 0),
-      preload: false,
-    );
-    if (wasPlaying) _player.play();
     _emit();
   }
 
@@ -199,6 +252,7 @@ class TapePlayerService {
     await _indexSub.cancel();
     await _stateSub.cancel();
     await _stateController.close();
+    await _chimePlayer?.dispose();
     await _player.dispose();
   }
 }

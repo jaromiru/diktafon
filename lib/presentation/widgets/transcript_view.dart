@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../domain/models.dart';
 import '../../domain/palette.dart';
 import '../../domain/tape.dart';
+import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
 
 /// The transcript of the whole tape (§5.3): memo boundaries as light dashed
@@ -111,7 +112,7 @@ class _TranscriptViewState extends State<TranscriptView> {
     final transcript = memo.transcript;
     if (transcript != null) {
       if (transcript.isEmpty) {
-        return _caption(context, '(no speech)');
+        return _caption(context, context.l10n.noSpeech);
       }
       return _MemoParagraph(
         memo: memo,
@@ -125,7 +126,7 @@ class _TranscriptViewState extends State<TranscriptView> {
       MemoStatus.transcribing => const _ShimmerRows(),
       MemoStatus.failed => _caption(
           context,
-          'transcription failed — tap to retry (the audio still plays)',
+          context.l10n.transcriptionFailedRetry,
           onTap: widget.onRetryMemo == null
               ? null
               : () => widget.onRetryMemo!(memo.id),
@@ -135,9 +136,8 @@ class _TranscriptViewState extends State<TranscriptView> {
       _ => _caption(
           context,
           widget.modelReady
-              ? 'queued for transcription…'
-              : 'waiting for the transcription model — '
-                  'download it in Settings',
+              ? context.l10n.queuedForTranscription
+              : context.l10n.waitingForModel,
         ),
     };
   }
@@ -179,11 +179,13 @@ class _MemoDivider extends StatelessWidget {
   /// The gist line under the stamp (§5.3): the memo summary once it exists,
   /// a quiet progress note while the LLM works, a retry affordance when
   /// summarization permanently failed (§14). Null → no second line.
-  (String, VoidCallback?)? _caption() {
+  (String, VoidCallback?)? _caption(BuildContext context) {
     if (memo.memoSummary != null) return (memo.memoSummary!, null);
-    if (memo.status == MemoStatus.summarizing) return ('summarizing…', null);
+    if (memo.status == MemoStatus.summarizing) {
+      return (context.l10n.summarizing, null);
+    }
     if (memo.status == MemoStatus.failed && memo.transcript != null) {
-      return ('summary failed — tap to retry', onRetry);
+      return (context.l10n.summaryFailedRetry, onRetry);
     }
     return null;
   }
@@ -191,8 +193,10 @@ class _MemoDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tape = context.tape;
-    final stamp = DateFormat('dd. MM. yyyy HH:mm').format(memo.createdAt);
-    final caption = _caption();
+    final locale = Localizations.localeOf(context).toString();
+    final stamp =
+        DateFormat('dd. MM. yyyy HH:mm', locale).format(memo.createdAt);
+    final caption = _caption(context);
     return Container(
       margin: EdgeInsets.only(top: first ? 0 : 13, bottom: 11),
       padding: const EdgeInsets.only(top: 10),
@@ -217,7 +221,7 @@ class _MemoDivider extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Memo $ordinal — $stamp',
+                  context.l10n.memoDivider(ordinal, stamp),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -361,28 +365,32 @@ class _ShimmerRowsState extends State<_ShimmerRows>
   @override
   Widget build(BuildContext context) {
     final tape = context.tape;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final width in const [0.88, 0.72, 0.81])
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => Container(
-              height: 11,
-              margin: const EdgeInsets.symmetric(vertical: 4.5),
-              width: width * 300,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [tape.line, tape.highlight, tape.line],
-                  stops: const [0.3, 0.5, 0.7],
-                  begin: Alignment(-2 + 4 * _controller.value, 0),
-                  end: Alignment(-1 + 4 * _controller.value, 0),
-                  tileMode: TileMode.clamp,
+    // §13: the sheen is decoration; a screen reader hears the status.
+    return Semantics(
+      label: context.l10n.transcribing,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final width in const [0.88, 0.72, 0.81])
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => Container(
+                height: 11,
+                margin: const EdgeInsets.symmetric(vertical: 4.5),
+                width: width * 300,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [tape.line, tape.highlight, tape.line],
+                    stops: const [0.3, 0.5, 0.7],
+                    begin: Alignment(-2 + 4 * _controller.value, 0),
+                    end: Alignment(-1 + 4 * _controller.value, 0),
+                    tileMode: TileMode.clamp,
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

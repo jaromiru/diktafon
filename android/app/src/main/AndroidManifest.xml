@@ -5,10 +5,14 @@
     <!-- D13: recording keeps running with the app backgrounded / screen off. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <!-- Backup policy (§8): DB auto-backs-up; audio/models excluded — see res/xml. -->
     <application
         android:label="Diktafon"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

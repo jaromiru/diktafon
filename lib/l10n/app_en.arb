@@ -1,0 +1,222 @@
+{
+  "@@locale": "en",
+
+  "untitledCassette": "Untitled cassette",
+  "rename": "Rename",
+  "delete": "Delete",
+  "cancel": "CANCEL",
+  "save": "SAVE",
+  "deleteAction": "DELETE",
+  "ok": "OK",
+  "back": "Back",
+
+  "settingsTooltip": "Settings",
+  "homeEmpty": "No cassettes yet.\nPress + to start a new tape.",
+  "newCassette": "New cassette",
+  "renameCassetteTitle": "RENAME CASSETTE",
+  "cassetteNameHint": "Cassette name",
+  "deleteCassetteTitle": "DELETE CASSETTE?",
+  "deleteCassetteBody": "\"{label}\" and its {count, plural, =1{1 memo} other{{count} memos}} will be deleted. This cannot be undone.",
+  "@deleteCassetteBody": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+
+  "memoCount": "{count, plural, =1{1 memo} other{{count} memos}}",
+  "@memoCount": {
+    "description": "Memo count on a cassette card / export row",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "cardEmptyMeta": "empty · press to open",
+  "cardMetaNaming": "{memos} · naming itself…",
+  "@cardMetaNaming": {"placeholders": {"memos": {"type": "String"}}},
+  "cardMetaUpdated": "{memos} · {date}",
+  "@cardMetaUpdated": {
+    "placeholders": {
+      "memos": {"type": "String"},
+      "date": {"type": "String"}
+    }
+  },
+  "cardSemantics": "{label}, {memos}",
+  "@cardSemantics": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "memos": {"type": "String"}
+    }
+  },
+  "todayAt": "today {time}",
+  "@todayAt": {"placeholders": {"time": {"type": "String"}}},
+  "yesterday": "yesterday",
+
+  "deleteCassette": "Delete cassette",
+  "blankTape": "A blank tape.\nPress the red key to record.",
+  "emptyTape": "EMPTY TAPE",
+  "memoCounter": "MEMO {n} / {total}",
+  "@memoCounter": {
+    "description": "LCD counter row, kept in caps like a tape deck",
+    "placeholders": {
+      "n": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "recordingMemo": "RECORDING MEMO {n}",
+  "@recordingMemo": {"placeholders": {"n": {"type": "int"}}},
+  "summaryPlaceholder": "The cassette summary appears once memos are transcribed.",
+  "back15": "Back 15 seconds",
+  "forward15": "Forward 15 seconds",
+  "play": "Play",
+  "pause": "Pause",
+  "recordNewMemo": "Record a new memo",
+  "stopRecording": "Stop recording",
+  "micPermissionNeeded": "Microphone permission is required to record.",
+  "deleteMemoTitle": "DELETE MEMO?",
+  "deleteMemoBody": "Memo {n} will be removed and the tape closes the gap. This cannot be undone.",
+  "@deleteMemoBody": {"placeholders": {"n": {"type": "int"}}},
+  "timelineLabel": "Tape timeline",
+  "timelinePosition": "{position} of {total}",
+  "@timelinePosition": {
+    "placeholders": {
+      "position": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+
+  "noSpeech": "(no speech)",
+  "transcriptionFailedRetry": "transcription failed — tap to retry (the audio still plays)",
+  "queuedForTranscription": "queued for transcription…",
+  "waitingForModel": "waiting for the transcription model — download it in Settings",
+  "memoDivider": "Memo {n} — {date}",
+  "@memoDivider": {
+    "placeholders": {
+      "n": {"type": "int"},
+      "date": {"type": "String"}
+    }
+  },
+  "summarizing": "summarizing…",
+  "summaryFailedRetry": "summary failed — tap to retry",
+  "transcribing": "transcribing…",
+
+  "settingsTitle": "SETTINGS",
+  "groupLanguage": "Language",
+  "transcriptionLanguage": "Transcription language",
+  "autoDetectValue": "Auto-detect — set from your first memo",
+  "autoDetectOption": "Auto-detect (from first recording)",
+  "transcriptionLanguageTitle": "TRANSCRIPTION LANGUAGE",
+  "groupPlayback": "Playback",
+  "boundaryChime": "Boundary chime",
+  "boundaryChimeDesc": "A soft cue as the tape rolls into the next memo. Off = fully seamless.",
+  "groupIntelligence": "On-device intelligence",
+  "transcriptionModel": "Transcription model",
+  "summaryModel": "Summary model",
+  "summariesRow": "Summaries",
+  "summariesRowDesc": "Memo gists & cassette overviews, generated locally",
+  "modelInstalled": "{label} · {size} — installed, tap to manage",
+  "@modelInstalled": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloading": "{label} — downloading {pct} %",
+  "@modelDownloading": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "pct": {"type": "int"}
+    }
+  },
+  "modelNotDownloaded": "{label} — not downloaded yet · tap to set up",
+  "@modelNotDownloaded": {"placeholders": {"label": {"type": "String"}}},
+  "groupAppearance": "Appearance",
+  "themeRow": "Theme",
+  "themeTitle": "THEME",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "groupYourData": "Your data",
+  "backupExport": "Backup & export",
+  "backupExportDesc": "Take your cassettes with you — audio, transcripts and summaries",
+  "aboutPrivacy": "About & privacy",
+  "aboutPrivacyDesc": "Audio never leaves this device",
+  "aboutTitle": "ABOUT & PRIVACY",
+  "aboutBody": "Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.",
+
+  "modelPickerTranscriptionTitle": "TRANSCRIPTION MODEL",
+  "modelPickerSummaryTitle": "SUMMARY MODEL",
+  "pickerInstalled": "installed · {size}",
+  "@pickerInstalled": {"placeholders": {"size": {"type": "String"}}},
+  "pickerDownloading": "downloading {pct} %",
+  "@pickerDownloading": {"placeholders": {"pct": {"type": "int"}}},
+  "pickerDownload": "download · {size}",
+  "@pickerDownload": {"placeholders": {"size": {"type": "String"}}},
+  "needsRam": "needs ≥ {gb} GB RAM",
+  "@needsRam": {"placeholders": {"gb": {"type": "int"}}},
+  "storageNote": "Runs on this device only. Storage used by models: {mb} MB.",
+  "@storageNote": {"placeholders": {"mb": {"type": "int"}}},
+  "deleteModelTooltip": "Delete model file",
+  "modelReadyTranscribe": "{label} is ready — transcribing waiting memos.",
+  "@modelReadyTranscribe": {"placeholders": {"label": {"type": "String"}}},
+  "modelReadySummarize": "{label} is ready — summarizing waiting memos.",
+  "@modelReadySummarize": {"placeholders": {"label": {"type": "String"}}},
+  "downloadFailed": "Download of {label} failed — check your connection and try again.",
+  "@downloadFailed": {"placeholders": {"label": {"type": "String"}}},
+
+  "firstRunWelcome": "Welcome to Diktafon",
+  "firstRunTagline": "Diktafon listens, writes and summarizes right here on your phone.",
+  "privacyCardTitle": "Everything stays on this phone",
+  "privacyCardBody": "Recordings, transcripts and summaries never leave the device. There is no account and no cloud.",
+  "continueKey": "CONTINUE",
+  "micHeadline": "The microphone",
+  "micBody": "Recording a memo is one tap. Diktafon needs the microphone for that — nothing else.",
+  "allowMicrophone": "ALLOW THE MICROPHONE",
+  "modelsHeadline": "Preparing your models",
+  "rowMicrophone": "Microphone",
+  "accessGranted": "Access granted",
+  "micNotGranted": "Not granted yet — Diktafon asks again at the first recording",
+  "rowTranscription": "Transcription",
+  "rowSummaries": "Summaries",
+  "provisionReady": "{label} · {size} · ready",
+  "@provisionReady": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "size": {"type": "String"}
+    }
+  },
+  "provisionDownloading": "{size} · downloading — {pct} %",
+  "@provisionDownloading": {
+    "placeholders": {
+      "size": {"type": "String"},
+      "pct": {"type": "int"}
+    }
+  },
+  "provisionWaiting": "waiting to download…",
+  "provisionFailedRetry": "download failed — tap to retry",
+  "finishesInBackground": "Finishes in the background.",
+  "startRecordingKey": "START RECORDING",
+  "setUpLater": "Set up later — models can be downloaded in Settings",
+
+  "backupTitle": "BACKUP & EXPORT",
+  "backupIntro": "Your device's own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export writes a folder with the audio files, the transcript and the summaries. Nothing is uploaded by Diktafon.",
+  "groupExport": "Export",
+  "exportAll": "Export all cassettes",
+  "exportAllDesc": "Everything, into one folder you pick",
+  "exporting": "Exporting…",
+  "exportedTo": "Exported to {path}.",
+  "@exportedTo": {"placeholders": {"path": {"type": "String"}}},
+  "exportedAllTo": "{count, plural, =1{Exported 1 cassette to {path}.} other{Exported {count} cassettes to {path}.}}",
+  "@exportedAllTo": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "path": {"type": "String"}
+    }
+  },
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {"placeholders": {"error": {"type": "String"}}},
+  "pickLocalFolder": "That folder can't be written to directly — pick a local folder.",
+
+  "exportNote": "Exported from Diktafon on {date}.",
+  "@exportNote": {"placeholders": {"date": {"type": "String"}}},
+  "exportSummaryHeading": "Summary",
+  "exportNotTranscribed": "(not transcribed)"
+}
