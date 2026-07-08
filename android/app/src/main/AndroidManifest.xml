@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- M2: whisper model downloads from HuggingFace (all build types, incl. release). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- D13: recording keeps running with the app backgrounded / screen off. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>

@@ -125,14 +125,65 @@ class TapePlayerService {
     }
   }
 
+  /// Newest requested target while a seek is in flight — scrub gestures fire
+  /// faster than seeks complete, so intermediate targets are dropped.
+  int? _seekTargetMs;
+  bool _seekInFlight = false;
+
   Future<void> seekGlobal(int globalMs) async {
     if (_tape.isEmpty) return;
-    final position = _tape.locate(globalMs);
-    await _player.seek(
-      Duration(milliseconds: position.localMs),
-      index: position.memoIndex,
-    );
+    _seekTargetMs = globalMs;
+    if (_seekInFlight) return; // the running loop picks up the new target
+    _seekInFlight = true;
+    try {
+      while (_seekTargetMs != null) {
+        final targetMs = _seekTargetMs!;
+        _seekTargetMs = null;
+        await _seekTo(_tape.locate(targetMs));
+      }
+    } finally {
+      _seekInFlight = false;
+    }
     _emit();
+  }
+
+  /// Seeking with an `index:` is broken on media_kit: any indexed seek becomes
+  /// an mpv `playlist-pos` write, which (re)loads that entry — even when the
+  /// index is unchanged — and mpv rejects in-file seeks ("error running
+  /// command") until the reloaded entry finishes its playback restart, so the
+  /// seek's target position was silently lost and playback landed at 0:00.
+  /// So: seek plainly within the current memo, and on a memo change jump
+  /// first, wait for the new entry's restart — observable as the first
+  /// buffering→ready edge reported for the new index — then seek.
+  Future<void> _seekTo(TapePosition position) async {
+    final localPosition = Duration(milliseconds: position.localMs);
+    if (position.memoIndex == (_player.currentIndex ?? 0)) {
+      await _player.seek(localPosition);
+      return;
+    }
+    final needsLocalSeek = position.localMs > 0;
+    final wasPlaying = _player.playing;
+    // Pause across the jump so the new memo's first instant doesn't blip
+    // out before the deferred in-file seek lands.
+    if (wasPlaying && needsLocalSeek) await _player.pause();
+    var sawBuffering = false;
+    final restarted = _player.playbackEventStream
+        .skip(1) // skip the replayed pre-jump event
+        .firstWhere((e) {
+          sawBuffering |= e.processingState == ProcessingState.buffering;
+          return sawBuffering &&
+              e.currentIndex == position.memoIndex &&
+              e.processingState == ProcessingState.ready;
+        })
+        .then<void>((_) {}, onError: (_) {})
+        .timeout(const Duration(milliseconds: 1500), onTimeout: () {});
+    await _player.seek(null, index: position.memoIndex);
+    if (needsLocalSeek) {
+      await restarted;
+      // A newer scrub target supersedes this one; the loop handles it.
+      if (_seekTargetMs == null) await _player.seek(localPosition);
+    }
+    if (wasPlaying && needsLocalSeek) _player.play();
   }
 
   /// Tape-deck rewind / fast-forward: ±15 s on the global timeline, crossing
