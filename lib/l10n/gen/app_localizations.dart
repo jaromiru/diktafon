@@ -642,53 +642,23 @@ abstract class AppLocalizations {
   /// **'Welcome to Diktafon'**
   String get firstRunWelcome;
 
-  /// No description provided for @firstRunTagline.
+  /// The **…** span is rendered bold; keep exactly one such span.
   ///
   /// In en, this message translates to:
-  /// **'Diktafon listens, writes and summarizes right here on your phone.'**
-  String get firstRunTagline;
+  /// **'It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.'**
+  String get firstRunIntro;
 
-  /// No description provided for @privacyCardTitle.
+  /// No description provided for @allowMicRow.
   ///
   /// In en, this message translates to:
-  /// **'Everything stays on this phone'**
-  String get privacyCardTitle;
+  /// **'Allow microphone'**
+  String get allowMicRow;
 
-  /// No description provided for @privacyCardBody.
+  /// No description provided for @micTapToGrant.
   ///
   /// In en, this message translates to:
-  /// **'Recordings, transcripts and summaries never leave the device. There is no account and no cloud.'**
-  String get privacyCardBody;
-
-  /// No description provided for @continueKey.
-  ///
-  /// In en, this message translates to:
-  /// **'CONTINUE'**
-  String get continueKey;
-
-  /// No description provided for @micHeadline.
-  ///
-  /// In en, this message translates to:
-  /// **'The microphone'**
-  String get micHeadline;
-
-  /// No description provided for @micBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Recording a memo is one tap. Diktafon needs the microphone for that — nothing else.'**
-  String get micBody;
-
-  /// No description provided for @allowMicrophone.
-  ///
-  /// In en, this message translates to:
-  /// **'ALLOW THE MICROPHONE'**
-  String get allowMicrophone;
-
-  /// No description provided for @modelsHeadline.
-  ///
-  /// In en, this message translates to:
-  /// **'Preparing your models'**
-  String get modelsHeadline;
+  /// **'Tap to grant access'**
+  String get micTapToGrant;
 
   /// No description provided for @rowMicrophone.
   ///
@@ -702,11 +672,11 @@ abstract class AppLocalizations {
   /// **'Access granted'**
   String get accessGranted;
 
-  /// No description provided for @micNotGranted.
+  /// No description provided for @micDeniedRetry.
   ///
   /// In en, this message translates to:
-  /// **'Not granted yet — Diktafon asks again at the first recording'**
-  String get micNotGranted;
+  /// **'Not granted — tap to ask again, or allow the microphone in the system settings'**
+  String get micDeniedRetry;
 
   /// No description provided for @rowTranscription.
   ///
@@ -729,8 +699,8 @@ abstract class AppLocalizations {
   /// No description provided for @provisionDownloading.
   ///
   /// In en, this message translates to:
-  /// **'{size} · downloading — {pct} %'**
-  String provisionDownloading(String size, int pct);
+  /// **'{label} · {size} · downloading — {pct} %'**
+  String provisionDownloading(String label, String size, int pct);
 
   /// No description provided for @provisionWaiting.
   ///
@@ -744,23 +714,17 @@ abstract class AppLocalizations {
   /// **'download failed — tap to retry'**
   String get provisionFailedRetry;
 
-  /// No description provided for @finishesInBackground.
+  /// No description provided for @downloadsFinishInBackground.
   ///
   /// In en, this message translates to:
-  /// **'Finishes in the background.'**
-  String get finishesInBackground;
+  /// **'Downloads finish in the background.'**
+  String get downloadsFinishInBackground;
 
   /// No description provided for @startRecordingKey.
   ///
   /// In en, this message translates to:
   /// **'START RECORDING'**
   String get startRecordingKey;
-
-  /// No description provided for @setUpLater.
-  ///
-  /// In en, this message translates to:
-  /// **'Set up later — models can be downloaded in Settings'**
-  String get setUpLater;
 
   /// No description provided for @backupTitle.
   ///

@@ -5,7 +5,8 @@ library;
 
 import '../model_manager.dart';
 
-export '../model_manager.dart' show ModelVerificationException;
+export '../model_manager.dart'
+    show ModelDownloadCancelled, ModelVerificationException;
 
 /// One downloadable whisper tier.
 class WhisperModel implements ModelSpec {

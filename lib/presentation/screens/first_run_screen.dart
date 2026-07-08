@@ -12,12 +12,16 @@ import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
 import '../widgets/ink_progress_bar.dart';
 import 'cassette_screen.dart';
+import 'settings_screen.dart';
 
-/// First-run setup (§5.6, mockup 01): privacy statement → microphone →
-/// model provisioning. Recording unblocks the moment the transcription
-/// model is ready; the LLM keeps downloading in the background. A quiet
-/// skip link keeps capture zero-friction (design pillar 3) — a memo
-/// recorded without models simply waits, per §14.
+/// First-run setup (§5.6, mockup 01 r7): a single screen. The intro and the
+/// privacy promise are one plain paragraph; a setup card holds the
+/// microphone row (tapping it fires the OS prompt — the CTA's only gate)
+/// and the two model rows, whose downloads start automatically and in
+/// parallel the moment the screen opens. The chevrons open the exact model
+/// pickers from Settings; downloads finish in the background and never
+/// block the CTA. START RECORDING opens the first cassette *empty* — the
+/// record key is armed, nothing rolls until pressed.
 class FirstRunScreen extends ConsumerStatefulWidget {
   const FirstRunScreen({super.key});
 
@@ -25,80 +29,97 @@ class FirstRunScreen extends ConsumerStatefulWidget {
   ConsumerState<FirstRunScreen> createState() => _FirstRunScreenState();
 }
 
-class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
-  int _step = 0; // 0 privacy · 1 microphone · 2 models
-  bool? _micGranted;
-  bool _whisperFailed = false, _llmFailed = false;
-  bool _finishing = false;
+/// Download tracking for one engine: which tier this screen is awaiting,
+/// and whether that attempt failed (drives the row's retry caption).
+class _EngineWatch {
+  String? tier;
+  bool failed = false;
+}
 
-  Future<void> _requestMicrophone() async {
-    final granted =
-        await ref.read(recorderServiceProvider).hasPermission();
-    if (!mounted) return;
-    setState(() {
-      _micGranted = granted;
-      _step = 2;
+class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
+  bool? _micGranted; // null → not asked yet
+  bool _finishing = false;
+  final _whisper = _EngineWatch();
+  final _llm = _EngineWatch();
+
+  @override
+  void initState() {
+    super.initState();
+    // Both model downloads auto-start for the selected tiers (§5.6). The
+    // same listener re-arms after a picker switches a tier mid-download:
+    // the picker cancels & starts the new download, this join tracks it.
+    ref.listenManual(settingsProvider, fireImmediately: true, (_, next) {
+      final settings = next.value;
+      if (settings == null) return;
+      unawaited(_arm(
+          _whisper, ref.read(whisperModelManagerProvider), settings.whisperTier));
+      unawaited(
+          _arm(_llm, ref.read(llmModelManagerProvider), settings.llmTier));
     });
-    unawaited(_provisionModels());
   }
 
   /// The selected tier out of a manager's catalog (not the static one —
-  /// tests swap in local-server specs).
-  static M _forTier<M extends ModelSpec>(List<M> catalog, String tier) =>
-      catalog.firstWhere((m) => m.tier == tier, orElse: () => catalog.first);
-
-  /// Sequential on purpose (§5.6): the small whisper model first so the
-  /// record key goes live early; the big LLM afterwards, in the background.
-  Future<void> _provisionModels() async {
-    final settings = await ref.read(settingsRepositoryProvider).get();
-    final whisper = ref.read(whisperModelManagerProvider);
-    final llm = ref.read(llmModelManagerProvider);
-    try {
-      await whisper.download(_forTier(whisper.catalog, settings.whisperTier));
-      if (mounted) unawaited(ref.read(jobQueueProvider).drain());
-    } catch (_) {
-      if (mounted) setState(() => _whisperFailed = true);
-      return; // retry restarts the chain, LLM included
+  /// tests swap in local-server specs). A plain loop on purpose: the
+  /// catalogs are covariantly typed here, and firstWhere's orElse closure
+  /// would trip the runtime check.
+  static M _forTier<M extends ModelSpec>(List<M> catalog, String tier) {
+    for (final model in catalog) {
+      if (model.tier == tier) return model;
     }
+    return catalog.first;
+  }
+
+  /// Joins (or starts) the download of [tier] and keeps [watch] honest:
+  /// failures flip the row to its retry caption, a cancel means a newer
+  /// tier pick took over and stays silent.
+  Future<void> _arm(
+      _EngineWatch watch, ModelManager<ModelSpec> manager, String tier) async {
+    if (watch.tier == tier) return;
+    watch.tier = tier;
+    manager.cancelExcept(tier);
+    if (watch.failed && mounted) setState(() => watch.failed = false);
     try {
-      await llm.download(_forTier(llm.catalog, settings.llmTier));
+      await manager.download(_forTier(manager.catalog, tier));
+      // A model landing releases any memo already parked in the queue.
       if (mounted) unawaited(ref.read(jobQueueProvider).drain());
+    } on ModelDownloadCancelled {
+      // Superseded mid-download — the new tier's download reports.
     } catch (_) {
-      if (mounted) setState(() => _llmFailed = true);
+      if (mounted && watch.tier == tier) setState(() => watch.failed = true);
     }
   }
 
-  Future<void> _retryProvisioning() async {
-    setState(() {
-      _whisperFailed = false;
-      _llmFailed = false;
-    });
-    await _provisionModels();
+  void _retry(_EngineWatch watch, ModelManager<ModelSpec> manager) {
+    final tier = watch.tier;
+    if (tier == null) return;
+    watch.tier = null; // force _arm through its tier-unchanged guard
+    unawaited(_arm(watch, manager, tier));
   }
 
-  /// START RECORDING: first cassette opens with the mic already rolling.
-  /// The route is pushed before firstRunDone flips so the home swap
-  /// (FirstRunScreen → HomeScreen) happens underneath it.
+  Future<void> _requestMicrophone() async {
+    final granted = await ref.read(recorderServiceProvider).hasPermission();
+    if (!mounted) return;
+    setState(() => _micGranted = granted);
+  }
+
+  /// START RECORDING: the first cassette opens empty — record key armed,
+  /// nothing rolls (mockup 01 note 4). The route is pushed before
+  /// firstRunDone flips so the home swap (FirstRunScreen → HomeScreen)
+  /// happens underneath it.
   Future<void> _startRecording() async {
-    if (_finishing) return;
+    if (_finishing || _micGranted != true) return;
     _finishing = true;
     final cassette = await ref.read(cassetteRepositoryProvider).create();
     if (!mounted) return;
     unawaited(Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) =>
-            CassetteScreen(cassetteId: cassette.id, autoRecord: true))));
-    await ref.read(settingsRepositoryProvider).setFirstRunDone();
-  }
-
-  Future<void> _skip() async {
-    if (_finishing) return;
-    _finishing = true;
+        builder: (_) => CassetteScreen(cassetteId: cassette.id))));
     await ref.read(settingsRepositoryProvider).setFirstRunDone();
   }
 
   @override
   Widget build(BuildContext context) {
     final tape = context.tape;
+    final l10n = context.l10n;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -107,13 +128,31 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
               children: [
-                _StepDots(current: _step),
-                const SizedBox(height: 26),
-                ...switch (_step) {
-                  0 => _privacyStep(tape),
-                  1 => _microphoneStep(tape),
-                  _ => _modelsStep(tape),
-                },
+                Text(
+                  l10n.firstRunWelcome,
+                  style: TextStyle(
+                      fontFamily: displayFont,
+                      fontSize: 34,
+                      height: 1.05,
+                      color: tape.ink),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _intro(tape, l10n.firstRunIntro),
+                ),
+                const SizedBox(height: 18),
+                _setupCard(tape, l10n),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 2, right: 2),
+                  child: Text(l10n.downloadsFinishInBackground,
+                      style: TextStyle(fontSize: 10.5, color: tape.ink2)),
+                ),
+                const SizedBox(height: 30),
+                _CtaKey(
+                  icon: Icons.mic,
+                  label: l10n.startRecordingKey,
+                  onPressed: _micGranted == true ? _startRecording : null,
+                ),
               ],
             ),
           ),
@@ -122,227 +161,135 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
     );
   }
 
-  List<Widget> _privacyStep(TapeColors tape) => [
-        _headline(context.l10n.firstRunWelcome),
-        _sub(tape, context.l10n.firstRunTagline),
-        const SizedBox(height: 22),
-        _PrivacyCard(
-          title: context.l10n.privacyCardTitle,
-          body: context.l10n.privacyCardBody,
-        ),
-        const SizedBox(height: 30),
-        _CtaKey(
-          label: context.l10n.continueKey,
-          onPressed: () => setState(() => _step = 1),
-        ),
-      ];
-
-  List<Widget> _microphoneStep(TapeColors tape) => [
-        _headline(context.l10n.micHeadline),
-        _sub(tape, context.l10n.micBody),
-        const SizedBox(height: 30),
-        _CtaKey(
-          icon: Icons.mic_none,
-          label: context.l10n.allowMicrophone,
-          onPressed: _requestMicrophone,
-        ),
-      ];
-
-  List<Widget> _modelsStep(TapeColors tape) {
-    final settings =
-        ref.watch(settingsProvider).value ?? const AppSettings();
-    final whisperModel = _forTier(
-        ref.read(whisperModelManagerProvider).catalog, settings.whisperTier);
-    final llmModel = _forTier(
-        ref.read(llmModelManagerProvider).catalog, settings.llmTier);
-    final whisper = _stateOf(
-        ref.watch(whisperModelStatesProvider).value, whisperModel.tier);
-    final llm =
-        _stateOf(ref.watch(llmModelStatesProvider).value, llmModel.tier);
-    final whisperReady = whisper?.status == ModelStatus.ready;
-    final l10n = context.l10n;
-
-    return [
-      _headline(l10n.modelsHeadline),
-      _sub(tape, l10n.firstRunTagline),
-      const SizedBox(height: 22),
-      _ProvisionRow(
-        ok: _micGranted == true,
-        title: l10n.rowMicrophone,
-        caption: _micGranted == true
-            ? l10n.accessGranted
-            : l10n.micNotGranted,
-      ),
-      _ProvisionRow(
-        ok: whisperReady,
-        title: l10n.rowTranscription,
-        caption: _whisperFailed
-            ? l10n.provisionFailedRetry
-            : switch (whisper?.status) {
-                ModelStatus.ready => l10n.provisionReady(
-                    whisperModel.label, whisperModel.sizeLabel),
-                ModelStatus.downloading => l10n.provisionDownloading(
-                    whisperModel.sizeLabel,
-                    ((whisper?.progress ?? 0) * 100).round()),
-                _ => l10n.provisionWaiting,
-              },
-        progress: whisper?.status == ModelStatus.downloading
-            ? whisper?.progress
-            : null,
-        onTap: _whisperFailed ? _retryProvisioning : null,
-      ),
-      _ProvisionRow(
-        ok: llm?.status == ModelStatus.ready,
-        title: l10n.rowSummaries,
-        caption: _llmFailed
-            ? l10n.provisionFailedRetry
-            : switch (llm?.status) {
-                ModelStatus.ready =>
-                  l10n.provisionReady(llmModel.label, llmModel.sizeLabel),
-                ModelStatus.downloading => l10n.provisionDownloading(
-                    llmModel.sizeLabel,
-                    ((llm?.progress ?? 0) * 100).round()),
-                _ => l10n.provisionWaiting,
-              },
-        progress:
-            llm?.status == ModelStatus.downloading ? llm?.progress : null,
-        note: llm?.status == ModelStatus.downloading
-            ? l10n.finishesInBackground
-            : null,
-        onTap: _llmFailed ? _retryProvisioning : null,
-      ),
-      const SizedBox(height: 30),
-      _CtaKey(
-        icon: Icons.mic_none,
-        label: l10n.startRecordingKey,
-        onPressed: whisperReady ? _startRecording : null,
-      ),
-      const SizedBox(height: 14),
-      Center(
-        child: TextButton(
-          onPressed: _skip,
-          child: Text(
-            l10n.setUpLater,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-                color: context.tape.ink2,
-                decoration: TextDecoration.underline,
-                decorationColor: context.tape.ink2),
-          ),
-        ),
-      ),
-    ];
-  }
-
-  ModelState<ModelSpec>? _stateOf(
-          List<ModelState<ModelSpec>>? states, String tier) =>
-      states?.where((s) => s.model.tier == tier).firstOrNull;
-
-  Widget _headline(String text) => Text(
-        text,
-        style: TextStyle(
-            fontFamily: displayFont,
-            fontSize: 34,
-            height: 1.05,
-            color: context.tape.ink),
-      );
-
-  Widget _sub(TapeColors tape, String text) => Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Text(
-          text,
-          style: TextStyle(fontSize: 12.5, height: 1.55, color: tape.ink2),
-        ),
-      );
-}
-
-/// The three step markers (mockup 01) — squares, current one in ink.
-class _StepDots extends StatelessWidget {
-  const _StepDots({required this.current});
-
-  final int current;
-
-  @override
-  Widget build(BuildContext context) {
-    final tape = context.tape;
-    return Row(
-      children: [
-        for (var i = 0; i < 3; i++)
-          Container(
-            width: 9,
-            height: 9,
-            margin: const EdgeInsets.only(right: 7),
-            decoration: BoxDecoration(
-              color: i == current ? tape.ink : null,
-              border: Border.all(color: tape.ink, width: 1.5),
-            ),
-          ),
-      ],
+  /// The intro + privacy promise as one paragraph; the ARB marks the
+  /// "never leave this device" span with `**…**` — rendered bold.
+  Widget _intro(TapeColors tape, String text) {
+    final parts = text.split('**');
+    return Text.rich(
+      TextSpan(children: [
+        for (var i = 0; i < parts.length; i++)
+          TextSpan(
+              text: parts[i],
+              style:
+                  i.isOdd ? const TextStyle(fontWeight: FontWeight.w700) : null),
+      ]),
+      style: TextStyle(fontSize: 12.5, height: 1.55, color: tape.ink2),
     );
   }
-}
 
-class _PrivacyCard extends StatelessWidget {
-  const _PrivacyCard({required this.title, required this.body});
-
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final tape = context.tape;
+  Widget _setupCard(TapeColors tape, AppLocalizations l10n) {
+    final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: tape.surface,
         border: Border.all(color: tape.ink, width: 1.5),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2, right: 12),
-            child: Icon(Icons.lock_outline, size: 24, color: tape.ink),
+          _micRow(tape, l10n),
+          Divider(height: 1.5, color: tape.line),
+          _modelRow(
+            l10n: l10n,
+            title: l10n.rowTranscription,
+            watch: _whisper,
+            manager: ref.read(whisperModelManagerProvider),
+            model: _forTier(ref.read(whisperModelManagerProvider).catalog,
+                settings.whisperTier),
+            states: ref.watch(whisperModelStatesProvider).value,
+            picker: const ModelPickerDialog(),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                Text(body,
-                    style: TextStyle(
-                        fontSize: 11, height: 1.5, color: tape.ink2)),
-              ],
-            ),
+          Divider(height: 1.5, color: tape.line),
+          _modelRow(
+            l10n: l10n,
+            title: l10n.rowSummaries,
+            watch: _llm,
+            manager: ref.read(llmModelManagerProvider),
+            model: _forTier(
+                ref.read(llmModelManagerProvider).catalog, settings.llmTier),
+            states: ref.watch(llmModelStatesProvider).value,
+            picker: const LlmModelPickerDialog(),
           ),
         ],
       ),
     );
   }
+
+  /// Mic row (mockup 01 note 2): the row itself is the tap target for the
+  /// OS prompt; once granted it flips to the green tick and goes inert.
+  Widget _micRow(TapeColors tape, AppLocalizations l10n) {
+    final granted = _micGranted == true;
+    return _SetupRow(
+      icon: granted ? Icons.check : Icons.mic,
+      iconColor: granted ? tape.ok : tape.ink,
+      title: granted ? l10n.rowMicrophone : l10n.allowMicRow,
+      caption: switch (_micGranted) {
+        true => l10n.accessGranted,
+        false => l10n.micDeniedRetry,
+        null => l10n.micTapToGrant,
+      },
+      onTap: granted ? null : _requestMicrophone,
+    );
+  }
+
+  Widget _modelRow({
+    required AppLocalizations l10n,
+    required String title,
+    required _EngineWatch watch,
+    required ModelManager<ModelSpec> manager,
+    required ModelSpec model,
+    required List<ModelState<ModelSpec>>? states,
+    required Widget picker,
+  }) {
+    final tape = context.tape;
+    final state =
+        states?.where((s) => s.model.tier == model.tier).firstOrNull;
+    final ready = state?.status == ModelStatus.ready;
+    final downloading = state?.status == ModelStatus.downloading;
+    void openPicker() =>
+        showDialog<void>(context: context, builder: (_) => picker);
+    return _SetupRow(
+      icon: ready ? Icons.check : Icons.download,
+      iconColor: ready ? tape.ok : tape.ink2,
+      title: title,
+      caption: watch.failed
+          ? l10n.provisionFailedRetry
+          : switch (state?.status) {
+              ModelStatus.ready =>
+                l10n.provisionReady(model.label, model.sizeLabel),
+              ModelStatus.downloading => l10n.provisionDownloading(model.label,
+                  model.sizeLabel, ((state?.progress ?? 0) * 100).round()),
+              _ => l10n.provisionWaiting,
+            },
+      captionUnderlined: watch.failed,
+      progress: downloading ? state?.progress : null,
+      onTap: watch.failed ? () => _retry(watch, manager) : openPicker,
+      onChevron: openPicker,
+    );
+  }
 }
 
-/// One provision row (mockup 01): ok-mark / download-mark, bold title,
-/// status caption, optional progress channel and helper note.
-class _ProvisionRow extends StatelessWidget {
-  const _ProvisionRow({
-    required this.ok,
+/// One setup-card row (mockup 01): status mark, bold title, caption,
+/// optional progress channel, optional picker chevron (its own tap target).
+class _SetupRow extends StatelessWidget {
+  const _SetupRow({
+    required this.icon,
+    required this.iconColor,
     required this.title,
     required this.caption,
+    this.captionUnderlined = false,
     this.progress,
-    this.note,
     this.onTap,
+    this.onChevron,
   });
 
-  final bool ok;
+  final IconData icon;
+  final Color iconColor;
   final String title;
   final String caption;
+  final bool captionUnderlined;
   final double? progress;
-  final String? note;
   final VoidCallback? onTap;
+  final VoidCallback? onChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -350,17 +297,13 @@ class _ProvisionRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
+        padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 1, right: 12),
-              child: Icon(
-                ok ? Icons.check : Icons.south,
-                size: 20,
-                color: ok ? tape.ink : tape.ink2,
-              ),
+              child: Icon(icon, size: 20, color: iconColor),
             ),
             Expanded(
               child: Column(
@@ -375,24 +318,27 @@ class _ProvisionRow extends StatelessWidget {
                           fontSize: 10.5,
                           height: 1.45,
                           color: tape.ink2,
-                          decoration:
-                              onTap == null ? null : TextDecoration.underline,
+                          decoration: captionUnderlined
+                              ? TextDecoration.underline
+                              : null,
                           decorationColor: tape.ink2)),
                   if (progress != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 7),
+                      padding: const EdgeInsets.only(top: 8),
                       child: InkProgressBar(fraction: progress!),
-                    ),
-                  if (note != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 7),
-                      child: Text(note!,
-                          style:
-                              TextStyle(fontSize: 10.5, color: tape.ink2)),
                     ),
                 ],
               ),
             ),
+            if (onChevron != null)
+              InkWell(
+                onTap: onChevron,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8, top: 2),
+                  child:
+                      Icon(Icons.chevron_right, size: 18, color: tape.ink2),
+                ),
+              ),
           ],
         ),
       ),
@@ -400,8 +346,8 @@ class _ProvisionRow extends StatelessWidget {
   }
 }
 
-/// The single primary action per screen (mockup 01 note 4): a wide ink key
-/// in the display face with the cardstock shadow.
+/// The single primary action (mockup 01 note 4): a wide ink key in the
+/// display face with the cardstock shadow; dimmed flat while gated.
 class _CtaKey extends StatelessWidget {
   const _CtaKey({required this.label, required this.onPressed, this.icon});
 
@@ -420,14 +366,15 @@ class _CtaKey extends StatelessWidget {
       child: GestureDetector(
         onTap: onPressed,
         child: Opacity(
-          opacity: enabled ? 1 : 0.45,
+          opacity: enabled ? 1 : 0.35,
           child: Container(
             height: 52,
             decoration: BoxDecoration(
               color: tape.ink,
               border: Border.all(color: tape.ink, width: 2),
               boxShadow: [
-                BoxShadow(color: tape.line, offset: const Offset(3, 3)),
+                if (enabled)
+                  BoxShadow(color: tape.line, offset: const Offset(3, 3)),
               ],
             ),
             child: Row(

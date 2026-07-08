@@ -343,31 +343,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get firstRunWelcome => 'Bienvenido a Diktafon';
 
   @override
-  String get firstRunTagline =>
-      'Diktafon escucha, escribe y resume aquí mismo, en tu teléfono.';
+  String get firstRunIntro =>
+      'Escucha, escribe y resume aquí mismo, en tu teléfono. Las grabaciones, transcripciones y resúmenes **nunca salen de este dispositivo**. No hay cuenta ni nube.';
 
   @override
-  String get privacyCardTitle => 'Todo se queda en este teléfono';
+  String get allowMicRow => 'Permitir el micrófono';
 
   @override
-  String get privacyCardBody =>
-      'Las grabaciones, transcripciones y resúmenes nunca salen del dispositivo. No hay cuenta ni nube.';
-
-  @override
-  String get continueKey => 'CONTINUAR';
-
-  @override
-  String get micHeadline => 'El micrófono';
-
-  @override
-  String get micBody =>
-      'Grabar una nota es un toque. Para eso Diktafon necesita el micrófono — nada más.';
-
-  @override
-  String get allowMicrophone => 'PERMITIR EL MICRÓFONO';
-
-  @override
-  String get modelsHeadline => 'Preparando tus modelos';
+  String get micTapToGrant => 'Toca para conceder acceso';
 
   @override
   String get rowMicrophone => 'Micrófono';
@@ -376,8 +359,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get accessGranted => 'Acceso concedido';
 
   @override
-  String get micNotGranted =>
-      'Aún sin conceder — Diktafon volverá a preguntar en la primera grabación';
+  String get micDeniedRetry =>
+      'Sin conceder — toca para preguntar de nuevo, o permite el micrófono en los ajustes del sistema';
 
   @override
   String get rowTranscription => 'Transcripción';
@@ -391,8 +374,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String provisionDownloading(String size, int pct) {
-    return '$size · descargando — $pct %';
+  String provisionDownloading(String label, String size, int pct) {
+    return '$label · $size · descargando — $pct %';
   }
 
   @override
@@ -402,14 +385,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get provisionFailedRetry => 'la descarga falló — toca para reintentar';
 
   @override
-  String get finishesInBackground => 'Termina en segundo plano.';
+  String get downloadsFinishInBackground =>
+      'Las descargas terminan en segundo plano.';
 
   @override
   String get startRecordingKey => 'EMPEZAR A GRABAR';
-
-  @override
-  String get setUpLater =>
-      'Configurar más tarde — los modelos se descargan en Ajustes';
 
   @override
   String get backupTitle => 'COPIA Y EXPORTACIÓN';

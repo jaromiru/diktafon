@@ -52,6 +52,13 @@ class ModelVerificationException implements Exception {
   String toString() => 'ModelVerificationException: $message';
 }
 
+/// Completes a download future aborted by [ModelManager.cancel] — callers
+/// tell an intentional abort (tier switched mid-download, §5.6) from a
+/// real failure and stay quiet about it.
+class ModelDownloadCancelled implements Exception {
+  const ModelDownloadCancelled();
+}
+
 class ModelManager<M extends ModelSpec> {
   ModelManager(
     this._dir, {
@@ -68,6 +75,8 @@ class ModelManager<M extends ModelSpec> {
   final _changes = StreamController<void>.broadcast();
   final Map<String, double> _progress = {};
   final Map<String, Future<void>> _downloads = {};
+  final Map<String, HttpClient> _clients = {};
+  final Set<String> _cancelRequested = {};
 
   /// Emits whenever any tier's status/progress changes.
   Stream<void> get changes => _changes.stream;
@@ -112,10 +121,28 @@ class ModelManager<M extends ModelSpec> {
     return download;
   }
 
+  /// Aborts [model]'s in-flight download: its future completes with
+  /// [ModelDownloadCancelled] and the partial file is removed. No-op when
+  /// the tier isn't downloading.
+  void cancel(M model) {
+    if (!_downloads.containsKey(model.tier)) return;
+    _cancelRequested.add(model.tier);
+    _clients[model.tier]?.close(force: true);
+  }
+
+  /// Switch-mid-download semantics (§5.6): selecting a tier cancels every
+  /// other tier still on the wire.
+  void cancelExcept(String tier) {
+    for (final model in catalog) {
+      if (model.tier != tier) cancel(model);
+    }
+  }
+
   Future<void> _download(M model, ProgressSink? onProgress) async {
     await _dir.create(recursive: true);
     final part = File('${fileOf(model).path}.part');
     final client = _httpClientFactory();
+    _clients[model.tier] = client;
     try {
       final request = await client.getUrl(model.url);
       final response = await request.close();
@@ -129,6 +156,9 @@ class ModelManager<M extends ModelSpec> {
       final hasher = sha256.startChunkedConversion(digestSink);
       try {
         await for (final chunk in response) {
+          if (_cancelRequested.contains(model.tier)) {
+            throw const ModelDownloadCancelled();
+          }
           hasher.add(chunk);
           sink.add(chunk);
           received += chunk.length;
@@ -151,8 +181,15 @@ class ModelManager<M extends ModelSpec> {
       await part.rename(fileOf(model).path);
     } catch (_) {
       if (await part.exists()) await part.delete();
+      // A force-closed connection surfaces as an I/O error — report the
+      // cancel, not the symptom.
+      if (_cancelRequested.contains(model.tier)) {
+        throw const ModelDownloadCancelled();
+      }
       rethrow;
     } finally {
+      _cancelRequested.remove(model.tier);
+      _clients.remove(model.tier);
       client.close(force: true);
     }
   }

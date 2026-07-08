@@ -300,6 +300,7 @@ class ModelPickerDialog extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     await repo.setWhisperTier(state.model.tier);
+    manager.cancelExcept(state.model.tier);
     await downloadAndDrain(messenger, ref, state,
         download: () => manager.download(state.model as WhisperModel),
         readyMessage: l10n.modelReadyTranscribe(state.model.label),
@@ -337,6 +338,7 @@ class LlmModelPickerDialog extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     await repo.setLlmTier(state.model.tier);
+    manager.cancelExcept(state.model.tier);
     await downloadAndDrain(messenger, ref, state,
         download: () => manager.download(state.model as LlmModel),
         readyMessage: l10n.modelReadySummarize(state.model.label),
@@ -345,7 +347,9 @@ class LlmModelPickerDialog extends ConsumerWidget {
 }
 
 /// Shared select flow: an installed tier just drains the queue; an absent
-/// one downloads first (§14 model-missing recovery).
+/// one downloads first (§14 model-missing recovery). Selecting a tier
+/// cancels any other tier still downloading (§5.6) — the cancelled future
+/// stays silent here, only real failures earn the snackbar.
 Future<void> downloadAndDrain(
   ScaffoldMessengerState messenger,
   WidgetRef ref,
@@ -364,6 +368,8 @@ Future<void> downloadAndDrain(
     await download();
     messenger.showSnackBar(SnackBar(content: Text(readyMessage)));
     await queue.drain();
+  } on ModelDownloadCancelled {
+    // A newer tier choice aborted this one; the new download reports.
   } catch (_) {
     messenger.showSnackBar(SnackBar(content: Text(failedMessage)));
   }

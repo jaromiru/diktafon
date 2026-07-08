@@ -344,31 +344,14 @@ class AppLocalizationsDe extends AppLocalizations {
   String get firstRunWelcome => 'Willkommen bei Diktafon';
 
   @override
-  String get firstRunTagline =>
-      'Diktafon hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon.';
+  String get firstRunIntro =>
+      'Es hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon. Aufnahmen, Transkripte und Zusammenfassungen **verlassen dieses Gerät nie**. Es gibt kein Konto und keine Cloud.';
 
   @override
-  String get privacyCardTitle => 'Alles bleibt auf diesem Telefon';
+  String get allowMicRow => 'Mikrofon erlauben';
 
   @override
-  String get privacyCardBody =>
-      'Aufnahmen, Transkripte und Zusammenfassungen verlassen das Gerät nie. Es gibt kein Konto und keine Cloud.';
-
-  @override
-  String get continueKey => 'WEITER';
-
-  @override
-  String get micHeadline => 'Das Mikrofon';
-
-  @override
-  String get micBody =>
-      'Ein Memo aufzunehmen ist ein Fingertipp. Dafür braucht Diktafon das Mikrofon — sonst nichts.';
-
-  @override
-  String get allowMicrophone => 'MIKROFON ERLAUBEN';
-
-  @override
-  String get modelsHeadline => 'Deine Modelle werden vorbereitet';
+  String get micTapToGrant => 'Zum Erlauben tippen';
 
   @override
   String get rowMicrophone => 'Mikrofon';
@@ -377,8 +360,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get accessGranted => 'Zugriff gewährt';
 
   @override
-  String get micNotGranted =>
-      'Noch nicht erlaubt — Diktafon fragt bei der ersten Aufnahme erneut';
+  String get micDeniedRetry =>
+      'Nicht erlaubt — tippe, um erneut zu fragen, oder erlaube das Mikrofon in den Systemeinstellungen';
 
   @override
   String get rowTranscription => 'Transkription';
@@ -392,8 +375,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String provisionDownloading(String size, int pct) {
-    return '$size · lädt — $pct %';
+  String provisionDownloading(String label, String size, int pct) {
+    return '$label · $size · lädt — $pct %';
   }
 
   @override
@@ -404,14 +387,11 @@ class AppLocalizationsDe extends AppLocalizations {
       'Download fehlgeschlagen — zum Wiederholen tippen';
 
   @override
-  String get finishesInBackground => 'Läuft im Hintergrund weiter.';
+  String get downloadsFinishInBackground =>
+      'Downloads laufen im Hintergrund weiter.';
 
   @override
   String get startRecordingKey => 'AUFNAHME STARTEN';
-
-  @override
-  String get setUpLater =>
-      'Später einrichten — Modelle lassen sich in den Einstellungen laden';
 
   @override
   String get backupTitle => 'SICHERUNG & EXPORT';

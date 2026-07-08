@@ -343,31 +343,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get firstRunWelcome => 'Bem-vindo ao Diktafon';
 
   @override
-  String get firstRunTagline =>
-      'O Diktafon escuta, escreve e resume aqui mesmo, no seu telefone.';
+  String get firstRunIntro =>
+      'Ele escuta, escreve e resume aqui mesmo, no seu telefone. Gravações, transcrições e resumos **nunca saem deste dispositivo**. Não há conta nem nuvem.';
 
   @override
-  String get privacyCardTitle => 'Tudo fica neste telefone';
+  String get allowMicRow => 'Permitir o microfone';
 
   @override
-  String get privacyCardBody =>
-      'Gravações, transcrições e resumos nunca saem do dispositivo. Não há conta nem nuvem.';
-
-  @override
-  String get continueKey => 'CONTINUAR';
-
-  @override
-  String get micHeadline => 'O microfone';
-
-  @override
-  String get micBody =>
-      'Gravar uma nota é um toque. Para isso o Diktafon precisa do microfone — nada mais.';
-
-  @override
-  String get allowMicrophone => 'PERMITIR O MICROFONE';
-
-  @override
-  String get modelsHeadline => 'Preparando seus modelos';
+  String get micTapToGrant => 'Toque para conceder acesso';
 
   @override
   String get rowMicrophone => 'Microfone';
@@ -376,8 +359,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get accessGranted => 'Acesso concedido';
 
   @override
-  String get micNotGranted =>
-      'Ainda não concedido — o Diktafon pergunta de novo na primeira gravação';
+  String get micDeniedRetry =>
+      'Não concedido — toque para perguntar de novo, ou permita o microfone nas configurações do sistema';
 
   @override
   String get rowTranscription => 'Transcrição';
@@ -391,8 +374,8 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String provisionDownloading(String size, int pct) {
-    return '$size · baixando — $pct %';
+  String provisionDownloading(String label, String size, int pct) {
+    return '$label · $size · baixando — $pct %';
   }
 
   @override
@@ -403,14 +386,11 @@ class AppLocalizationsPt extends AppLocalizations {
       'o download falhou — toque para tentar de novo';
 
   @override
-  String get finishesInBackground => 'Termina em segundo plano.';
+  String get downloadsFinishInBackground =>
+      'Os downloads terminam em segundo plano.';
 
   @override
   String get startRecordingKey => 'COMEÇAR A GRAVAR';
-
-  @override
-  String get setUpLater =>
-      'Configurar depois — os modelos podem ser baixados em Configurações';
 
   @override
   String get backupTitle => 'BACKUP E EXPORTAÇÃO';

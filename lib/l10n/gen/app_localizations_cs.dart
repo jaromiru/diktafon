@@ -343,31 +343,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get firstRunWelcome => 'Vítejte v Diktafonu';
 
   @override
-  String get firstRunTagline =>
-      'Diktafon poslouchá, zapisuje a shrnuje přímo ve vašem telefonu.';
+  String get firstRunIntro =>
+      'Poslouchá, zapisuje a shrnuje přímo ve vašem telefonu. Nahrávky, přepisy a souhrny **nikdy neopustí toto zařízení**. Žádný účet, žádný cloud.';
 
   @override
-  String get privacyCardTitle => 'Všechno zůstává v tomto telefonu';
+  String get allowMicRow => 'Povolit mikrofon';
 
   @override
-  String get privacyCardBody =>
-      'Nahrávky, přepisy ani souhrny nikdy neopustí zařízení. Žádný účet, žádný cloud.';
-
-  @override
-  String get continueKey => 'POKRAČOVAT';
-
-  @override
-  String get micHeadline => 'Mikrofon';
-
-  @override
-  String get micBody =>
-      'Nahrání záznamu je jedno klepnutí. Diktafon k tomu potřebuje mikrofon — nic víc.';
-
-  @override
-  String get allowMicrophone => 'POVOLIT MIKROFON';
-
-  @override
-  String get modelsHeadline => 'Připravuji vaše modely';
+  String get micTapToGrant => 'Klepnutím povolíte přístup';
 
   @override
   String get rowMicrophone => 'Mikrofon';
@@ -376,8 +359,8 @@ class AppLocalizationsCs extends AppLocalizations {
   String get accessGranted => 'Přístup povolen';
 
   @override
-  String get micNotGranted =>
-      'Zatím nepovoleno — Diktafon se zeptá znovu při prvním nahrávání';
+  String get micDeniedRetry =>
+      'Nepovoleno — klepnutím se zeptáte znovu, nebo mikrofon povolte v nastavení systému';
 
   @override
   String get rowTranscription => 'Přepis';
@@ -391,8 +374,8 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String provisionDownloading(String size, int pct) {
-    return '$size · stahuje se — $pct %';
+  String provisionDownloading(String label, String size, int pct) {
+    return '$label · $size · stahuje se — $pct %';
   }
 
   @override
@@ -403,13 +386,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'stažení selhalo — klepnutím to zkusíte znovu';
 
   @override
-  String get finishesInBackground => 'Doběhne na pozadí.';
+  String get downloadsFinishInBackground => 'Stahování doběhne na pozadí.';
 
   @override
   String get startRecordingKey => 'ZAČÍT NAHRÁVAT';
-
-  @override
-  String get setUpLater => 'Nastavit později — modely lze stáhnout v Nastavení';
 
   @override
   String get backupTitle => 'ZÁLOHA A EXPORT';

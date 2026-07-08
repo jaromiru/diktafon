@@ -1,7 +1,8 @@
-/// M4 end-to-end: the first-run flow (§5.6, mockup 01) on a real desktop —
-/// privacy → microphone → model provisioning (against a local HTTP server,
-/// not HuggingFace) → START RECORDING lands in a cassette with the mic
-/// rolling. Then the Backup & export screen (§8) lists the new cassette.
+/// M4 end-to-end: the first-run flow (§5.6, mockup 01 r7) on a real
+/// desktop — one screen: model downloads auto-start against a local HTTP
+/// server (not HuggingFace), the microphone row is the CTA's only gate,
+/// START RECORDING opens the first cassette empty (record armed, nothing
+/// rolling). Then the Backup & export screen (§8) lists the new cassette.
 ///
 /// Engine seams are overridden with fakes: the "models" this test downloads
 /// are byte payloads, not runnable networks (§6.3 — that is the point of the
@@ -190,36 +191,49 @@ void main() {
     ));
     await _settle(tester);
 
-    // — Step 1: privacy is the headline (mockup 01 note 1) —
+    // — One screen (mockup 01 note 1): intro paragraph + setup card —
     expect(find.text('Welcome to Diktafon'), findsOneWidget);
-    expect(find.text('Everything stays on this phone'), findsOneWidget);
-    await _shot(tester, '01-first-run-privacy');
-    await tester.tap(find.text('CONTINUE'));
-    await _settle(tester);
+    expect(find.text('Allow microphone'), findsOneWidget);
+    expect(find.text('Transcription'), findsOneWidget);
+    expect(find.text('Summaries'), findsOneWidget);
+    expect(find.text('Downloads finish in the background.'), findsOneWidget);
+    await _shot(tester, '01-first-run-open');
 
-    // — Step 2: the microphone —
-    expect(find.text('The microphone'), findsOneWidget);
-    await _shot(tester, '02-first-run-mic');
-    await tester.tap(find.text('ALLOW THE MICROPHONE'));
+    // The CTA is gated on the mic alone (note 2) — a tap before the grant
+    // must not leave the screen.
+    await tester.tap(find.text('START RECORDING'));
     await _settle(tester);
+    expect(find.text('Welcome to Diktafon'), findsOneWidget,
+        reason: 'START RECORDING stays dimmed until the mic is granted');
 
-    // — Step 3: models provision from the local server —
-    expect(find.text('Preparing your models'), findsOneWidget);
-    expect(find.text('Access granted'), findsOneWidget);
-    // Downloads are tiny — wait for both rows to land.
+    // — Downloads auto-started with the screen (note 3): both rows land
+    //   without any user action —
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 100));
       if (find.textContaining('· ready').evaluate().length == 2) break;
     }
     expect(find.textContaining('· ready'), findsNWidgets(2),
-        reason: 'both models downloaded from the local server');
-    await _shot(tester, '03-first-run-models-ready');
+        reason: 'both models downloaded from the local server unprompted');
 
-    // — START RECORDING: cassette opens with the mic rolling (§5.6) —
+    // — The mic row itself fires the permission prompt (note 2) —
+    await tester.tap(find.text('Allow microphone'));
+    await _settle(tester);
+    expect(find.text('Access granted'), findsOneWidget);
+    await _shot(tester, '02-first-run-granted');
+
+    // — START RECORDING arms the deck, it doesn't press record (note 4) —
     await tester.tap(find.text('START RECORDING'));
     await _settle(tester);
-    expect(find.textContaining('RECORDING MEMO 1'), findsOneWidget,
-        reason: 'first-run CTA starts capture immediately');
+    expect(find.textContaining('RECORDING MEMO'), findsNothing,
+        reason: 'the first cassette opens empty — nothing rolls on its own');
+    final recordKey = find
+        .byWidgetPredicate((w) => w is DeckKey && w.glyph == DeckGlyph.record);
+    expect(recordKey, findsOneWidget, reason: 'the record key is armed');
+    await _shot(tester, '03-first-run-cassette-empty');
+
+    await tester.tap(recordKey);
+    await _settle(tester);
+    expect(find.textContaining('RECORDING MEMO 1'), findsOneWidget);
     await _shot(tester, '04-first-run-recording');
     await Future<void>.delayed(const Duration(seconds: 2));
     await _settle(tester, frames: 4);

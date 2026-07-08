@@ -163,17 +163,15 @@
   "@downloadFailed": {"placeholders": {"label": {"type": "String"}}},
 
   "firstRunWelcome": "Welcome to Diktafon",
-  "firstRunTagline": "Diktafon listens, writes and summarizes right here on your phone.",
-  "privacyCardTitle": "Everything stays on this phone",
-  "privacyCardBody": "Recordings, transcripts and summaries never leave the device. There is no account and no cloud.",
-  "continueKey": "CONTINUE",
-  "micHeadline": "The microphone",
-  "micBody": "Recording a memo is one tap. Diktafon needs the microphone for that — nothing else.",
-  "allowMicrophone": "ALLOW THE MICROPHONE",
-  "modelsHeadline": "Preparing your models",
+  "firstRunIntro": "It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.",
+  "@firstRunIntro": {
+    "description": "The **…** span is rendered bold; keep exactly one such span."
+  },
+  "allowMicRow": "Allow microphone",
+  "micTapToGrant": "Tap to grant access",
   "rowMicrophone": "Microphone",
   "accessGranted": "Access granted",
-  "micNotGranted": "Not granted yet — Diktafon asks again at the first recording",
+  "micDeniedRetry": "Not granted — tap to ask again, or allow the microphone in the system settings",
   "rowTranscription": "Transcription",
   "rowSummaries": "Summaries",
   "provisionReady": "{label} · {size} · ready",
@@ -183,18 +181,18 @@
       "size": {"type": "String"}
     }
   },
-  "provisionDownloading": "{size} · downloading — {pct} %",
+  "provisionDownloading": "{label} · {size} · downloading — {pct} %",
   "@provisionDownloading": {
     "placeholders": {
+      "label": {"type": "String"},
       "size": {"type": "String"},
       "pct": {"type": "int"}
     }
   },
   "provisionWaiting": "waiting to download…",
   "provisionFailedRetry": "download failed — tap to retry",
-  "finishesInBackground": "Finishes in the background.",
+  "downloadsFinishInBackground": "Downloads finish in the background.",
   "startRecordingKey": "START RECORDING",
-  "setUpLater": "Set up later — models can be downloaded in Settings",
 
   "backupTitle": "BACKUP & EXPORT",
   "backupIntro": "Your device's own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export writes a folder with the audio files, the transcript and the summaries. Nothing is uploaded by Diktafon.",

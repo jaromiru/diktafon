@@ -22,16 +22,9 @@ import 'home_screen.dart';
 /// Cassette view — the core screen (§5.3, mockups 03/04): header, LCD
 /// counter, the timeline, the whole-tape transcript and the deck keys.
 class CassetteScreen extends ConsumerStatefulWidget {
-  const CassetteScreen({
-    super.key,
-    required this.cassetteId,
-    this.autoRecord = false,
-  });
+  const CassetteScreen({super.key, required this.cassetteId});
 
   final String cassetteId;
-
-  /// First-run's START RECORDING (§5.6): open with the mic already rolling.
-  final bool autoRecord;
 
   @override
   ConsumerState<CassetteScreen> createState() => _CassetteScreenState();
@@ -51,10 +44,6 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
       (_, tape) => _loadTape(tape),
       fireImmediately: true,
     );
-    if (widget.autoRecord) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _startRecording());
-    }
   }
 
   Future<void> _loadTape(Tape tape) async {

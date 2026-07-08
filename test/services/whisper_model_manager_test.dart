@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -13,6 +14,8 @@ void main() {
   late Directory dir;
   final payload = utf8.encode('not a real ggml model, but 42 bytes long..');
   var corruptNextResponse = false;
+  var stallResponses = false;
+  late Completer<void> stallGate;
 
   WhisperModel spec(HttpServer server, {String? sha}) => WhisperModel(
         tier: 'tiny',
@@ -28,18 +31,34 @@ void main() {
   setUp(() async {
     dir = Directory.systemTemp.createTempSync('dk_models_');
     corruptNextResponse = false;
+    stallResponses = false;
+    stallGate = Completer<void>();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       final bytes = corruptNextResponse
           ? payload.sublist(0, payload.length - 5)
           : payload;
       request.response.headers.contentType = ContentType.binary;
-      request.response.add(bytes);
-      await request.response.close();
+      try {
+        if (stallResponses) {
+          // Unbuffered, or the 10-byte chunk never leaves the server.
+          request.response.bufferOutput = false;
+          request.response.add(bytes.sublist(0, 10));
+          await request.response.flush();
+          await stallGate.future;
+          request.response.add(bytes.sublist(10));
+        } else {
+          request.response.add(bytes);
+        }
+        await request.response.close();
+      } catch (_) {
+        // The cancel test aborts the connection mid-response.
+      }
     });
   });
 
   tearDown(() async {
+    if (!stallGate.isCompleted) stallGate.complete();
     await server.close(force: true);
     dir.deleteSync(recursive: true);
   });
@@ -102,6 +121,32 @@ void main() {
     expect(manager.statusOf(model), ModelStatus.ready);
     // Already installed → returns without touching the network.
     await manager.download(spec(server, sha: 'would-fail-if-fetched'));
+  });
+
+  test('cancel aborts mid-flight, leaves nothing, retry succeeds', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+
+    stallResponses = true;
+    final fractions = <double>[];
+    final download = manager.download(model, onProgress: fractions.add);
+    // The server stalls after the first bytes — wait until they arrived so
+    // the cancel hits a genuinely in-flight transfer.
+    while (fractions.isEmpty) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(manager.statusOf(model), ModelStatus.downloading);
+
+    manager.cancel(model);
+    await expectLater(download, throwsA(isA<ModelDownloadCancelled>()));
+    expect(manager.statusOf(model), ModelStatus.notInstalled);
+    expect(dir.listSync().whereType<File>(), isEmpty,
+        reason: 'cancel leaves no partial file behind');
+
+    stallResponses = false;
+    await manager.download(model);
+    expect(manager.statusOf(model), ModelStatus.ready);
   });
 
   test('delete returns the tier to notInstalled', () async {
