@@ -291,6 +291,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'Diktafon poslouchá, zapisuje a shrnuje přímo ve vašem telefonu.\n\nNahrávky, přepisy ani souhrny nikdy neopustí zařízení. Žádný účet, žádný cloud, žádná analytika. Data odcházejí jen zálohou nebo exportem, který spustíte sami.';
 
   @override
+  String get aboutOpenSource =>
+      'Diktafon je zdarma a s otevřeným zdrojovým kódem:';
+
+  @override
   String get modelPickerTranscriptionTitle => 'MODEL PŘEPISU';
 
   @override
@@ -451,6 +455,27 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get changeColor => 'Změnit barvu';
+
+  @override
+  String get retranscribe => 'Přepsat znovu';
+
+  @override
+  String get retranscribeTitle => 'PŘEPSAT KAZETU ZNOVU?';
+
+  @override
+  String retranscribeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Všech $count záznamů se přepíše',
+      few: 'Všechny $count záznamy se přepíšou',
+      one: 'Záznam se přepíše',
+    );
+    return '$_temp0 znovu aktuálními modely a shrnutí se sestaví nanovo. Stávající přepisy a shrnutí budou nahrazeny. Může to chvíli trvat.';
+  }
+
+  @override
+  String get retranscribeAction => 'PŘEPSAT';
 
   @override
   String get colorPickerTitle => 'BARVA KAZETY';

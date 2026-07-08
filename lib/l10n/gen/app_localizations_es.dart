@@ -291,6 +291,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Diktafon escucha, escribe y resume aquí mismo, en tu teléfono.\n\nLas grabaciones, transcripciones y resúmenes nunca salen del dispositivo. No hay cuenta, ni nube, ni analíticas. Los datos solo salen mediante una copia o exportación que inicias tú.';
 
   @override
+  String get aboutOpenSource => 'Diktafon es gratuito y de código abierto:';
+
+  @override
   String get modelPickerTranscriptionTitle => 'MODELO DE TRANSCRIPCIÓN';
 
   @override
@@ -451,6 +454,26 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get changeColor => 'Cambiar color';
+
+  @override
+  String get retranscribe => 'Volver a transcribir';
+
+  @override
+  String get retranscribeTitle => '¿VOLVER A TRANSCRIBIR EL CASETE?';
+
+  @override
+  String retranscribeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Las $count notas se transcribirán',
+      one: 'La nota se transcribirá',
+    );
+    return '$_temp0 de nuevo con los modelos actuales y el resumen se reconstruirá. Las transcripciones y los resúmenes existentes se reemplazarán. Puede tardar un rato.';
+  }
+
+  @override
+  String get retranscribeAction => 'TRANSCRIBIR';
 
   @override
   String get colorPickerTitle => 'COLOR DEL CASETE';

@@ -120,6 +120,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
                   cassetteId: cassette.id,
                   currentSeed: cassette.colorSeed,
                 ),
+              'retranscribe' => _retranscribe(cassette, tape.memoCount),
               _ => _deleteCassette(cassette, tape.memoCount),
             },
             itemBuilder: (_) => [
@@ -127,6 +128,10 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
                   value: 'rename', child: Text(context.l10n.rename)),
               PopupMenuItem(
                   value: 'color', child: Text(context.l10n.changeColor)),
+              PopupMenuItem(
+                  value: 'retranscribe',
+                  enabled: !tape.isEmpty,
+                  child: Text(context.l10n.retranscribe)),
               PopupMenuItem(
                   value: 'delete', child: Text(context.l10n.deleteCassette)),
             ],
@@ -382,6 +387,33 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         cassetteId: cassette.id,
         currentLabel: cassette.label,
       );
+
+  /// Re-transcribe the whole cassette — for when a more capable model was
+  /// installed after the fact. Destructive to the existing texts, so it
+  /// confirms with a note before the queue wipes and re-enriches.
+  Future<void> _retranscribe(Cassette cassette, int memoCount) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(l10n.retranscribeTitle),
+            content: Text(l10n.retranscribeBody(memoCount)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(l10n.retranscribeAction),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    await ref.read(jobQueueProvider).retranscribeCassette(cassette.id);
+  }
 
   Future<void> _deleteCassette(Cassette cassette, int memoCount) async {
     final deleted = await confirmDeleteCassette(

@@ -141,6 +141,7 @@
   "aboutPrivacyDesc": "Audio never leaves this device",
   "aboutTitle": "ABOUT & PRIVACY",
   "aboutBody": "Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.",
+  "aboutOpenSource": "Diktafon is free and open source:",
 
   "modelPickerTranscriptionTitle": "TRANSCRIPTION MODEL",
   "modelPickerSummaryTitle": "SUMMARY MODEL",
@@ -220,6 +221,14 @@
 
   "openSystemSettings": "SETTINGS",
   "changeColor": "Change color",
+  "retranscribe": "Re-transcribe",
+  "retranscribeTitle": "RE-TRANSCRIBE CASSETTE?",
+  "retranscribeBody": "{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.",
+  "@retranscribeBody": {
+    "description": "Confirmation before re-running transcription for a whole cassette",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "retranscribeAction": "RE-TRANSCRIBE",
   "colorPickerTitle": "CASSETTE COLOR",
   "colorSwatch": "Color {n}",
   "@colorSwatch": {"placeholders": {"n": {"type": "int"}}},

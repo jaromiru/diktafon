@@ -87,6 +87,20 @@ class MemoRepository {
         ),
       );
 
+  /// Wipes every enrichment artifact so the memo re-enters the pipeline
+  /// from scratch (re-transcribe with a newly installed model): transcript,
+  /// preserved raw take, gist and detected language all go; audio stays.
+  Future<void> resetEnrichment(String id) =>
+      (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
+        MemosCompanion(
+          transcript: const Value(null),
+          rawTranscript: const Value(null),
+          memoSummary: const Value(null),
+          detectedLang: const Value(null),
+          status: Value(MemoStatus.stored.name),
+        ),
+      );
+
   Future<void> delete(String id) =>
       (_db.delete(_db.memos)..where((m) => m.id.equals(id))).go();
 }

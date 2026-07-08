@@ -289,6 +289,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.';
 
   @override
+  String get aboutOpenSource => 'Diktafon is free and open source:';
+
+  @override
   String get modelPickerTranscriptionTitle => 'TRANSCRIPTION MODEL';
 
   @override
@@ -449,6 +452,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changeColor => 'Change color';
+
+  @override
+  String get retranscribe => 'Re-transcribe';
+
+  @override
+  String get retranscribeTitle => 'RE-TRANSCRIBE CASSETTE?';
+
+  @override
+  String retranscribeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'All $count memos',
+      one: 'The memo',
+    );
+    return '$_temp0 will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.';
+  }
+
+  @override
+  String get retranscribeAction => 'RE-TRANSCRIBE';
 
   @override
   String get colorPickerTitle => 'CASSETTE COLOR';

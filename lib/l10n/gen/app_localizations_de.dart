@@ -292,6 +292,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Diktafon hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon.\n\nAufnahmen, Transkripte und Zusammenfassungen verlassen das Gerät nie. Es gibt kein Konto, keine Cloud und keine Analyse. Daten verlassen das Gerät nur über eine Sicherung oder einen Export, den du selbst startest.';
 
   @override
+  String get aboutOpenSource => 'Diktafon ist kostenlos und quelloffen:';
+
+  @override
   String get modelPickerTranscriptionTitle => 'TRANSKRIPTIONSMODELL';
 
   @override
@@ -453,6 +456,26 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get changeColor => 'Farbe ändern';
+
+  @override
+  String get retranscribe => 'Neu transkribieren';
+
+  @override
+  String get retranscribeTitle => 'KASSETTE NEU TRANSKRIBIEREN?';
+
+  @override
+  String retranscribeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Memos werden',
+      one: 'Das Memo wird',
+    );
+    return '$_temp0 mit den aktuellen Modellen neu transkribiert und die Zusammenfassung wird neu erstellt. Bestehende Transkripte und Zusammenfassungen werden ersetzt. Das kann eine Weile dauern.';
+  }
+
+  @override
+  String get retranscribeAction => 'NEU TRANSKRIBIEREN';
 
   @override
   String get colorPickerTitle => 'KASSETTENFARBE';

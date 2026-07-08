@@ -83,6 +83,7 @@
   "aboutPrivacyDesc": "Zvuk nikdy neopustí toto zařízení",
   "aboutTitle": "O APLIKACI A SOUKROMÍ",
   "aboutBody": "Diktafon poslouchá, zapisuje a shrnuje přímo ve vašem telefonu.\n\nNahrávky, přepisy ani souhrny nikdy neopustí zařízení. Žádný účet, žádný cloud, žádná analytika. Data odcházejí jen zálohou nebo exportem, který spustíte sami.",
+  "aboutOpenSource": "Diktafon je zdarma a s otevřeným zdrojovým kódem:",
 
   "modelPickerTranscriptionTitle": "MODEL PŘEPISU",
   "modelPickerSummaryTitle": "MODEL SOUHRNŮ",
@@ -129,6 +130,10 @@
 
   "openSystemSettings": "NASTAVENÍ",
   "changeColor": "Změnit barvu",
+  "retranscribe": "Přepsat znovu",
+  "retranscribeTitle": "PŘEPSAT KAZETU ZNOVU?",
+  "retranscribeBody": "{count, plural, =1{Záznam se přepíše} few{Všechny {count} záznamy se přepíšou} other{Všech {count} záznamů se přepíše}} znovu aktuálními modely a shrnutí se sestaví nanovo. Stávající přepisy a shrnutí budou nahrazeny. Může to chvíli trvat.",
+  "retranscribeAction": "PŘEPSAT",
   "colorPickerTitle": "BARVA KAZETY",
   "colorSwatch": "Barva {n}",
   "copyTranscript": "Kopírovat přepis",

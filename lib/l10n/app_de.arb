@@ -83,6 +83,7 @@
   "aboutPrivacyDesc": "Audio verlässt dieses Gerät nie",
   "aboutTitle": "ÜBER & DATENSCHUTZ",
   "aboutBody": "Diktafon hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon.\n\nAufnahmen, Transkripte und Zusammenfassungen verlassen das Gerät nie. Es gibt kein Konto, keine Cloud und keine Analyse. Daten verlassen das Gerät nur über eine Sicherung oder einen Export, den du selbst startest.",
+  "aboutOpenSource": "Diktafon ist kostenlos und quelloffen:",
 
   "modelPickerTranscriptionTitle": "TRANSKRIPTIONSMODELL",
   "modelPickerSummaryTitle": "ZUSAMMENFASSUNGSMODELL",
@@ -129,6 +130,10 @@
 
   "openSystemSettings": "EINSTELLUNGEN",
   "changeColor": "Farbe ändern",
+  "retranscribe": "Neu transkribieren",
+  "retranscribeTitle": "KASSETTE NEU TRANSKRIBIEREN?",
+  "retranscribeBody": "{count, plural, =1{Das Memo wird} other{Alle {count} Memos werden}} mit den aktuellen Modellen neu transkribiert und die Zusammenfassung wird neu erstellt. Bestehende Transkripte und Zusammenfassungen werden ersetzt. Das kann eine Weile dauern.",
+  "retranscribeAction": "NEU TRANSKRIBIEREN",
   "colorPickerTitle": "KASSETTENFARBE",
   "colorSwatch": "Farbe {n}",
   "copyTranscript": "Transkript kopieren",

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../application/providers.dart';
 import '../../data/repositories/settings_repository.dart';
@@ -251,12 +252,35 @@ class SettingsScreen extends ConsumerWidget {
     showDialog<void>(context: context, builder: (_) => dialog);
   }
 
+  static final _repoUrl = Uri.parse('https://github.com/jaromiru/diktafon');
+
   void _about(BuildContext context) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.aboutTitle),
-        content: Text(context.l10n.aboutBody),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.aboutBody),
+              const SizedBox(height: 14),
+              Text(context.l10n.aboutOpenSource),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () => launchUrl(_repoUrl),
+                child: Text(
+                  'github.com/jaromiru/diktafon',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: dialogContext.tape.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

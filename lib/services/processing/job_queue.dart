@@ -83,6 +83,24 @@ class JobQueue {
     unawaited(drain());
   }
 
+  /// Re-runs the whole enrichment pipeline for every memo on the cassette —
+  /// the user installed a more capable model and wants the texts refreshed.
+  /// In-flight and queued work is cancelled, transcripts and gists wiped,
+  /// and fresh transcribe jobs queued in tape order. The overview follows
+  /// for free: each new gist schedules the coalesced cassette update, and
+  /// the old overview stays visible until it's replaced.
+  Future<void> retranscribeCassette(String cassetteId) async {
+    // A queued overview rebuild would see the wiped gists and blank the
+    // summary early — drop it; the new gists schedule their own.
+    await cancelJobsFor(cassetteId);
+    for (final memo in await _memos.memosOf(cassetteId)) {
+      await cancelJobsFor(memo.id);
+      await _memos.resetEnrichment(memo.id);
+      await _insertJob(JobType.transcribe, memo.id);
+    }
+    unawaited(drain());
+  }
+
   /// Cancels pending *and in-flight* work for a deleted memo (§14).
   Future<void> cancelJobsFor(String targetId) async {
     _active[targetId]?.cancel();

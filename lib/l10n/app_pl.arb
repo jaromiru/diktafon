@@ -83,6 +83,7 @@
   "aboutPrivacyDesc": "Dźwięk nigdy nie opuszcza tego urządzenia",
   "aboutTitle": "O APLIKACJI I PRYWATNOŚĆ",
   "aboutBody": "Diktafon słucha, zapisuje i podsumowuje prosto w Twoim telefonie.\n\nNagrania, transkrypcje i podsumowania nigdy nie opuszczają urządzenia. Nie ma konta, chmury ani analityki. Dane wychodzą tylko przez kopię lub eksport, które uruchamiasz samodzielnie.",
+  "aboutOpenSource": "Diktafon jest darmowy i ma otwarty kod źródłowy:",
 
   "modelPickerTranscriptionTitle": "MODEL TRANSKRYPCJI",
   "modelPickerSummaryTitle": "MODEL PODSUMOWAŃ",
@@ -129,6 +130,10 @@
 
   "openSystemSettings": "USTAWIENIA",
   "changeColor": "Zmień kolor",
+  "retranscribe": "Transkrybuj ponownie",
+  "retranscribeTitle": "TRANSKRYBOWAĆ KASETĘ PONOWNIE?",
+  "retranscribeBody": "{count, plural, one{Nagranie zostanie przepisane} few{Wszystkie {count} nagrania zostaną przepisane} many{Wszystkich {count} nagrań zostanie przepisanych} other{Wszystkie {count} nagrania zostaną przepisane}} od nowa aktualnymi modelami, a podsumowanie powstanie na nowo. Istniejące transkrypcje i podsumowania zostaną zastąpione. To może chwilę potrwać.",
+  "retranscribeAction": "TRANSKRYBUJ",
   "colorPickerTitle": "KOLOR KASETY",
   "colorSwatch": "Kolor {n}",
   "copyTranscript": "Kopiuj transkrypcję",

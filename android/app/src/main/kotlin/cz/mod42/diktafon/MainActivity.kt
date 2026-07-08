@@ -1,4 +1,4 @@
-package com.jaromiru.diktafon
+package cz.mod42.diktafon
 
 import android.content.Intent
 import android.media.AudioFormat

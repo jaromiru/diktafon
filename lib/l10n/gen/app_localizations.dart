@@ -570,6 +570,12 @@ abstract class AppLocalizations {
   /// **'Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.'**
   String get aboutBody;
 
+  /// No description provided for @aboutOpenSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Diktafon is free and open source:'**
+  String get aboutOpenSource;
+
   /// No description provided for @modelPickerTranscriptionTitle.
   ///
   /// In en, this message translates to:
@@ -815,6 +821,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Change color'**
   String get changeColor;
+
+  /// No description provided for @retranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-transcribe'**
+  String get retranscribe;
+
+  /// No description provided for @retranscribeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'RE-TRANSCRIBE CASSETTE?'**
+  String get retranscribeTitle;
+
+  /// Confirmation before re-running transcription for a whole cassette
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.'**
+  String retranscribeBody(int count);
+
+  /// No description provided for @retranscribeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'RE-TRANSCRIBE'**
+  String get retranscribeAction;
 
   /// No description provided for @colorPickerTitle.
   ///

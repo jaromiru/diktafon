@@ -676,6 +676,94 @@ void main() {
       expect(llm.memoCalls, 0, reason: 'nothing to summarize (§6.7)');
     });
 
+    test('retranscribeCassette wipes enrichment and re-runs the pipeline',
+        () async {
+      await seedMemo('m1');
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m1');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+      expect(engine.calls, 2);
+      expect((await memoRow('m1')).rawTranscript, isNotNull);
+
+      // "A better model was installed": the engine now hears more.
+      engine.result = Transcript(languageCode: 'cs', segments: [
+        Segment(startMs: 0, endMs: 900, words: const [
+          Word(text: 'lepší', startMs: 0, endMs: 400),
+          Word(text: 'přepis', startMs: 450, endMs: 900),
+        ]),
+      ]);
+      llm.memoResult = 'better gist';
+      await queue.retranscribeCassette('c1');
+      await queue.drain();
+
+      expect(engine.calls, 4, reason: 'both memos transcribed again');
+      for (final id in ['m1', 'm2']) {
+        final memo = await memoRow(id);
+        expect(memo.status, 'ready');
+        expect(memo.transcript, contains('lepší'));
+        expect(memo.memoSummary, 'better gist');
+      }
+      expect((await cassetteRow()).summary,
+          'overview[better gist | better gist]',
+          reason: 'the overview is rebuilt from the fresh gists');
+      expect((await jobs()).map((j) => j.status), everyElement('done'));
+    });
+
+    test('retranscribe keeps the old overview until the new gists land, and '
+        'never re-suggests a title over an existing label', () async {
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await cassetteRow()).summary, 'overview[gist]');
+      expect((await cassetteRow()).label, 'Suggested Title');
+      expect(llm.titleCalls, 1);
+
+      // Park the LLM: transcription reruns, but gists (and the overview
+      // rebuild) wait — the stale overview must survive the wipe.
+      llm.status = ModelStatus.notInstalled;
+      await queue.retranscribeCassette('c1');
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'transcribed');
+      expect((await memoRow('m1')).memoSummary, isNull);
+      expect((await cassetteRow()).summary, 'overview[gist]',
+          reason: 'no premature blanking while the rebuild is parked');
+
+      llm.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+      expect(llm.titleCalls, 1,
+          reason: 'the label is set — retranscribe never renames (D10)');
+    });
+
+    test('retranscribe drops a parked overview rebuild that would see the '
+        'wiped gists', () async {
+      // Gist landed but its cassette update is still queued (LLM gone).
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      llm.status = ModelStatus.notInstalled;
+      await db.into(db.jobs).insert(JobRow(
+            id: 'job-stale-update',
+            type: JobType.updateCassetteSummary.name,
+            targetId: 'c1',
+            status: 'queued',
+            attempts: 0,
+            createdAt: 99,
+          ));
+
+      await queue.retranscribeCassette('c1');
+      await queue.drain();
+
+      final staleUpdates = (await jobs())
+          .where((j) => j.targetId == 'c1' && j.status == 'queued')
+          .toList();
+      expect(staleUpdates, isEmpty,
+          reason: 'the stale rebuild is cancelled; fresh gists queue theirs');
+      expect((await cassetteRow()).summary, 'overview[gist]',
+          reason: 'the overview was not blanked by a stale rebuild');
+    });
+
     test('a delete coalesces with an already-queued cassette update', () async {
       // Gate the LLM so the queue can't drain the jobs we assert on.
       llm.status = ModelStatus.notInstalled;

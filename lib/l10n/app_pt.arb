@@ -83,6 +83,7 @@
   "aboutPrivacyDesc": "O áudio nunca sai deste dispositivo",
   "aboutTitle": "SOBRE E PRIVACIDADE",
   "aboutBody": "O Diktafon escuta, escreve e resume aqui mesmo, no seu telefone.\n\nGravações, transcrições e resumos nunca saem do dispositivo. Não há conta, nem nuvem, nem análises. Os dados só saem por um backup ou exportação que você mesmo inicia.",
+  "aboutOpenSource": "O Diktafon é gratuito e de código aberto:",
 
   "modelPickerTranscriptionTitle": "MODELO DE TRANSCRIÇÃO",
   "modelPickerSummaryTitle": "MODELO DE RESUMOS",
@@ -129,6 +130,10 @@
 
   "openSystemSettings": "CONFIGURAÇÕES",
   "changeColor": "Mudar a cor",
+  "retranscribe": "Transcrever de novo",
+  "retranscribeTitle": "TRANSCREVER A CASSETE DE NOVO?",
+  "retranscribeBody": "{count, plural, one{A nota será transcrita} other{As {count} notas serão transcritas}} de novo com os modelos atuais e o resumo será refeito. As transcrições e os resumos existentes serão substituídos. Isso pode levar um tempo.",
+  "retranscribeAction": "TRANSCREVER",
   "colorPickerTitle": "COR DA CASSETE",
   "colorSwatch": "Cor {n}",
   "copyTranscript": "Copiar transcrição",
