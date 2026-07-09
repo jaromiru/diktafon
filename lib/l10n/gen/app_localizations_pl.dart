@@ -250,6 +250,11 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String modelPaused(String label, int pct) {
+    return '$label — pobieranie wstrzymane na $pct %';
+  }
+
+  @override
   String modelNotDownloaded(String label) {
     return '$label — jeszcze nie pobrano · dotknij, aby skonfigurować';
   }
@@ -312,7 +317,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String pickerDownloading(int pct) {
-    return 'pobieranie $pct %';
+    return 'pobieranie $pct % — dotknij, aby wstrzymać';
+  }
+
+  @override
+  String pickerPaused(int pct) {
+    return 'wstrzymano na $pct % — dotknij, aby wznowić';
   }
 
   @override
@@ -388,6 +398,11 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String provisionDownloading(String label, String size, int pct) {
     return '$label · $size · pobieranie — $pct %';
+  }
+
+  @override
+  String provisionPaused(String label, String size, int pct) {
+    return '$label · $size · wstrzymano — $pct %';
   }
 
   @override

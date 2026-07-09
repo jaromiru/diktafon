@@ -245,6 +245,11 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
+  String modelPaused(String label, int pct) {
+    return '$label — stahování pozastaveno na $pct %';
+  }
+
+  @override
   String modelNotDownloaded(String label) {
     return '$label — zatím nestaženo · klepnutím nastavíte';
   }
@@ -307,7 +312,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String pickerDownloading(int pct) {
-    return 'stahuje se $pct %';
+    return 'stahuje se $pct % — klepnutím pozastavíte';
+  }
+
+  @override
+  String pickerPaused(int pct) {
+    return 'pozastaveno na $pct % — klepnutím pokračujete';
   }
 
   @override
@@ -383,6 +393,11 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String provisionDownloading(String label, String size, int pct) {
     return '$label · $size · stahuje se — $pct %';
+  }
+
+  @override
+  String provisionPaused(String label, String size, int pct) {
+    return '$label · $size · pozastaveno — $pct %';
   }
 
   @override

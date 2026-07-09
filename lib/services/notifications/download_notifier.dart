@@ -91,7 +91,9 @@ class ModelDownloadNotifier {
               _enqueue(() =>
                   _sink.showDone(id, _texts.installed(state.model.label)));
             }
-          case ModelStatus.notInstalled:
+          // Paused behaves like gone for the shade: the picker shows the
+          // stashed progress, an ongoing notification would overpromise.
+          case ModelStatus.notInstalled || ModelStatus.paused:
             if (last[tier] == ModelStatus.downloading) {
               _shownPercent.remove(tier);
               _enqueue(() => _sink.cancel(id));

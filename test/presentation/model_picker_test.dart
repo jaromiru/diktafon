@@ -9,6 +9,8 @@ import 'package:diktafon/l10n/l10n.dart';
 import 'package:diktafon/presentation/screens/settings_screen.dart';
 import 'package:diktafon/presentation/theme/theme.dart';
 import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
+import 'package:diktafon/services/providers/transcription_provider.dart'
+    show ModelStatus;
 import 'package:diktafon/services/providers/whisper/whisper_model_manager.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -34,11 +36,15 @@ void main() {
     server.listen((request) async {
       // Two chunks with a hold in between so the test can observe the
       // "downloading" state deterministically.
-      request.response.add(payload.sublist(0, 10));
-      await request.response.flush();
-      await chunkGate.stream.first;
-      request.response.add(payload.sublist(10));
-      await request.response.close();
+      try {
+        request.response.add(payload.sublist(0, 10));
+        await request.response.flush();
+        await chunkGate.stream.first;
+        request.response.add(payload.sublist(10));
+        await request.response.close();
+      } catch (_) {
+        // The pause step aborts its connection mid-response.
+      }
     });
   });
 
@@ -108,13 +114,38 @@ void main() {
     expect(find.textContaining('downloading'), findsOneWidget,
         reason: 'first chunk landed, second is gated — mid-download UI');
 
-    // Release the held second chunk → verification → installed.
+    // Tapping the tier on the wire pauses it: the transfer aborts quietly,
+    // the partial is stashed and the row offers resume + discard.
+    await tester.tap(find.text('Whisper small'));
     await tester.runAsync(() async {
-      chunkGate.add(null);
-      await download;
+      await expectLater(download, throwsA(isA<ModelDownloadPaused>()));
     });
     await tester.pump();
     await tester.pump();
+    expect(find.textContaining('paused at'), findsOneWidget);
+    expect(find.byTooltip('Delete model file'), findsOneWidget,
+        reason: 'a paused partial can be discarded');
+    expect(File('${manager.fileOf(spec).path}.paused').existsSync(), isTrue);
+
+    // Tapping again routes the paused tier back into a download.
+    await tester.tap(find.text('Whisper small'));
+    await tester.pump();
+    await tester.pump();
+    expect(manager.statusOf(spec), ModelStatus.downloading,
+        reason: 'tap on a paused tier resumes');
+
+    // The tap-started transfer awaits in the widget zone: alternate real-IO
+    // windows (runAsync) with microtask flushes (pump) until the dialog
+    // shows it installed, releasing the server's held chunk each round.
+    for (var i = 0;
+        i < 100 && find.textContaining('installed').evaluate().isEmpty;
+        i++) {
+      await tester.runAsync(() async {
+        chunkGate.add(null);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      await tester.pump();
+    }
     expect(find.textContaining('installed'), findsOneWidget);
     expect(manager.fileOf(spec).existsSync(), isTrue);
 

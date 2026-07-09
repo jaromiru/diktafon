@@ -241,7 +241,8 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
     final tape = context.tape;
     final state = states?.where((s) => s.model.tier == model.tier).firstOrNull;
     final ready = state?.status == ModelStatus.ready;
-    final downloading = state?.status == ModelStatus.downloading;
+    final partial = state?.status == ModelStatus.downloading ||
+        state?.status == ModelStatus.paused;
     void openPicker() =>
         showDialog<void>(context: context, builder: (_) => picker);
     return _SetupRow(
@@ -255,9 +256,14 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
           model.sizeLabel,
           ((state?.progress ?? 0) * 100).round(),
         ),
+        ModelStatus.paused => l10n.provisionPaused(
+          model.label,
+          model.sizeLabel,
+          ((state?.progress ?? 0) * 100).round(),
+        ),
         _ => l10n.provisionChoose,
       },
-      progress: downloading ? state?.progress : null,
+      progress: partial ? state?.progress : null,
       onTap: openPicker,
       onChevron: openPicker,
     );

@@ -236,6 +236,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String modelPaused(String label, int pct) {
+    return '$label — 다운로드 일시정지됨 ($pct %)';
+  }
+
+  @override
   String modelNotDownloaded(String label) {
     return '$label — 아직 다운로드되지 않음 · 눌러서 설정';
   }
@@ -296,7 +301,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String pickerDownloading(int pct) {
-    return '다운로드 중 $pct %';
+    return '다운로드 중 $pct % — 탭하여 일시정지';
+  }
+
+  @override
+  String pickerPaused(int pct) {
+    return '$pct %에서 일시정지됨 — 탭하여 재개';
   }
 
   @override
@@ -371,6 +381,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String provisionDownloading(String label, String size, int pct) {
     return '$label · $size · 다운로드 중 — $pct %';
+  }
+
+  @override
+  String provisionPaused(String label, String size, int pct) {
+    return '$label · $size · 일시정지됨 — $pct %';
   }
 
   @override

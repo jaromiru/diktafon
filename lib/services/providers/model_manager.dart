@@ -40,7 +40,8 @@ class ModelState<M extends ModelSpec> {
   final ModelStatus status;
 
   /// Download progress in [0..1]; only meaningful while [status] is
-  /// [ModelStatus.downloading].
+  /// [ModelStatus.downloading] or [ModelStatus.paused] (the fraction already
+  /// on disk).
   final double progress;
 }
 
@@ -57,6 +58,14 @@ class ModelVerificationException implements Exception {
 /// real failure and stay quiet about it.
 class ModelDownloadCancelled implements Exception {
   const ModelDownloadCancelled();
+}
+
+/// Completes a download future halted by [ModelManager.pause]: the partial
+/// is stashed on disk (`.paused`) and a later [ModelManager.download] picks
+/// it back up. Unlike a plain interruption, a stashed pause is *not*
+/// auto-resumed at startup — the user chose to stop (metered connection).
+class ModelDownloadPaused implements Exception {
+  const ModelDownloadPaused();
 }
 
 class ModelManager<M extends ModelSpec> {
@@ -77,21 +86,46 @@ class ModelManager<M extends ModelSpec> {
   final Map<String, Future<void>> _downloads = {};
   final Map<String, HttpClient> _clients = {};
   final Set<String> _cancelRequested = {};
+  final Set<String> _pauseRequested = {};
 
   /// Emits whenever any tier's status/progress changes.
   Stream<void> get changes => _changes.stream;
 
   File fileOf(M model) => File('${_dir.path}/${model.fileName}');
 
+  /// The in-flight partial: interrupted attempts leave it for resume.
+  File _partFileOf(M model) => File('${fileOf(model).path}.part');
+
+  /// A partial stashed by [pause] — kept out of `.part` so a restart's
+  /// [resumeInterrupted] leaves it alone.
+  File _pausedFileOf(M model) => File('${fileOf(model).path}.paused');
+
   ModelStatus statusOf(M model) {
     if (_downloads.containsKey(model.tier)) return ModelStatus.downloading;
-    return fileOf(model).existsSync()
-        ? ModelStatus.ready
-        : ModelStatus.notInstalled;
+    if (fileOf(model).existsSync()) return ModelStatus.ready;
+    if (_partFileOf(model).existsSync() || _pausedFileOf(model).existsSync()) {
+      return ModelStatus.paused;
+    }
+    return ModelStatus.notInstalled;
   }
 
-  ModelState<M> stateOf(M model) =>
-      ModelState(model, statusOf(model), _progress[model.tier] ?? 0);
+  ModelState<M> stateOf(M model) {
+    final status = statusOf(model);
+    return ModelState(model, status, switch (status) {
+      ModelStatus.downloading => _progress[model.tier] ?? 0,
+      ModelStatus.paused => _partialFraction(model),
+      _ => 0,
+    });
+  }
+
+  double _partialFraction(M model) {
+    for (final file in [_partFileOf(model), _pausedFileOf(model)]) {
+      if (file.existsSync()) {
+        return (file.lengthSync() / model.sizeBytes).clamp(0.0, 1.0);
+      }
+    }
+    return 0;
+  }
 
   List<ModelState<M>> snapshot() =>
       [for (final model in catalog) stateOf(model)];
@@ -131,6 +165,35 @@ class ModelManager<M extends ModelSpec> {
     _clients[model.tier]?.close(force: true);
   }
 
+  /// Halts [model]'s in-flight download but keeps its bytes: the future
+  /// completes with [ModelDownloadPaused], the partial is stashed as
+  /// `.paused` (status [ModelStatus.paused]) and a later [download] resumes
+  /// it. No-op when the tier isn't downloading.
+  void pause(M model) {
+    if (!_downloads.containsKey(model.tier)) return;
+    _pauseRequested.add(model.tier);
+    _clients[model.tier]?.close(force: true);
+  }
+
+  /// Puts downloads that were interrupted mid-flight (app force-closed,
+  /// crash, network drop) back on the wire: any tier with a `.part` on disk.
+  /// Explicitly paused tiers (`.paused`) stay put until the user resumes
+  /// them. Failures are quiet — the tier shows as paused in Settings and a
+  /// tap retries. Completes when every resumed download settles; true when
+  /// at least one model landed (callers drain parked jobs then).
+  Future<bool> resumeInterrupted() async {
+    var landed = false;
+    await Future.wait([
+      for (final model in catalog)
+        if (statusOf(model) == ModelStatus.paused &&
+            _partFileOf(model).existsSync())
+          download(model).then<void>((_) {
+            landed = true;
+          }).catchError((_) {}),
+    ]);
+    return landed;
+  }
+
   /// Switch-mid-download semantics (§5.6): selecting a tier cancels every
   /// other tier still on the wire.
   void cancelExcept(String tier) {
@@ -141,10 +204,19 @@ class ModelManager<M extends ModelSpec> {
 
   Future<void> _download(M model, ProgressSink? onProgress) async {
     await _dir.create(recursive: true);
-    final part = File('${fileOf(model).path}.part');
+    final part = _partFileOf(model);
+    final paused = _pausedFileOf(model);
     final client = _httpClientFactory();
     _clients[model.tier] = client;
     try {
+      // A stashed pause resumes exactly like an interruption — move it back
+      // into the live partial slot ('.part' wins if both somehow exist).
+      if (await paused.exists()) {
+        await part.exists()
+            ? await paused.delete()
+            : await paused.rename(part.path);
+      }
+
       // An interrupted attempt (network drop, app killed mid-download) left
       // a partial file behind — ask the server for just the rest.
       var existing = 0;
@@ -179,6 +251,9 @@ class ModelManager<M extends ModelSpec> {
           if (_cancelRequested.contains(model.tier)) {
             throw const ModelDownloadCancelled();
           }
+          if (_pauseRequested.contains(model.tier)) {
+            throw const ModelDownloadPaused();
+          }
           hasher.add(chunk);
         }
         received = existing;
@@ -194,6 +269,9 @@ class ModelManager<M extends ModelSpec> {
         await for (final chunk in response) {
           if (_cancelRequested.contains(model.tier)) {
             throw const ModelDownloadCancelled();
+          }
+          if (_pauseRequested.contains(model.tier)) {
+            throw const ModelDownloadPaused();
           }
           hasher.add(chunk);
           sink.add(chunk);
@@ -216,27 +294,37 @@ class ModelManager<M extends ModelSpec> {
       }
       await part.rename(fileOf(model).path);
     } catch (e) {
-      // Proven-bad bytes and explicit aborts drop the partial file; a
-      // transient failure keeps it so the next attempt resumes.
+      // Proven-bad bytes and explicit aborts drop the partial file; a pause
+      // stashes it; a transient failure keeps it so the next attempt
+      // resumes. Cancel wins over pause when both raced in (tier switch
+      // right after a pause).
       final cancelled = _cancelRequested.contains(model.tier);
+      final pausedNow = !cancelled && _pauseRequested.contains(model.tier);
       if ((cancelled || e is ModelVerificationException) &&
           await part.exists()) {
         await part.delete();
+      } else if (pausedNow && await part.exists()) {
+        await part.rename(paused.path);
       }
       // A force-closed connection surfaces as an I/O error — report the
-      // cancel, not the symptom.
+      // cancel/pause, not the symptom.
       if (cancelled) throw const ModelDownloadCancelled();
+      if (pausedNow) throw const ModelDownloadPaused();
       rethrow;
     } finally {
       _cancelRequested.remove(model.tier);
+      _pauseRequested.remove(model.tier);
       _clients.remove(model.tier);
       client.close(force: true);
     }
   }
 
+  /// Removes the installed file *and* any partial — the picker's delete
+  /// action also discards a paused download the user changed their mind on.
   void delete(M model) {
-    final file = fileOf(model);
-    if (file.existsSync()) file.deleteSync();
+    for (final file in [fileOf(model), _partFileOf(model), _pausedFileOf(model)]) {
+      if (file.existsSync()) file.deleteSync();
+    }
     _changes.add(null);
   }
 

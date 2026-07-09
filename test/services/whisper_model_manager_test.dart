@@ -176,6 +176,98 @@ void main() {
     expect(manager.statusOf(model), ModelStatus.ready);
   });
 
+  test('pause stashes the partial as .paused; the next download resumes it',
+      () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+
+    stallResponses = true;
+    final fractions = <double>[];
+    final download = manager.download(model, onProgress: fractions.add);
+    while (fractions.isEmpty) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+
+    manager.pause(model);
+    await expectLater(download, throwsA(isA<ModelDownloadPaused>()));
+
+    final paused = File('${manager.fileOf(model).path}.paused');
+    expect(paused.existsSync(), isTrue,
+        reason: 'pause keeps the bytes, stashed out of .part');
+    expect(paused.lengthSync(), 10);
+    expect(File('${manager.fileOf(model).path}.part').existsSync(), isFalse);
+    expect(manager.statusOf(model), ModelStatus.paused);
+    expect(manager.stateOf(model).progress,
+        closeTo(10 / payload.length, 1e-9),
+        reason: 'a paused tier reports the fraction already on disk');
+
+    // Resuming asks the server for just the missing tail.
+    stallResponses = false;
+    serveRanges = true;
+    await manager.download(model);
+    expect(seenRanges.last, 'bytes=10-');
+    expect(manager.statusOf(model), ModelStatus.ready);
+    expect(manager.fileOf(model).readAsBytesSync(), payload);
+  });
+
+  test('resumeInterrupted puts a killed download back on the wire', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+    // A force-closed app leaves .part behind; no manager state survives.
+    File('${manager.fileOf(model).path}.part')
+        .writeAsBytesSync(payload.sublist(0, 10));
+    expect(manager.statusOf(model), ModelStatus.paused);
+
+    serveRanges = true;
+    expect(await manager.resumeInterrupted(), isTrue,
+        reason: 'a model landed — callers drain parked jobs');
+    expect(seenRanges.last, 'bytes=10-');
+    expect(manager.statusOf(model), ModelStatus.ready);
+    expect(manager.fileOf(model).readAsBytesSync(), payload);
+  });
+
+  test('resumeInterrupted leaves a user-paused stash alone', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+    File('${manager.fileOf(model).path}.paused')
+        .writeAsBytesSync(payload.sublist(0, 10));
+
+    expect(await manager.resumeInterrupted(), isFalse);
+    expect(seenRanges, isEmpty,
+        reason: 'an explicit pause never auto-resumes (metered connection)');
+    expect(manager.statusOf(model), ModelStatus.paused);
+  });
+
+  test('resumeInterrupted stays quiet when the resume fails', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+    final part = File('${manager.fileOf(model).path}.part')
+      ..writeAsBytesSync(payload.sublist(0, 10));
+
+    dropMidResponse = true;
+    expect(await manager.resumeInterrupted(), isFalse);
+    expect(manager.statusOf(model), ModelStatus.paused,
+        reason: 'the partial waits on disk; a tap in Settings retries');
+    expect(part.existsSync(), isTrue);
+  });
+
+  test('delete discards a paused partial', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient, catalog: [model]);
+    File('${manager.fileOf(model).path}.paused')
+        .writeAsBytesSync(payload.sublist(0, 10));
+    expect(manager.statusOf(model), ModelStatus.paused);
+
+    manager.delete(model);
+    expect(manager.statusOf(model), ModelStatus.notInstalled);
+    expect(dir.listSync().whereType<File>(), isEmpty);
+  });
+
   test('interrupted download keeps the partial file and resumes with Range',
       () async {
     final model = spec(server);

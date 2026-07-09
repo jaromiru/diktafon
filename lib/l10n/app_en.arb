@@ -126,6 +126,13 @@
       "pct": {"type": "int"}
     }
   },
+  "modelPaused": "{label} — download paused at {pct} %",
+  "@modelPaused": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "pct": {"type": "int"}
+    }
+  },
   "modelNotDownloaded": "{label} — not downloaded yet · tap to set up",
   "@modelNotDownloaded": {"placeholders": {"label": {"type": "String"}}},
   "groupAppearance": "Appearance",
@@ -147,8 +154,10 @@
   "modelPickerSummaryTitle": "SUMMARY MODEL",
   "pickerInstalled": "installed · {size}",
   "@pickerInstalled": {"placeholders": {"size": {"type": "String"}}},
-  "pickerDownloading": "downloading {pct} %",
+  "pickerDownloading": "downloading {pct} % — tap to pause",
   "@pickerDownloading": {"placeholders": {"pct": {"type": "int"}}},
+  "pickerPaused": "paused at {pct} % — tap to resume",
+  "@pickerPaused": {"placeholders": {"pct": {"type": "int"}}},
   "pickerDownload": "download · {size}",
   "@pickerDownload": {"placeholders": {"size": {"type": "String"}}},
   "needsRam": "needs ≥ {gb} GB RAM",
@@ -185,6 +194,14 @@
   },
   "provisionDownloading": "{label} · {size} · downloading — {pct} %",
   "@provisionDownloading": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "size": {"type": "String"},
+      "pct": {"type": "int"}
+    }
+  },
+  "provisionPaused": "{label} · {size} · paused — {pct} %",
+  "@provisionPaused": {
     "placeholders": {
       "label": {"type": "String"},
       "size": {"type": "String"},

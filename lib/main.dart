@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -14,6 +15,7 @@ import 'l10n/gen/app_localizations.dart';
 import 'services/notifications/download_notifier.dart';
 import 'services/notifications/local_notifications_sink.dart';
 import 'services/providers/llm/llm_model_manager.dart';
+import 'services/providers/model_manager.dart';
 import 'services/providers/whisper/whisper_model_manager.dart';
 
 Future<void> main() async {
@@ -48,6 +50,15 @@ Future<void> main() async {
 
   // Resume any jobs persisted before the last shutdown (§6.5 durability).
   Future<void>.microtask(() => container.read(jobQueueProvider).drain());
+
+  // A force-close mid-download left a `.part` behind — put it back on the
+  // wire without waiting for a tap (§6.6; user-paused `.paused` stashes stay
+  // put). When a model lands, jobs parked on it get released.
+  for (final models in <ModelManager<ModelSpec>>[whisperModels, llmModels]) {
+    unawaited(models.resumeInterrupted().then((landed) async {
+      if (landed) await container.read(jobQueueProvider).drain();
+    }));
+  }
 
   runApp(UncontrolledProviderScope(
     container: container,

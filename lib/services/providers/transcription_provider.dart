@@ -6,7 +6,10 @@ import 'dart:async';
 
 import '../../domain/models.dart';
 
-enum ModelStatus { notInstalled, downloading, ready }
+/// [paused] covers every partial-on-disk, not-on-the-wire state: an explicit
+/// pause from the picker as well as an interrupted attempt that hasn't been
+/// resumed (yet) — either way there are bytes worth keeping and no download.
+enum ModelStatus { notInstalled, downloading, paused, ready }
 
 /// Reports download/preparation progress in [0..1].
 typedef ProgressSink = void Function(double fraction);

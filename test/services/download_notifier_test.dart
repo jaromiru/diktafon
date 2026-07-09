@@ -132,6 +132,30 @@ void main() {
     expect(sink.calls.where((c) => c.startsWith('done#')), isEmpty);
   });
 
+  test('pause mid-flight removes the notification, no done notice', () async {
+    // The picker shows the stashed progress; an ongoing notification would
+    // promise a download that isn't running.
+    final model = spec(server);
+    final manager = WhisperModelManager(dir, catalog: [model]);
+    final sink = RecordingSink();
+    final notifier = ModelDownloadNotifier(sink, texts)
+      ..attach(manager, idBase: 100);
+    addTearDown(notifier.dispose);
+
+    stallResponses = true;
+    final download = manager.download(model);
+    while (!sink.calls.any((c) => c.startsWith('progress#'))) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+
+    manager.pause(model);
+    await expectLater(download, throwsA(isA<ModelDownloadPaused>()));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(sink.calls.last, 'cancel#100');
+    expect(sink.calls.where((c) => c.startsWith('done#')), isEmpty);
+  });
+
   test('attach clears notifications a dead process left behind', () async {
     // A process killed mid-download can't cancel its progress notification;
     // the next run's attach must sweep it out of the shade.

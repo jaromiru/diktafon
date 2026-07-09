@@ -492,6 +492,12 @@ abstract class AppLocalizations {
   /// **'{label} — downloading {pct} %'**
   String modelDownloading(String label, int pct);
 
+  /// No description provided for @modelPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} — download paused at {pct} %'**
+  String modelPaused(String label, int pct);
+
   /// No description provided for @modelNotDownloaded.
   ///
   /// In en, this message translates to:
@@ -603,8 +609,14 @@ abstract class AppLocalizations {
   /// No description provided for @pickerDownloading.
   ///
   /// In en, this message translates to:
-  /// **'downloading {pct} %'**
+  /// **'downloading {pct} % — tap to pause'**
   String pickerDownloading(int pct);
+
+  /// No description provided for @pickerPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'paused at {pct} % — tap to resume'**
+  String pickerPaused(int pct);
 
   /// No description provided for @pickerDownload.
   ///
@@ -719,6 +731,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label} · {size} · downloading — {pct} %'**
   String provisionDownloading(String label, String size, int pct);
+
+  /// No description provided for @provisionPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} · {size} · paused — {pct} %'**
+  String provisionPaused(String label, String size, int pct);
 
   /// No description provided for @provisionChoose.
   ///

@@ -247,6 +247,8 @@ class SettingsScreen extends ConsumerWidget {
         context.l10n.modelInstalled(model.label, sizeLabel),
       ModelStatus.downloading => context.l10n
           .modelDownloading(model.label, (state!.progress * 100).round()),
+      ModelStatus.paused => context.l10n
+          .modelPaused(model.label, (state!.progress * 100).round()),
       _ => context.l10n.modelNotDownloaded(model.label),
     };
   }
@@ -341,6 +343,12 @@ class ModelPickerDialog extends ConsumerWidget {
       ModelState<ModelSpec> state) async {
     final repo = ref.read(settingsRepositoryProvider);
     final manager = ref.read(whisperModelManagerProvider);
+    // Tapping the tier already on the wire pauses it (metered-connection
+    // escape hatch); the next tap resumes through the download path below.
+    if (state.status == ModelStatus.downloading) {
+      manager.pause(state.model as WhisperModel);
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     await repo.setWhisperTier(state.model.tier);
@@ -379,6 +387,10 @@ class LlmModelPickerDialog extends ConsumerWidget {
       ModelState<ModelSpec> state) async {
     final repo = ref.read(settingsRepositoryProvider);
     final manager = ref.read(llmModelManagerProvider);
+    if (state.status == ModelStatus.downloading) {
+      manager.pause(state.model as LlmModel);
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     await repo.setLlmTier(state.model.tier);
@@ -391,9 +403,10 @@ class LlmModelPickerDialog extends ConsumerWidget {
 }
 
 /// Shared select flow: an installed tier just drains the queue; an absent
-/// one downloads first (§14 model-missing recovery). Selecting a tier
-/// cancels any other tier still downloading (§5.6) — the cancelled future
-/// stays silent here, only real failures earn the snackbar.
+/// or paused one downloads (resuming a stashed partial) first (§14
+/// model-missing recovery). Selecting a tier cancels any other tier still
+/// downloading (§5.6) — the cancelled/paused future stays silent here, only
+/// real failures earn the snackbar.
 Future<void> downloadAndDrain(
   ScaffoldMessengerState messenger,
   WidgetRef ref,
@@ -404,7 +417,7 @@ Future<void> downloadAndDrain(
 }) async {
   final queue = ref.read(jobQueueProvider);
 
-  if (state.status != ModelStatus.notInstalled) {
+  if (state.status == ModelStatus.ready) {
     await queue.drain();
     return;
   }
@@ -414,6 +427,8 @@ Future<void> downloadAndDrain(
     await queue.drain();
   } on ModelDownloadCancelled {
     // A newer tier choice aborted this one; the new download reports.
+  } on ModelDownloadPaused {
+    // The user tapped pause; the partial waits on disk for the next tap.
   } catch (_) {
     messenger.showSnackBar(SnackBar(content: Text(failedMessage)));
   }
@@ -460,7 +475,9 @@ class _EnginePickerDialog extends ConsumerWidget {
             enabled: enabledOf(state.model),
             disabledReason: disabledReason,
             onSelect: () => onSelect(state),
-            onDelete: state.status == ModelStatus.ready
+            // Ready → free the storage; paused → discard the partial.
+            onDelete: state.status == ModelStatus.ready ||
+                    state.status == ModelStatus.paused
                 ? () => onDelete(state)
                 : null,
           ),
@@ -501,6 +518,8 @@ class _ModelOption extends StatelessWidget {
       ModelStatus.ready => context.l10n.pickerInstalled(model.sizeLabel),
       ModelStatus.downloading =>
         context.l10n.pickerDownloading((state.progress * 100).round()),
+      ModelStatus.paused =>
+        context.l10n.pickerPaused((state.progress * 100).round()),
       ModelStatus.notInstalled => enabled
           ? context.l10n.pickerDownload(model.sizeLabel)
           : disabledReason,
@@ -553,7 +572,8 @@ class _ModelOption extends StatelessWidget {
                       fontSize: 9.5, height: 1.4, color: tape.ink2),
                 ),
               ),
-              if (state.status == ModelStatus.downloading)
+              if (state.status == ModelStatus.downloading ||
+                  state.status == ModelStatus.paused)
                 Padding(
                   padding: const EdgeInsets.only(left: 22, top: 6, bottom: 2),
                   child: InkProgressBar(fraction: state.progress),

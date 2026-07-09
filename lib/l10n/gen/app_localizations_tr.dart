@@ -243,6 +243,11 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String modelPaused(String label, int pct) {
+    return '$label — indirme duraklatıldı (%$pct)';
+  }
+
+  @override
   String modelNotDownloaded(String label) {
     return '$label — henüz indirilmedi · kurmak için dokunun';
   }
@@ -304,7 +309,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String pickerDownloading(int pct) {
-    return 'indiriliyor %$pct';
+    return 'indiriliyor %$pct — duraklatmak için dokunun';
+  }
+
+  @override
+  String pickerPaused(int pct) {
+    return 'duraklatıldı %$pct — sürdürmek için dokunun';
   }
 
   @override
@@ -380,6 +390,11 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String provisionDownloading(String label, String size, int pct) {
     return '$label · $size · indiriliyor — %$pct';
+  }
+
+  @override
+  String provisionPaused(String label, String size, int pct) {
+    return '$label · $size · duraklatıldı — %$pct';
   }
 
   @override

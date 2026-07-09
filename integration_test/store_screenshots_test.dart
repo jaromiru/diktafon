@@ -1,15 +1,18 @@
 /// Store & README screenshots: boots the real app over a seeded, realistic
-/// dataset and captures phone-ratio (1080x2340) shots of the key screens —
-/// home grid, cassette view (summary collapsed & expanded), recording,
-/// Settings, and dark mode. No ML engine runs: enrichment is pre-seeded and
-/// the model files are sparse stand-ins, so Settings reads "installed".
+/// dataset and captures 1080x2160 (2:1 — the Play Store aspect-ratio cap)
+/// shots of the key screens — home grid, cassette view (summary collapsed &
+/// expanded), recording, Settings, and dark mode. No ML engine runs:
+/// enrichment is pre-seeded and the model files are sparse stand-ins, so
+/// Settings reads "installed".
 ///
 ///   DIKTAFON_TEST_DIR=/tmp/dk_shots \
 ///   flutter test integration_test/store_screenshots_test.dart -d linux
 ///
-/// Shots land in $DIKTAFON_TEST_DIR/shots/; the curated set is copied to
-/// docs/store/screenshots/ for the Play listing, and 01 + 02 to media/ for
-/// the README.
+/// Shots land in $DIKTAFON_TEST_DIR/shots/ as raw screen captures; the
+/// framing pass (`tool/screenshots/frame_screenshots.py $DIKTAFON_TEST_DIR/shots`)
+/// publishes each to docs/store/screenshots/ both raw (the Play upload) and
+/// wrapped in the mockup phone frame + status bar on a transparent canvas
+/// (`-framed.png`), with framed README copies in media/.
 library;
 
 import 'dart:convert';
@@ -110,9 +113,10 @@ void main() {
   });
 
   testWidgets('store screenshots over seeded demo data', (tester) async {
-    // Phone canvas (1080x2340 @3x) regardless of the host window; shots are
-    // captured at pixelRatio 3 for full store resolution.
-    tester.view.physicalSize = const Size(1080, 2340);
+    // Phone canvas (1080x2160 @3x) regardless of the host window; shots are
+    // captured at pixelRatio 3 for full store resolution. 2:1 is the Play
+    // Store's aspect-ratio cap; the framing tool keeps that ratio.
+    tester.view.physicalSize = const Size(1080, 2160);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
     tester.platformDispatcher.localesTestValue = [const Locale('en', 'US')];
