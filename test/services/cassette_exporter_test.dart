@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:diktafon/domain/models.dart';
 import 'package:diktafon/services/export/cassette_exporter.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,11 +85,42 @@ void main() {
 
     final json = jsonDecode(File('${dir.path}/cassette.json')
         .readAsStringSync()) as Map<String, dynamic>;
+    expect(json['formatVersion'], CassetteExporter.manifestVersion);
     expect(json['label'], 'Groceries');
+    expect(json['titleIsUserSet'], isTrue);
+    expect(json['colorSeed'], 7);
     expect(json['summary'], 'Buy things.');
     final memos = json['memos'] as List;
     expect((memos.single as Map)['audio'], startsWith('audio/memo-001'));
     expect((memos.single as Map)['transcript'], isNotNull);
+  });
+
+  test('exportArchive bundles every cassette into one zip (§8)', () async {
+    final audio = File('${work.path}/src.m4a')
+      ..writeAsBytesSync([1, 2, 3, 4]);
+    final zipPath = '${work.path}/out/archive.zip';
+    Directory('${work.path}/out').createSync();
+
+    await const CassetteExporter().exportArchive(
+      items: [
+        (
+          cassette: cassette(label: 'Groceries', summary: 'Buy things.'),
+          memos: [memo('m1', audioPath: audio.path)],
+        ),
+        (cassette: cassette(label: 'Ideas'), memos: <Memo>[]),
+      ],
+      outputPath: zipPath,
+    );
+
+    final unpacked = Directory('${work.path}/unpacked')..createSync();
+    await extractFileToDisk(zipPath, unpacked.path);
+    expect(
+        File('${unpacked.path}/Groceries/cassette.json').existsSync(), isTrue);
+    expect(File('${unpacked.path}/Groceries/transcript.md').existsSync(),
+        isTrue);
+    expect(Directory('${unpacked.path}/Groceries/audio').listSync(),
+        hasLength(1));
+    expect(File('${unpacked.path}/Ideas/cassette.json').existsSync(), isTrue);
   });
 
   test('missing audio and absent transcript degrade, not fail', () async {

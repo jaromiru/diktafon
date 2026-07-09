@@ -269,11 +269,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupYourData => 'Your data';
 
   @override
-  String get backupExport => 'Export data';
+  String get backupExport => 'Export & import';
 
   @override
   String get backupExportDesc =>
-      'Take your cassettes with you — audio, transcripts and summaries';
+      'Take your cassettes with you — audio, transcripts and summaries — or bring them back';
 
   @override
   String get aboutPrivacy => 'About & privacy';
@@ -393,11 +393,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startRecordingKey => 'START RECORDING';
 
   @override
-  String get backupTitle => 'EXPORT DATA';
+  String get backupTitle => 'EXPORT & IMPORT';
 
   @override
   String get backupIntro =>
-      'Your device\'s own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export writes a folder with the audio files, the transcript and the summaries. Nothing is uploaded by Diktafon.';
+      'Your device\'s own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export packs the audio, transcripts and summaries of a cassette into one .zip archive, and importing an archive brings them back. Nothing is uploaded by Diktafon.';
 
   @override
   String get groupExport => 'Export';
@@ -406,7 +406,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportAll => 'Export all cassettes';
 
   @override
-  String get exportAllDesc => 'Everything, into one folder you pick';
+  String get exportAllDesc => 'Everything, into one archive file';
 
   @override
   String get exporting => 'Exporting…';
@@ -433,8 +433,68 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'That folder can\'t be written to directly — pick a local folder.';
+  String get groupImport => 'Import';
+
+  @override
+  String get importArchive => 'Import an archive';
+
+  @override
+  String get importArchiveDesc => 'Add cassettes from an earlier export';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
+  String get importDialogTitle => 'IMPORT CASSETTES?';
+
+  @override
+  String get importDialogBody =>
+      'The cassettes in the archive are added next to the ones you have — nothing is deleted or changed. Importing a cassette that is already here creates a second copy, which you can delete by hand. Memos missing a transcript or summary are processed after the import.';
+
+  @override
+  String get importAction => 'IMPORT';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos memos',
+      one: '1 memo',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos memos',
+      one: '1 memo',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: 'Imported $cassettes cassettes with $_temp0.',
+      one: 'Imported 1 cassette with $_temp1.',
+    );
+    return '$_temp2';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cassettes could not be imported.',
+      one: '1 cassette could not be imported.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'No cassettes found in that archive.';
+
+  @override
+  String importFailed(String error) {
+    return 'Import failed: $error';
+  }
 
   @override
   String exportNote(String date) {

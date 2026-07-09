@@ -37,8 +37,9 @@ never leave it.
   tape may mix languages), summaries, and the UI itself.
 - **Private by default** — no accounts, no cloud, no analytics. The only
   network traffic is the one-time, user-initiated download of the ML models.
-- **Export** — any cassette exports to a folder of audio files plus
-  `transcript.md` and `cassette.json`.
+- **Export & import** — any cassette (or all of them) exports to a single
+  `.zip` archive of audio files plus `transcript.md` and `cassette.json`;
+  archives import back additively — nothing is overwritten.
 - Light & dark themes, cassette color labels, retranscribe-cassette,
   per-memo copy/delete.
 

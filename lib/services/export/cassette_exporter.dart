@@ -1,11 +1,13 @@
 /// Cassette export (§8, data portability): audio + transcript + summary
-/// written to a user-chosen folder, for the user's own archival. Two views
-/// of the same data: `transcript.md` to read, `cassette.json` to parse.
+/// bundled into a single `.zip` archive, for the user's own archival and
+/// for re-import. Two views of the same data inside: `transcript.md` to
+/// read, `cassette.json` to parse (and to import back).
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/models.dart';
@@ -39,6 +41,32 @@ class CassetteExporter {
 
   final ExportLabels labels;
 
+  /// Bumped when `cassette.json` changes shape; the importer accepts
+  /// anything ≤ its own version (absent → the first, pre-versioned cut).
+  static const manifestVersion = 1;
+
+  /// Exports every cassette in [items] into one `.zip` at [outputPath]
+  /// (one `<label>/` folder each, same layout `exportCassette` writes).
+  /// Audio is stored uncompressed — the m4a files dominate the archive and
+  /// deflate would only burn CPU on them.
+  Future<File> exportArchive({
+    required List<({Cassette cassette, List<Memo> memos})> items,
+    required String outputPath,
+  }) async {
+    final staging = await Directory.systemTemp.createTemp('diktafon_export_');
+    try {
+      for (final item in items) {
+        await exportCassette(
+            cassette: item.cassette, memos: item.memos, target: staging);
+      }
+      await ZipFileEncoder().zipDirectory(staging,
+          filename: outputPath, level: ZipFileEncoder.store);
+      return File(outputPath);
+    } finally {
+      await staging.delete(recursive: true);
+    }
+  }
+
   /// Writes `<target>/<label>/{transcript.md, cassette.json, audio/…}` and
   /// returns the created directory. Never overwrites: an existing folder of
   /// the same name gets a ` (2)`-style suffix.
@@ -48,7 +76,7 @@ class CassetteExporter {
     required Directory target,
   }) async {
     final dir = await _claimDir(
-        target, _fileSafe(cassette.label ?? labels.untitled));
+        target, fileSafe(cassette.label ?? labels.untitled));
     final audioDir = Directory('${dir.path}/audio');
     await audioDir.create(recursive: true);
 
@@ -114,8 +142,12 @@ class CassetteExporter {
   Map<String, Object?> _manifest(Cassette cassette, List<Memo> memos,
           Map<String, String?> audioNames) =>
       {
+        'formatVersion': manifestVersion,
         'label': cassette.label,
+        'titleIsUserSet': cassette.titleIsUserSet,
+        'colorSeed': cassette.colorSeed,
         'summary': cassette.summary,
+        'summaryUpdatedAt': cassette.summaryUpdatedAt?.toIso8601String(),
         'createdAt': cassette.createdAt.toIso8601String(),
         'updatedAt': cassette.updatedAt.toIso8601String(),
         'exportedAt': DateTime.now().toIso8601String(),
@@ -143,8 +175,8 @@ class CassetteExporter {
   static String _stamp(DateTime t) =>
       DateFormat('yyyy-MM-dd HH:mm').format(t);
 
-  /// Keeps the label usable as a folder name on every filesystem.
-  static String _fileSafe(String label) {
+  /// Keeps the label usable as a folder or archive name on every filesystem.
+  static String fileSafe(String label) {
     final safe = label
         .replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')

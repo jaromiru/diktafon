@@ -14,6 +14,7 @@ import '../domain/tape.dart';
 import '../services/audio/pcm_decoder.dart';
 import '../services/audio/recorder_service.dart';
 import '../services/audio/tape_player_service.dart';
+import '../services/import/cassette_importer.dart';
 import '../services/processing/job_queue.dart';
 import '../services/providers/llm/llama_bindings.dart';
 import '../services/providers/llm/llama_worker.dart';
@@ -101,6 +102,19 @@ final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
       () => ref.read(transcriptionProvider),
       () => ref.read(summarizationProvider),
     ));
+
+/// Archive import (§8): restored memos that lack a transcript or gist
+/// re-enter the pipeline through the queue's own entry points.
+final cassetteImporterProvider = Provider<CassetteImporter>((ref) {
+  final jobs = ref.watch(jobQueueProvider);
+  return CassetteImporter(
+    cassettes: ref.watch(cassetteRepositoryProvider),
+    memos: ref.watch(memoRepositoryProvider),
+    files: ref.watch(audioFileStoreProvider),
+    enqueueTranscription: jobs.enqueueTranscription,
+    retryEnrichment: jobs.retryEnrichment,
+  );
+});
 
 /// Per-tier model install/download state for the Settings pickers (§5.5).
 final whisperModelStatesProvider =

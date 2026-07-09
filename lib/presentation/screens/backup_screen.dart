@@ -3,17 +3,21 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../application/providers.dart';
 import '../../data/repositories/cassette_repository.dart';
+import '../../domain/models.dart';
 import '../../l10n/l10n.dart';
 import '../../services/export/cassette_exporter.dart';
+import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/settings_rows.dart';
 
-/// Backup & export (§8): OS backup covers the metadata automatically; large
-/// audio is protected by an explicit, user-initiated export to a folder of
-/// the user's choosing — one cassette or the whole shelf.
+/// Backup, export & import (§8): OS backup covers the metadata
+/// automatically; large audio travels in explicit, user-initiated `.zip`
+/// archives — one cassette or the whole shelf — which the Import row
+/// brings back in (D14: additive, never destructive).
 class BackupScreen extends ConsumerStatefulWidget {
   const BackupScreen({super.key});
 
@@ -23,6 +27,9 @@ class BackupScreen extends ConsumerStatefulWidget {
 
 class _BackupScreenState extends ConsumerState<BackupScreen> {
   bool _exporting = false;
+  bool _importing = false;
+
+  bool get _busy => _exporting || _importing;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +61,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             SettingsRow(
               title: l10n.exportAll,
               value: _exporting ? l10n.exporting : l10n.exportAllDesc,
-              onTap: _exporting || overviews.isEmpty
+              onTap: _busy || overviews.isEmpty
                   ? null
                   : () => _export(overviews),
             ),
@@ -62,8 +69,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
               SettingsRow(
                 title: overview.cassette.label ?? l10n.untitledCassette,
                 value: l10n.memoCount(overview.memoCount),
-                onTap: _exporting ? null : () => _export([overview]),
+                onTap: _busy ? null : () => _export([overview]),
               ),
+          ]),
+          SettingsGroup(title: l10n.groupImport, rows: [
+            SettingsRow(
+              title: l10n.importArchive,
+              value: _importing ? l10n.importing : l10n.importArchiveDesc,
+              onTap: _busy ? null : _import,
+            ),
           ]),
         ],
       ),
@@ -74,39 +88,129 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     final labels = _exportLabels(context);
-    final path = await getDirectoryPath();
-    if (path == null || !mounted) return; // user cancelled the picker
+    final suggested = _suggestedName(selection, l10n.untitledCassette);
 
-    final target = Directory(path);
-    if (!await target.exists()) {
-      // e.g. a SAF content-URI on Android — not a filesystem path (§8's
-      // Android export lands with device testing).
-      messenger.showSnackBar(SnackBar(content: Text(l10n.pickLocalFolder)));
-      return;
+    // Desktop saves straight into the picked location; Android has no SAF
+    // save dialog in file_selector, so the zip is staged in the cache and
+    // handed to the OS "create document" dialog afterwards.
+    String outputPath;
+    Directory? staging;
+    if (Platform.isAndroid) {
+      staging = await Directory.systemTemp.createTemp('diktafon_export_zip_');
+      outputPath = '${staging.path}/$suggested';
+    } else {
+      final location = await getSaveLocation(
+        suggestedName: suggested,
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'zip', extensions: ['zip'])
+        ],
+      );
+      if (location == null || !mounted) return; // user cancelled the picker
+      outputPath = location.path;
+      // Desktop save dialogs don't force an extension, and import dispatches
+      // on it — a bare name would export fine but never import back.
+      if (!outputPath.toLowerCase().endsWith('.zip')) {
+        outputPath = '$outputPath.zip';
+      }
     }
 
     setState(() => _exporting = true);
     try {
       final memoRepo = ref.read(memoRepositoryProvider);
-      final exporter = CassetteExporter(labels: labels);
-      for (final overview in selection) {
-        await exporter.exportCassette(
-          cassette: overview.cassette,
-          memos: await memoRepo.memosOf(overview.cassette.id),
-          target: target,
-        );
+      final items = <({Cassette cassette, List<Memo> memos})>[
+        for (final overview in selection)
+          (
+            cassette: overview.cassette,
+            memos: await memoRepo.memosOf(overview.cassette.id),
+          ),
+      ];
+      await CassetteExporter(labels: labels)
+          .exportArchive(items: items, outputPath: outputPath);
+
+      var shownPath = outputPath;
+      if (Platform.isAndroid) {
+        final saved = await saveDocumentAndroid(
+            sourcePath: outputPath, suggestedName: suggested);
+        if (!saved) return; // backed out of the OS dialog — not an error
+        shownPath = suggested; // content URIs are opaque; name the file
       }
       messenger.showSnackBar(SnackBar(
           content: Text(selection.length == 1
-              ? l10n.exportedTo(path)
-              : l10n.exportedAllTo(selection.length, path))));
+              ? l10n.exportedTo(shownPath)
+              : l10n.exportedAllTo(selection.length, shownPath))));
     } catch (e) {
       messenger
           .showSnackBar(SnackBar(content: Text(l10n.exportFailed('$e'))));
     } finally {
+      if (staging != null) {
+        try {
+          await staging.delete(recursive: true);
+        } catch (_) {}
+      }
       if (mounted) setState(() => _exporting = false);
     }
   }
+
+  Future<void> _import() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+
+    // Before anything happens, say what an import does (D14): cassettes are
+    // added next to the existing ones, nothing is deleted, and re-importing
+    // what is already here duplicates it.
+    final proceed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(l10n.importDialogTitle),
+            content: Text(l10n.importDialogBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(l10n.importAction),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!proceed || !mounted) return;
+
+    final file = await openFile(acceptedTypeGroups: const [
+      XTypeGroup(
+          label: 'zip', extensions: ['zip'], mimeTypes: ['application/zip']),
+    ]);
+    if (file == null || !mounted) return;
+
+    setState(() => _importing = true);
+    try {
+      final result = await ref
+          .read(cassetteImporterProvider)
+          .importArchive(File(file.path));
+      if (result.isEmpty) {
+        messenger
+            .showSnackBar(SnackBar(content: Text(l10n.importNothingFound)));
+      } else {
+        var text = l10n.importedResult(result.cassettes, result.memos);
+        if (result.failures.isNotEmpty) {
+          text = '$text ${l10n.importFailures(result.failures.length)}';
+        }
+        messenger.showSnackBar(SnackBar(content: Text(text)));
+      }
+    } catch (e) {
+      messenger
+          .showSnackBar(SnackBar(content: Text(l10n.importFailed('$e'))));
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  String _suggestedName(List<CassetteOverview> selection, String untitled) =>
+      selection.length == 1
+          ? '${CassetteExporter.fileSafe(selection.single.cassette.label ?? untitled)}.zip'
+          : 'diktafon-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.zip';
 
   /// The exported files read in the app's language too (§13).
   ExportLabels _exportLabels(BuildContext context) {

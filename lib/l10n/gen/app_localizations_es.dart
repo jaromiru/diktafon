@@ -271,11 +271,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get groupYourData => 'Tus datos';
 
   @override
-  String get backupExport => 'Exportar datos';
+  String get backupExport => 'Exportar e importar';
 
   @override
   String get backupExportDesc =>
-      'Llévate tus casetes — audio, transcripciones y resúmenes';
+      'Llévate tus casetes — audio, transcripciones y resúmenes — o tráelos de vuelta';
 
   @override
   String get aboutPrivacy => 'Acerca de y privacidad';
@@ -395,11 +395,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get startRecordingKey => 'EMPEZAR A GRABAR';
 
   @override
-  String get backupTitle => 'EXPORTAR DATOS';
+  String get backupTitle => 'EXPORTAR E IMPORTAR';
 
   @override
   String get backupIntro =>
-      'La copia de seguridad de tu dispositivo cubre automáticamente la lista de casetes, las transcripciones y los resúmenes. El audio ocupa mucho — llévatelo de forma explícita: la exportación escribe una carpeta con los archivos de audio, la transcripción y los resúmenes. Diktafon no sube nada.';
+      'La copia de seguridad de tu dispositivo cubre automáticamente la lista de casetes, las transcripciones y los resúmenes. El audio ocupa mucho — llévatelo de forma explícita: la exportación empaqueta el audio, las transcripciones y los resúmenes de un casete en un único archivo .zip, y la importación los trae de vuelta. Diktafon no sube nada.';
 
   @override
   String get groupExport => 'Exportar';
@@ -408,7 +408,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get exportAll => 'Exportar todos los casetes';
 
   @override
-  String get exportAllDesc => 'Todo, en una carpeta que tú eliges';
+  String get exportAllDesc => 'Todo, en un único archivo';
 
   @override
   String get exporting => 'Exportando…';
@@ -435,8 +435,68 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'No se puede escribir directamente en esa carpeta — elige una carpeta local.';
+  String get groupImport => 'Importar';
+
+  @override
+  String get importArchive => 'Importar un archivo';
+
+  @override
+  String get importArchiveDesc => 'Añade casetes de una exportación anterior';
+
+  @override
+  String get importing => 'Importando…';
+
+  @override
+  String get importDialogTitle => '¿IMPORTAR CASETES?';
+
+  @override
+  String get importDialogBody =>
+      'Los casetes del archivo se añaden junto a los que ya tienes — no se borra ni se cambia nada. Importar un casete que ya está aquí crea una segunda copia, que puedes borrar a mano. Las notas sin transcripción o resumen se procesan después de la importación.';
+
+  @override
+  String get importAction => 'IMPORTAR';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos notas',
+      one: '1 nota',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos notas',
+      one: '1 nota',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: 'Importados $cassettes casetes con $_temp0.',
+      one: 'Importado 1 casete con $_temp1.',
+    );
+    return '$_temp2';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'No se pudieron importar $count casetes.',
+      one: 'No se pudo importar 1 casete.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'No se encontraron casetes en ese archivo.';
+
+  @override
+  String importFailed(String error) {
+    return 'La importación falló: $error';
+  }
 
   @override
   String exportNote(String date) {

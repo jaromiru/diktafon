@@ -271,11 +271,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get groupYourData => 'Vaše data';
 
   @override
-  String get backupExport => 'Export dat';
+  String get backupExport => 'Export a import';
 
   @override
   String get backupExportDesc =>
-      'Vezměte si kazety s sebou — zvuk, přepisy i souhrny';
+      'Vezměte si kazety s sebou — zvuk, přepisy i souhrny — nebo je vraťte zpět';
 
   @override
   String get aboutPrivacy => 'O aplikaci a soukromí';
@@ -395,11 +395,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get startRecordingKey => 'ZAČÍT NAHRÁVAT';
 
   @override
-  String get backupTitle => 'EXPORT DAT';
+  String get backupTitle => 'EXPORT A IMPORT';
 
   @override
   String get backupIntro =>
-      'Záloha vašeho zařízení se o seznam kazet, přepisy a souhrny postará automaticky. Nahrávky jsou velké — vezměte si je výslovně: export zapíše složku se zvukovými soubory, přepisem a souhrny. Diktafon nic nikam nenahrává.';
+      'Záloha vašeho zařízení se o seznam kazet, přepisy a souhrny postará automaticky. Nahrávky jsou velké — vezměte si je výslovně: export zabalí zvuk, přepisy a souhrny kazety do jednoho archivu .zip a import archivu je vrátí zpět. Diktafon nic nikam nenahrává.';
 
   @override
   String get groupExport => 'Export';
@@ -408,7 +408,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get exportAll => 'Exportovat všechny kazety';
 
   @override
-  String get exportAllDesc => 'Všechno do jedné složky, kterou vyberete';
+  String get exportAllDesc => 'Všechno do jednoho archivu';
 
   @override
   String get exporting => 'Exportuji…';
@@ -436,8 +436,79 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'Do této složky nejde zapisovat přímo — vyberte místní složku.';
+  String get groupImport => 'Import';
+
+  @override
+  String get importArchive => 'Importovat archiv';
+
+  @override
+  String get importArchiveDesc => 'Přidá kazety z dřívějšího exportu';
+
+  @override
+  String get importing => 'Importuji…';
+
+  @override
+  String get importDialogTitle => 'IMPORTOVAT KAZETY?';
+
+  @override
+  String get importDialogBody =>
+      'Kazety z archivu se přidají vedle stávajících — nic se nemaže ani nepřepisuje. Importem kazety, kterou už máte, vznikne druhá kopie; tu můžete ručně smazat. Záznamy bez přepisu nebo souhrnu se zpracují po importu.';
+
+  @override
+  String get importAction => 'IMPORTOVAT';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos záznamů',
+      few: '$memos záznamy',
+      one: '1 záznam',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos záznamů',
+      few: '$memos záznamy',
+      one: '1 záznam',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos záznamů',
+      few: '$memos záznamy',
+      one: '1 záznam',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: 'Importováno $cassettes kazet a $_temp0.',
+      few: 'Importovány $cassettes kazety a $_temp1.',
+      one: 'Importována 1 kazeta a $_temp2.',
+    );
+    return '$_temp3';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kazet se nepodařilo importovat.',
+      few: '$count kazety se nepodařilo importovat.',
+      one: '1 kazetu se nepodařilo importovat.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'V tomto archivu žádné kazety nejsou.';
+
+  @override
+  String importFailed(String error) {
+    return 'Import selhal: $error';
+  }
 
   @override
   String exportNote(String date) {

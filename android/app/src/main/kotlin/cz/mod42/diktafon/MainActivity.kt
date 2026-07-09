@@ -13,17 +13,29 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.BufferedOutputStream
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
+    private companion object {
+        // Outside the ranges Flutter plugins use for their own picks.
+        const val SAVE_DOCUMENT_REQUEST = 7461
+    }
+
     private val decodeExecutor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // One SAF save at a time: the pending Dart result + the file to copy
+    // once the user has picked where the document lands.
+    private var pendingSaveResult: MethodChannel.Result? = null
+    private var pendingSaveSource: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        val mainHandler = Handler(Looper.getMainLooper())
         // Counterpart of MediaCodecPcmDecoder (lib/services/audio/pcm_decoder.dart):
         // decodes a memo file to raw f32le 16 kHz mono PCM for whisper.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "diktafon/pcm_decoder")
@@ -47,20 +59,75 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             }
-        // Escape hatch for a permanently denied mic permission (the OS stops
-        // showing the prompt): the snackbar's action lands on the app's page
-        // in the system settings.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "diktafon/system")
             .setMethodCallHandler { call, result ->
-                if (call.method != "openAppSettings") {
-                    result.notImplemented()
-                    return@setMethodCallHandler
+                when (call.method) {
+                    // Escape hatch for a permanently denied mic permission
+                    // (the OS stops showing the prompt): the snackbar's action
+                    // lands on the app's page in the system settings.
+                    "openAppSettings" -> {
+                        startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", packageName, null)))
+                        result.success(null)
+                    }
+                    // SAF hand-off for export archives (§8): file_selector has
+                    // no save dialog on Android, so Dart stages the zip in the
+                    // cache and this copies it into the document the user
+                    // creates. Answers false when the user backs out.
+                    "saveDocument" -> startSaveDocument(call.argument("source"),
+                        call.argument("name"), call.argument("mime"), result)
+                    else -> result.notImplemented()
                 }
-                startActivity(
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", packageName, null)))
-                result.success(null)
             }
+    }
+
+    private fun startSaveDocument(
+        source: String?, name: String?, mime: String?, result: MethodChannel.Result) {
+        if (source == null || name == null) {
+            result.error("bad_args", "source/name required", null)
+            return
+        }
+        if (pendingSaveResult != null) {
+            result.error("busy", "another save is in progress", null)
+            return
+        }
+        pendingSaveResult = result
+        pendingSaveSource = source
+        startActivityForResult(
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mime ?: "application/zip"
+                putExtra(Intent.EXTRA_TITLE, name)
+            },
+            SAVE_DOCUMENT_REQUEST)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != SAVE_DOCUMENT_REQUEST) {
+            super.onActivityResult(requestCode, resultCode, data) // plugins' picks
+            return
+        }
+        val result = pendingSaveResult ?: return
+        val source = pendingSaveSource
+        pendingSaveResult = null
+        pendingSaveSource = null
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null || source == null) {
+            result.success(false) // user backed out of the dialog
+            return
+        }
+        // The archive can be large — copy it off the main thread.
+        Thread {
+            try {
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    FileInputStream(source).use { it.copyTo(out) }
+                } ?: throw IOException("cannot open $uri")
+                mainHandler.post { result.success(true) }
+            } catch (e: Exception) {
+                mainHandler.post { result.error("save_failed", e.message, null) }
+            }
+        }.start()
     }
 
     /** Decodes the first audio track to mono float PCM, resampled to 16 kHz. */

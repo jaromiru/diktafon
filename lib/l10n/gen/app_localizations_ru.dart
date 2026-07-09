@@ -275,11 +275,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get groupYourData => 'Ваши данные';
 
   @override
-  String get backupExport => 'Экспорт данных';
+  String get backupExport => 'Экспорт и импорт';
 
   @override
   String get backupExportDesc =>
-      'Заберите кассеты с собой — звук, расшифровки и сводки';
+      'Заберите кассеты с собой — звук, расшифровки и сводки — или верните их обратно';
 
   @override
   String get aboutPrivacy => 'О приложении и приватность';
@@ -399,11 +399,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get startRecordingKey => 'НАЧАТЬ ЗАПИСЬ';
 
   @override
-  String get backupTitle => 'ЭКСПОРТ ДАННЫХ';
+  String get backupTitle => 'ЭКСПОРТ И ИМПОРТ';
 
   @override
   String get backupIntro =>
-      'Резервная копия вашего устройства сама охватывает список кассет, расшифровки и сводки. Аудиозаписи большие — заберите их явно: экспорт создаёт папку со звуковыми файлами, расшифровкой и сводками. Диктафон ничего никуда не загружает.';
+      'Резервная копия вашего устройства сама охватывает список кассет, расшифровки и сводки. Аудиозаписи большие — заберите их явно: экспорт упаковывает звук, расшифровки и сводки кассеты в один архив .zip, а импорт архива возвращает их обратно. Диктафон ничего никуда не загружает.';
 
   @override
   String get groupExport => 'Экспорт';
@@ -412,7 +412,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get exportAll => 'Экспортировать все кассеты';
 
   @override
-  String get exportAllDesc => 'Всё в одну папку на ваш выбор';
+  String get exportAllDesc => 'Всё в один архив';
 
   @override
   String get exporting => 'Экспортирую…';
@@ -441,8 +441,92 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'В эту папку нельзя писать напрямую — выберите локальную папку.';
+  String get groupImport => 'Импорт';
+
+  @override
+  String get importArchive => 'Импортировать архив';
+
+  @override
+  String get importArchiveDesc => 'Добавит кассеты из прежнего экспорта';
+
+  @override
+  String get importing => 'Импортирую…';
+
+  @override
+  String get importDialogTitle => 'ИМПОРТИРОВАТЬ КАССЕТЫ?';
+
+  @override
+  String get importDialogBody =>
+      'Кассеты из архива добавятся рядом с существующими — ничего не удаляется и не перезаписывается. Импорт кассеты, которая уже есть, создаст вторую копию; её можно удалить вручную. Записи без расшифровки или сводки будут обработаны после импорта.';
+
+  @override
+  String get importAction => 'ИМПОРТИРОВАТЬ';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos записи',
+      many: '$memos записей',
+      few: '$memos записи',
+      one: '$memos запись',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos записи',
+      many: '$memos записей',
+      few: '$memos записи',
+      one: '$memos запись',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos записи',
+      many: '$memos записей',
+      few: '$memos записи',
+      one: '$memos запись',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos записи',
+      many: '$memos записей',
+      few: '$memos записи',
+      one: '$memos запись',
+    );
+    String _temp4 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: 'Импортировано $cassettes кассеты и $_temp0.',
+      many: 'Импортировано $cassettes кассет и $_temp1.',
+      few: 'Импортированы $cassettes кассеты и $_temp2.',
+      one: 'Импортирована $cassettes кассета и $_temp3.',
+    );
+    return '$_temp4';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Не удалось импортировать $count кассеты.',
+      many: 'Не удалось импортировать $count кассет.',
+      few: 'Не удалось импортировать $count кассеты.',
+      one: 'Не удалось импортировать $count кассету.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'В этом архиве нет кассет.';
+
+  @override
+  String importFailed(String error) {
+    return 'Импорт не удался: $error';
+  }
 
   @override
   String exportNote(String date) {

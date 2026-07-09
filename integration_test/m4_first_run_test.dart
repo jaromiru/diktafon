@@ -4,7 +4,7 @@
 /// tier starts the download against a local HTTP server (not HuggingFace).
 /// START RECORDING is never gated (recording itself asks for the mic) and
 /// opens the first cassette empty (record armed, nothing rolling). Then the
-/// Export data screen (§8) lists the new cassette.
+/// Export & import screen (§8) lists the new cassette.
 ///
 /// Engine seams are overridden with fakes: the "models" this test downloads
 /// are byte payloads, not runnable networks (§6.3 — that is the point of the
@@ -283,14 +283,16 @@ void main() {
     expect(find.text('Welcome to Diktafon'), findsNothing,
         reason: 'first-run never comes back');
 
-    // — Export data (§8): the cassette is offered for export —
+    // — Export & import (§8): the cassette is offered for export —
     await tester.tap(find.byTooltip('Settings'));
     await _settle(tester);
-    await tester.tap(find.text('Export data'));
+    await tester.tap(find.text('Export & import'));
     await _settle(tester);
     expect(find.text('Export all cassettes'), findsOneWidget);
     expect(find.textContaining('1 memo'), findsWidgets,
         reason: 'the recorded cassette is listed for export');
+    expect(find.text('Import an archive'), findsOneWidget,
+        reason: 'archives can come back in (D14)');
     await _shot(tester, '05-backup-export');
   });
 

@@ -269,11 +269,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get groupYourData => 'Verileriniz';
 
   @override
-  String get backupExport => 'Verileri dışa aktar';
+  String get backupExport => 'Dışa ve içe aktarma';
 
   @override
   String get backupExportDesc =>
-      'Kasetlerinizi yanınıza alın — ses, transkriptler ve özetler';
+      'Kasetlerinizi yanınıza alın — ses, transkriptler ve özetler — ya da geri getirin';
 
   @override
   String get aboutPrivacy => 'Hakkında ve gizlilik';
@@ -393,11 +393,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get startRecordingKey => 'KAYDA BAŞLA';
 
   @override
-  String get backupTitle => 'VERİLERİ DIŞA AKTAR';
+  String get backupTitle => 'DIŞA VE İÇE AKTARMA';
 
   @override
   String get backupIntro =>
-      'Cihazınızın kendi yedeği kaset listesini, transkriptleri ve özetleri otomatik olarak kapsar. Ses kayıtları büyüktür — onları açıkça yanınıza alın: dışa aktarma, ses dosyalarını, transkripti ve özetleri içeren bir klasör yazar. Diktafon hiçbir şeyi hiçbir yere yüklemez.';
+      'Cihazınızın kendi yedeği kaset listesini, transkriptleri ve özetleri otomatik olarak kapsar. Ses kayıtları büyüktür — onları açıkça yanınıza alın: dışa aktarma, bir kasetin sesini, transkriptlerini ve özetlerini tek bir .zip arşivine paketler; arşivi içe aktarmak onları geri getirir. Diktafon hiçbir şeyi hiçbir yere yüklemez.';
 
   @override
   String get groupExport => 'Dışa aktarma';
@@ -406,7 +406,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get exportAll => 'Tüm kasetleri dışa aktar';
 
   @override
-  String get exportAllDesc => 'Her şey, seçtiğiniz tek bir klasöre';
+  String get exportAllDesc => 'Her şey, tek bir arşiv dosyasına';
 
   @override
   String get exporting => 'Dışa aktarılıyor…';
@@ -433,8 +433,68 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'Bu klasöre doğrudan yazılamıyor — yerel bir klasör seçin.';
+  String get groupImport => 'İçe aktarma';
+
+  @override
+  String get importArchive => 'Arşivi içe aktar';
+
+  @override
+  String get importArchiveDesc => 'Önceki bir dışa aktarmadan kasetleri ekler';
+
+  @override
+  String get importing => 'İçe aktarılıyor…';
+
+  @override
+  String get importDialogTitle => 'KASETLER İÇE AKTARILSIN MI?';
+
+  @override
+  String get importDialogBody =>
+      'Arşivdeki kasetler mevcut olanların yanına eklenir — hiçbir şey silinmez veya değiştirilmez. Zaten burada olan bir kaseti içe aktarmak ikinci bir kopya oluşturur; onu elle silebilirsiniz. Transkripti veya özeti eksik notlar içe aktarmadan sonra işlenir.';
+
+  @override
+  String get importAction => 'İÇE AKTAR';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos not',
+      one: '1 not',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos not',
+      one: '1 not',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: '$cassettes kaset ve $_temp0 içe aktarıldı.',
+      one: '1 kaset ve $_temp1 içe aktarıldı.',
+    );
+    return '$_temp2';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kaset içe aktarılamadı.',
+      one: '1 kaset içe aktarılamadı.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'Bu arşivde kaset bulunamadı.';
+
+  @override
+  String importFailed(String error) {
+    return 'İçe aktarma başarısız: $error';
+  }
 
   @override
   String exportNote(String date) {

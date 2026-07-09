@@ -543,13 +543,13 @@ abstract class AppLocalizations {
   /// No description provided for @backupExport.
   ///
   /// In en, this message translates to:
-  /// **'Export data'**
+  /// **'Export & import'**
   String get backupExport;
 
   /// No description provided for @backupExportDesc.
   ///
   /// In en, this message translates to:
-  /// **'Take your cassettes with you — audio, transcripts and summaries'**
+  /// **'Take your cassettes with you — audio, transcripts and summaries — or bring them back'**
   String get backupExportDesc;
 
   /// No description provided for @aboutPrivacy.
@@ -741,13 +741,13 @@ abstract class AppLocalizations {
   /// No description provided for @backupTitle.
   ///
   /// In en, this message translates to:
-  /// **'EXPORT DATA'**
+  /// **'EXPORT & IMPORT'**
   String get backupTitle;
 
   /// No description provided for @backupIntro.
   ///
   /// In en, this message translates to:
-  /// **'Your device\'s own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export writes a folder with the audio files, the transcript and the summaries. Nothing is uploaded by Diktafon.'**
+  /// **'Your device\'s own backup covers the cassette list, transcripts and summaries automatically. Audio recordings are large — take them with you explicitly: an export packs the audio, transcripts and summaries of a cassette into one .zip archive, and importing an archive brings them back. Nothing is uploaded by Diktafon.'**
   String get backupIntro;
 
   /// No description provided for @groupExport.
@@ -765,7 +765,7 @@ abstract class AppLocalizations {
   /// No description provided for @exportAllDesc.
   ///
   /// In en, this message translates to:
-  /// **'Everything, into one folder you pick'**
+  /// **'Everything, into one archive file'**
   String get exportAllDesc;
 
   /// No description provided for @exporting.
@@ -792,11 +792,71 @@ abstract class AppLocalizations {
   /// **'Export failed: {error}'**
   String exportFailed(String error);
 
-  /// No description provided for @pickLocalFolder.
+  /// No description provided for @groupImport.
   ///
   /// In en, this message translates to:
-  /// **'That folder can\'t be written to directly — pick a local folder.'**
-  String get pickLocalFolder;
+  /// **'Import'**
+  String get groupImport;
+
+  /// No description provided for @importArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Import an archive'**
+  String get importArchive;
+
+  /// No description provided for @importArchiveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add cassettes from an earlier export'**
+  String get importArchiveDesc;
+
+  /// No description provided for @importing.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get importing;
+
+  /// No description provided for @importDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'IMPORT CASSETTES?'**
+  String get importDialogTitle;
+
+  /// No description provided for @importDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The cassettes in the archive are added next to the ones you have — nothing is deleted or changed. Importing a cassette that is already here creates a second copy, which you can delete by hand. Memos missing a transcript or summary are processed after the import.'**
+  String get importDialogBody;
+
+  /// No description provided for @importAction.
+  ///
+  /// In en, this message translates to:
+  /// **'IMPORT'**
+  String get importAction;
+
+  /// No description provided for @importedResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{cassettes, plural, =1{Imported 1 cassette with {memos, plural, =1{1 memo} other{{memos} memos}}.} other{Imported {cassettes} cassettes with {memos, plural, =1{1 memo} other{{memos} memos}}.}}'**
+  String importedResult(int cassettes, int memos);
+
+  /// No description provided for @importFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 cassette could not be imported.} other{{count} cassettes could not be imported.}}'**
+  String importFailures(int count);
+
+  /// No description provided for @importNothingFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No cassettes found in that archive.'**
+  String get importNothingFound;
+
+  /// No description provided for @importFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String importFailed(String error);
 
   /// No description provided for @exportNote.
   ///

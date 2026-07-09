@@ -276,11 +276,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get groupYourData => 'Twoje dane';
 
   @override
-  String get backupExport => 'Eksport danych';
+  String get backupExport => 'Eksport i import';
 
   @override
   String get backupExportDesc =>
-      'Zabierz kasety ze sobą — dźwięk, transkrypcje i podsumowania';
+      'Zabierz kasety ze sobą — dźwięk, transkrypcje i podsumowania — albo przywróć je z powrotem';
 
   @override
   String get aboutPrivacy => 'O aplikacji i prywatność';
@@ -400,11 +400,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get startRecordingKey => 'ZACZNIJ NAGRYWAĆ';
 
   @override
-  String get backupTitle => 'EKSPORT DANYCH';
+  String get backupTitle => 'EKSPORT I IMPORT';
 
   @override
   String get backupIntro =>
-      'Kopia zapasowa urządzenia sama obejmuje listę kaset, transkrypcje i podsumowania. Nagrania audio są duże — zabierz je jawnie: eksport zapisuje folder z plikami audio, transkrypcją i podsumowaniami. Diktafon niczego nie wysyła.';
+      'Kopia zapasowa urządzenia sama obejmuje listę kaset, transkrypcje i podsumowania. Nagrania audio są duże — zabierz je jawnie: eksport pakuje dźwięk, transkrypcje i podsumowania kasety do jednego archiwum .zip, a import archiwum przywraca je z powrotem. Diktafon niczego nie wysyła.';
 
   @override
   String get groupExport => 'Eksport';
@@ -413,7 +413,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get exportAll => 'Eksportuj wszystkie kasety';
 
   @override
-  String get exportAllDesc => 'Wszystko do jednego wybranego folderu';
+  String get exportAllDesc => 'Wszystko do jednego archiwum';
 
   @override
   String get exporting => 'Eksportowanie…';
@@ -442,8 +442,92 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder =>
-      'Do tego folderu nie da się zapisywać bezpośrednio — wybierz folder lokalny.';
+  String get groupImport => 'Import';
+
+  @override
+  String get importArchive => 'Importuj archiwum';
+
+  @override
+  String get importArchiveDesc => 'Dodaje kasety z wcześniejszego eksportu';
+
+  @override
+  String get importing => 'Importowanie…';
+
+  @override
+  String get importDialogTitle => 'ZAIMPORTOWAĆ KASETY?';
+
+  @override
+  String get importDialogBody =>
+      'Kasety z archiwum zostaną dodane obok istniejących — nic nie jest usuwane ani nadpisywane. Import kasety, którą już masz, utworzy drugą kopię; możesz ją ręcznie usunąć. Nagrania bez transkrypcji lub podsumowania zostaną przetworzone po imporcie.';
+
+  @override
+  String get importAction => 'IMPORTUJ';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos nagrania',
+      many: '$memos nagrań',
+      few: '$memos nagrania',
+      one: '1 nagranie',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos nagrania',
+      many: '$memos nagrań',
+      few: '$memos nagrania',
+      one: '1 nagranie',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos nagrania',
+      many: '$memos nagrań',
+      few: '$memos nagrania',
+      one: '1 nagranie',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      memos,
+      locale: localeName,
+      other: '$memos nagrania',
+      many: '$memos nagrań',
+      few: '$memos nagrania',
+      one: '1 nagranie',
+    );
+    String _temp4 = intl.Intl.pluralLogic(
+      cassettes,
+      locale: localeName,
+      other: 'Zaimportowano $cassettes kasety i $_temp0.',
+      many: 'Zaimportowano $cassettes kaset i $_temp1.',
+      few: 'Zaimportowano $cassettes kasety i $_temp2.',
+      one: 'Zaimportowano 1 kasetę i $_temp3.',
+    );
+    return '$_temp4';
+  }
+
+  @override
+  String importFailures(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nie udało się zaimportować $count kasety.',
+      many: 'Nie udało się zaimportować $count kaset.',
+      few: 'Nie udało się zaimportować $count kaset.',
+      one: 'Nie udało się zaimportować 1 kasety.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingFound => 'W tym archiwum nie ma żadnych kaset.';
+
+  @override
+  String importFailed(String error) {
+    return 'Import nie powiódł się: $error';
+  }
 
   @override
   String exportNote(String date) {

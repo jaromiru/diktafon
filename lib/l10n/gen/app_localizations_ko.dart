@@ -262,10 +262,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get groupYourData => '내 데이터';
 
   @override
-  String get backupExport => '데이터 내보내기';
+  String get backupExport => '내보내기 및 가져오기';
 
   @override
-  String get backupExportDesc => '카세트를 가지고 가세요 — 오디오, 변환 텍스트, 요약';
+  String get backupExportDesc => '카세트를 가지고 가세요 — 오디오, 변환 텍스트, 요약 — 또는 다시 가져오세요';
 
   @override
   String get aboutPrivacy => '정보 및 개인정보';
@@ -383,11 +383,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get startRecordingKey => '녹음 시작';
 
   @override
-  String get backupTitle => '데이터 내보내기';
+  String get backupTitle => '내보내기 및 가져오기';
 
   @override
   String get backupIntro =>
-      '기기 자체 백업이 카세트 목록, 변환 텍스트, 요약을 자동으로 보관합니다. 녹음 파일은 용량이 큽니다 — 직접 챙기세요: 내보내기는 오디오 파일, 변환 텍스트, 요약이 담긴 폴더를 만듭니다. Diktafon은 아무것도 업로드하지 않습니다.';
+      '기기 자체 백업이 카세트 목록, 변환 텍스트, 요약을 자동으로 보관합니다. 녹음 파일은 용량이 큽니다 — 직접 챙기세요: 내보내기는 카세트의 오디오, 변환 텍스트, 요약을 .zip 아카이브 하나로 묶고, 아카이브를 가져오면 다시 복원됩니다. Diktafon은 아무것도 업로드하지 않습니다.';
 
   @override
   String get groupExport => '내보내기';
@@ -396,7 +396,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get exportAll => '모든 카세트 내보내기';
 
   @override
-  String get exportAllDesc => '선택한 폴더 하나에 전부';
+  String get exportAllDesc => '전부 아카이브 파일 하나로';
 
   @override
   String get exporting => '내보내는 중…';
@@ -422,7 +422,44 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get pickLocalFolder => '이 폴더에는 직접 쓸 수 없습니다 — 로컬 폴더를 선택하세요.';
+  String get groupImport => '가져오기';
+
+  @override
+  String get importArchive => '아카이브 가져오기';
+
+  @override
+  String get importArchiveDesc => '이전 내보내기에서 카세트를 추가합니다';
+
+  @override
+  String get importing => '가져오는 중…';
+
+  @override
+  String get importDialogTitle => '카세트를 가져올까요?';
+
+  @override
+  String get importDialogBody =>
+      '아카이브의 카세트는 기존 카세트 옆에 추가됩니다 — 아무것도 삭제되거나 바뀌지 않습니다. 이미 있는 카세트를 가져오면 사본이 하나 더 생기며, 직접 삭제할 수 있습니다. 변환 텍스트나 요약이 없는 메모는 가져온 뒤 처리됩니다.';
+
+  @override
+  String get importAction => '가져오기';
+
+  @override
+  String importedResult(int cassettes, int memos) {
+    return '카세트 $cassettes개와 메모 $memos개를 가져왔습니다.';
+  }
+
+  @override
+  String importFailures(int count) {
+    return '카세트 $count개를 가져오지 못했습니다.';
+  }
+
+  @override
+  String get importNothingFound => '이 아카이브에는 카세트가 없습니다.';
+
+  @override
+  String importFailed(String error) {
+    return '가져오기 실패: $error';
+  }
 
   @override
   String exportNote(String date) {

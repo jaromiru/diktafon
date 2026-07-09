@@ -74,6 +74,33 @@ class CassetteRepository {
     return cassetteFromRow(row);
   }
 
+  /// Import (§8): a cassette restored from an archive lands under a fresh
+  /// id but keeps its original timestamps, so grid recency and tape order
+  /// survive the round trip. A null [colorSeed] (pre-versioned manifest)
+  /// draws a new one.
+  Future<Cassette> insertImported({
+    required String? label,
+    required bool titleIsUserSet,
+    required int? colorSeed,
+    required String? summary,
+    required DateTime? summaryUpdatedAt,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) async {
+    final row = CassetteRow(
+      id: _uuid.v4(),
+      label: label,
+      titleIsUserSet: titleIsUserSet,
+      colorSeed: colorSeed ?? _random.nextInt(1 << 16),
+      summary: summary,
+      summaryUpdatedAt: summaryUpdatedAt?.millisecondsSinceEpoch,
+      createdAt: createdAt.millisecondsSinceEpoch,
+      updatedAt: updatedAt.millisecondsSinceEpoch,
+    );
+    await _db.into(_db.cassettes).insert(row);
+    return cassetteFromRow(row);
+  }
+
   /// Rolling summary refresh (§6.7); null clears it (tape emptied out).
   Future<void> setSummary(String id, String? summary) =>
       (_db.update(_db.cassettes)..where((c) => c.id.equals(id))).write(
