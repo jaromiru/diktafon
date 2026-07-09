@@ -14,7 +14,7 @@ Outputs (run from the repo root: `python3 tool/icon/generate_icons.py`):
   android/.../values/ic_launcher_background.xml   background color
   ios/Runner/Assets.xcassets/AppIcon.appiconset/  all sizes in Contents.json
   linux/runner/resources/icon.png                 GTK window icon (256)
-  docs/icon.png                                   README icon (256)
+  media/icon.png                                  README icon (transparent)
   docs/store/icon-512.png                         Play Store listing icon
 """
 
@@ -119,7 +119,11 @@ def main() -> None:
     print('Desktop / repo / store:')
     save(scaled(legacy, 256),
          os.path.join(ROOT, 'linux', 'runner', 'resources', 'icon.png'))
-    save(scaled(legacy, 256), os.path.join(ROOT, 'docs', 'icon.png'))
+    # README header icon: the cassette alone — transparent, no square canvas,
+    # so it sits inline next to the title on both GitHub themes.
+    save(nn_upscale(src, 16).resize((src.width * 4, src.height * 4),
+                                    Image.LANCZOS),
+         os.path.join(ROOT, 'media', 'icon.png'))
     save(scaled(legacy, 512),
          os.path.join(ROOT, 'docs', 'store', 'icon-512.png'), opaque=True)
 

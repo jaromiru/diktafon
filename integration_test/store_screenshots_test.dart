@@ -8,7 +8,8 @@
 ///   flutter test integration_test/store_screenshots_test.dart -d linux
 ///
 /// Shots land in $DIKTAFON_TEST_DIR/shots/; the curated set is copied to
-/// docs/store/screenshots/ for the README and the Play listing.
+/// docs/store/screenshots/ for the Play listing, and 01 + 02 to media/ for
+/// the README.
 library;
 
 import 'dart:convert';
@@ -315,6 +316,12 @@ void main() {
     await tester.tap(_kitchenCard);
     await _settle(tester, frames: 20);
     expect(find.textContaining('sage green'), findsWidgets);
+    // Park the playhead mid-tape so the timeline doesn't read 0:00 (file
+    // lengths don't matter: idle seeks report the pending target).
+    final player = container.read(tapePlayerProvider);
+    expect(player.tape.totalDurationMs, greaterThan(0));
+    await player.seekGlobal((player.tape.totalDurationMs * 0.55).round());
+    await _settle(tester, frames: 20);
     await _shot(tester, '02-cassette');
     await tester.tap(find.textContaining('The kitchen refit is moving'));
     await _shot(tester, '03-cassette-summary');
