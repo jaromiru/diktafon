@@ -1,65 +1,86 @@
-# <img src="media/icon.png" height="40" align="middle" alt=""> Diktafon
+<h1 align="center"> 
+  <img src="media/icon.png" height="40" align="top" alt=""> Diktafon
+</h1>
 
-**Voice memos on cassette tapes — transcribed and summarized entirely on your device.**
+<p align="center">
+ <b>Voice memos on cassette tapes — transcribed and summarized entirely on your device.</b>
+</p>
 
 <p align="center">
   <img src="media/01-home.png" width="15%" alt="Home shelf with cassettes">
   <img src="media/02-cassette.png" width="15%" alt="Cassette tape with transcript and summary">
+  <img src="media/04-settings.png" width="15%" alt="Settings screen">
 </p>
 
 Diktafon is a voice-memo app built around one idea: capturing a thought and
 finding it again later must feel effortless. The feel is nostalgic — inspired
 by the tape devices of the past, memos live on topic-based **cassettes**, and
 each cassette plays as **one continuous tape** of chronologically ordered
-recordings. The features are modern: automatic transcription, summaries, and
-suggested titles, all computed **locally, on the device** — audio and text
-never leave it.
+recordings.
 
-## Features
+<table>
+  <tr>
+    <td width="20%" align="center">
+      <h3>📼&nbsp;Simple to use</h3>
+      Controls you already know, inspired by real tape recorders.
+      Keep each topic on its own cassette — press record, talk,
+      and rewind to find it again.
+    </td>
+    <td width="20%" align="center">
+      <h3>🚀&nbsp;Modern</h3>
+      Automatic transcriptions and summaries — every memo transcribed,
+      every cassette summarized and titled.
+    </td>
+    <td width="20%" align="center">
+      <h3>🔒&nbsp;Completely private</h3>
+      Transcription and summaries are computed on your device.
+      No accounts, no cloud, no analytics — nothing ever leaves it.
+    </td>
+    <td width="20%" align="center">
+      <h3>🌍&nbsp;Built for you</h3>
+      Speaks your language — in recordings, summaries, and the app itself.
+    </td>
+    <td width="20%" align="center">
+      <h3>⓪&nbsp;Free &amp; open-source</h3>
+      No cost, no ads, no lock-in. MIT-licensed — read the code,
+      build it yourself, make it yours.
+    </td>
+  </tr>
+</table>
 
-- **One-tap capture** — open a cassette, press record. No naming, no setup, no
-  network required.
-- **On-device transcription** — every memo is transcribed by
-  [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with **word-level
-  timing**: tap any word in the transcript to jump the audio there.
-- **On-device summaries** — a small local LLM
-  ([llama.cpp](https://github.com/ggml-org/llama.cpp) running Qwen3) writes a
-  1–2 sentence gist of each memo, keeps a rolling summary of the whole
-  cassette, and suggests a title for unnamed cassettes. It also gently cleans
-  the transcript (fillers, obvious slips) — the raw transcript is kept and the
-  cleanup can be turned off.
-- **The tape illusion** — a cassette plays as a single gapless timeline with a
-  color-coded segment bar; memo boundaries are marked by a soft chime
-  (optional). Scrub, seek, and skip across the whole tape as if it were one
-  recording.
-- **Ten languages** — English, Czech, German, Spanish, French, Korean, Polish,
-  Portuguese, Russian, Turkish: transcription (auto-detected per memo — one
-  tape may mix languages), summaries, and the UI itself.
-- **Private by default** — no accounts, no cloud, no analytics. The only
-  network traffic is the one-time, user-initiated download of the ML models.
-- **Export & import** — any cassette (or all of them) exports to a single
-  `.zip` archive of audio files plus `transcript.md` and `cassette.json`;
-  archives import back additively — nothing is overwritten.
-- Light & dark themes, cassette color labels, retranscribe-cassette,
-  per-memo copy/delete.
+<p align="center">
+  <img src="media/lang/en.png" width="19%" alt="English"> <img src="media/lang/cs.png" width="19%" alt="Czech"> <img src="media/lang/de.png" width="19%" alt="German"> <img src="media/lang/es.png" width="19%" alt="Spanish"> <img src="media/lang/fr.png" width="19%" alt="French"> 
+</p>
+<p align="center">
+  <img src="media/lang/ko.png" width="19%" alt="Korean"> <img src="media/lang/pl.png" width="19%" alt="Polish"> <img src="media/lang/pt.png" width="19%" alt="Portuguese"> <img src="media/lang/ru.png" width="19%" alt="Russian"> <img src="media/lang/tr.png" width="19%" alt="Turkish">
+</p>
+<p align="center">
+  <sub>English · Čeština · Deutsch · Español · Français · 한국어 · Polski · Português · Русский · Türkçe</sub>
+</p>
 
-## On-device models
+### More features
 
-Models are downloaded on first run (Wi-Fi recommended), verified against
-pinned SHA-256 hashes, and can be switched later in Settings:
-
-| Task | Model | Download | Notes |
-|---|---|---|---|
-| Transcription | Whisper tiny | ~31 MB | fastest, lowest accuracy |
-| | **Whisper small** | ~181 MB | default — good multilingual balance |
-| | Whisper large-v3-turbo | ~547 MB | best accuracy; needs a capable device (~2.5 GB RAM while transcribing) |
-| Summaries | **Qwen3 1.7B** (Q8_0) | ~1.7 GB | default |
-| | Qwen3 4B | ~2.3 GB | better summaries; offered on devices with ≥ 6 GB RAM |
-
-Models come from the official Hugging Face repositories
-([ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp),
-[Qwen](https://huggingface.co/Qwen)); they are not bundled with the app or
-this repository.
+- **One-tap capture** — open a cassette, press record. No naming, no setup,
+  no network required.
+- **Tap-to-seek transcripts** — tap any word in a transcript and the tape
+  jumps right there.
+- **Summaries that keep up** — a 1–2 sentence gist of each memo, a rolling
+  summary of the whole cassette, and suggested titles for unnamed ones. The
+  transcript is also gently cleaned (fillers, obvious slips) — the raw
+  version is kept and the cleanup can be turned off.
+- **The tape illusion** — gapless playback with a color-coded segment bar;
+  memo boundaries are marked by a soft chime (optional). Scrub, seek, and
+  skip across the whole tape as if it were one recording.
+- **Any language, any tape** — the spoken language is auto-detected per memo,
+  so one cassette may freely mix languages.
+- **Export & import** — any cassette (or all of them) exports as a single
+  archive with the audio and readable text inside; importing is additive —
+  nothing gets overwritten.
+- **Little things** — light & dark themes, cassette color labels,
+  retranscribe-cassette, per-memo copy and delete.
+- **On-device models** — transcription by Whisper, summaries by Qwen. Models
+  are downloaded once on first run (Wi-Fi recommended) and can be switched in
+  Settings.
 
 ## Install
 
@@ -150,7 +171,12 @@ export DIKTAFON_LLM_MODEL=/path/to/Qwen3-0.6B-Q8_0.gguf    # huggingface.co/Qwen
 flutter test integration_test -d linux
 ```
 
-## Licence
+## Acknowledgments & License
 
-MIT — see [`LICENCE.md`](LICENCE.md), which also lists the licences of the
-vendored engines, bundled fonts, and the runtime-downloaded models.
+Designed by Jaromír Janisch, implemented by
+[Claude Code](https://claude.com/claude-code).
+
+Licensed under MIT — see [`LICENCE.md`](LICENCE.md) for details, including
+the licences of the vendored engines, bundled fonts, and the
+runtime-downloaded models. The software is provided "as is", without warranty
+of any kind.
