@@ -1,0 +1,184 @@
+# Release: build Linux + Android artifacts on a version tag (v*), checksum
+# them, attest build provenance, and publish a GitHub release.
+#
+# Verify a download:
+#   sha256sum -c SHA256SUMS --ignore-missing
+#   gh attestation verify <file> --repo jaromiru/diktafon
+#
+# Android signing: if the ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD /
+# ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD repo secrets are set, release APKs
+# are signed with that keystore; otherwise they fall back to the debug key
+# (fine for sideloading — Play uploads need `flutter build appbundle` anyway).
+#
+# `workflow_dispatch` runs the same builds without publishing a release
+# (artifacts land on the workflow run) — use it to smoke-test this pipeline.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: 3.44.5  # keep in sync with docs/tools.md
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve artifact version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            pubspec="$(sed -n 's/^version: *\([^+]*\)+.*/\1/p' pubspec.yaml)"
+            if [[ "$version" != "$pubspec" ]]; then
+              echo "::error::Tag v$version does not match pubspec.yaml version $pubspec" >&2
+              exit 1
+            fi
+          else
+            version="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  build-linux:
+    needs: preflight
+    runs-on: ubuntu-24.04  # released binary needs the runner's glibc or newer
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter build linux --release
+
+      - name: Package bundle
+        run: |
+          mv build/linux/x64/release/bundle "diktafon-$VERSION-linux-x64"
+          tar czf "diktafon-$VERSION-linux-x64.tar.gz" "diktafon-$VERSION-linux-x64"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: diktafon-*-linux-x64.tar.gz
+          if-no-files-found: error
+
+  build-android:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Set up release keystore (optional)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret — APKs will be debug-signed."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      # NDK 28.2 (android/app/build.gradle.kts ← flutter.ndkVersion) is
+      # auto-installed by the Android Gradle Plugin on first build.
+      - run: flutter pub get
+      - run: flutter build apk --release --split-per-abi
+
+      - name: Rename APKs
+        run: |
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+             "diktafon-$VERSION-android-arm64-v8a.apk"
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk \
+             "diktafon-$VERSION-android-x86_64.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: diktafon-*-android-*.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-android]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write      # create the release
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store the attestation
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: sha256sum * | tee SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
