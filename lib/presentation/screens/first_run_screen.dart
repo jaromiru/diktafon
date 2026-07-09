@@ -91,6 +91,7 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
                         l10n.firstRunWelcome,
                         style: TextStyle(
                           fontFamily: displayFont,
+                          fontFamilyFallback: fontFallback,
                           fontSize: 34,
                           height: 1.05,
                           color: tape.ink,
@@ -383,6 +384,7 @@ class _CtaKey extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: displayFont,
+                    fontFamilyFallback: fontFallback,
                     fontSize: 21,
                     letterSpacing: 0.8,
                     color: tape.paper,

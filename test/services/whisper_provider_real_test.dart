@@ -105,4 +105,50 @@ void main() {
             'DIKTAFON_WHISPER_SAMPLE to run the real engine test',
     timeout: const Timeout(Duration(minutes: 3)),
   );
+
+  // Per-language probes for the tr/ru/ko wave: auto-detect (D8) must land
+  // on the right code and word-level timing must survive (all three are
+  // space-separated — the CJK word-timing break is a ja/zh problem). Each
+  // probe needs its own speech sample env var next to the shared lib/model.
+  for (final (code, envKey) in [
+    ('tr', 'DIKTAFON_WHISPER_SAMPLE_TR'),
+    ('ru', 'DIKTAFON_WHISPER_SAMPLE_RU'),
+    ('ko', 'DIKTAFON_WHISPER_SAMPLE_KO'),
+  ]) {
+    final langSample = Platform.environment[envKey];
+    test(
+      'whisper.cpp auto-detects $code and yields word-level timings',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('dk_whisper_$code');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        File(model!).copySync('${dir.path}/${WhisperModel.tiny.fileName}');
+
+        final worker = WhisperWorker(lib!);
+        addTearDown(worker.dispose);
+        final provider = WhisperCppTranscriptionProvider(
+          models: WhisperModelManager(dir),
+          decoder: FfmpegPcmDecoder(),
+          worker: worker,
+          tier: 'tiny',
+        );
+
+        final transcript = await provider.transcribe(AudioRef(langSample!));
+        expect(transcript.languageCode, code, reason: 'auto-detected (D8)');
+        final words = [
+          for (final segment in transcript.segments) ...segment.words
+        ];
+        expect(words.length, greaterThan(1),
+            reason: 'transcript must split into words, not one blob');
+        for (var i = 1; i < words.length; i++) {
+          expect(words[i].startMs, greaterThanOrEqualTo(words[i - 1].startMs),
+              reason: 'word starts are monotonic');
+        }
+      },
+      skip: lib != null && model != null && langSample != null
+          ? false
+          : 'set DIKTAFON_LIBWHISPER / DIKTAFON_WHISPER_MODEL / $envKey '
+              'to run the $code probe',
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+  }
 }

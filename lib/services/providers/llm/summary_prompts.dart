@@ -27,6 +27,9 @@ String languageName(String code) =>
       'de': 'German',
       'pl': 'Polish',
       'cs': 'Czech',
+      'tr': 'Turkish',
+      'ru': 'Russian',
+      'ko': 'Korean',
     }[code] ??
     code;
 
@@ -34,18 +37,58 @@ const _system =
     'You summarize personal voice memos. Reply with only the requested text — '
     'no preamble, no explanations, no quotation marks.';
 
-/// Character budgets keep prompts inside the model's context window
-/// (~3 chars/token holds across the seven languages, with generous slack
-/// against a 4096-token window).
-const transcriptCharBudget = 9000;
-const digestsCharBudget = 6000;
+/// Budgets keep prompts inside the model's 4096-token context window with
+/// generous slack. They are counted in *estimated tokens*, not chars: the
+/// old ~3 chars/token assumption holds for latin scripts but Hangul runs
+/// ~1.6 and Cyrillic ~2.2 chars/token on Qwen-style BPE — a flat char
+/// budget would overflow the window for ko and cut it close for ru.
+const transcriptTokenBudget = 3000;
+const digestsTokenBudget = 2000;
 
-String truncate(String text, int budget) =>
-    text.length <= budget ? text : '${text.substring(0, budget)} …';
+/// Estimated token cost of one UTF-16 code unit, by script block. Values
+/// sit at the token-hungry end of each range so budgets err short.
+double _unitTokenCost(int unit) {
+  if (unit < 0x0370) return 1 / 3; // latin + latin-ext, digits, punctuation
+  if (unit >= 0xD800 && unit <= 0xDFFF) return 0.5; // astral pair halves
+  if ((unit >= 0xAC00 && unit <= 0xD7AF) || // Hangul syllables
+      (unit >= 0x1100 && unit <= 0x11FF) || // Hangul jamo
+      (unit >= 0x3130 && unit <= 0x318F)) {
+    return 0.625; // ~1.6 chars/token
+  }
+  if ((unit >= 0x3000 && unit <= 0x30FF) || // CJK punctuation, kana
+      (unit >= 0x3400 && unit <= 0x9FFF) || // Han
+      (unit >= 0xF900 && unit <= 0xFAFF) ||
+      (unit >= 0xFF00 && unit <= 0xFFEF)) {
+    return 1; // ~1 char/token
+  }
+  return 0.45; // Cyrillic, Greek, Arabic, Devanagari, … — ~2.2 chars/token
+}
+
+int estimateTokens(String text) {
+  var cost = 0.0;
+  for (final unit in text.codeUnits) {
+    cost += _unitTokenCost(unit);
+  }
+  return cost.ceil();
+}
+
+String truncateTokens(String text, int budget) {
+  var cost = 0.0;
+  final units = text.codeUnits;
+  for (var i = 0; i < units.length; i++) {
+    cost += _unitTokenCost(units[i]);
+    if (cost > budget) {
+      // Never cut between surrogate halves.
+      final cut = units[i] >= 0xDC00 && units[i] <= 0xDFFF ? i - 1 : i;
+      return '${text.substring(0, cut)} …';
+    }
+  }
+  return text;
+}
 
 /// The 1–2 sentence "what the speaker meant to say" gist (§6.7).
 LlmPrompt memoSummaryPrompt(Transcript t, {required String languageCode}) {
-  final text = truncate(t.plainText, transcriptCharBudget);
+  final text = truncateTokens(t.plainText, transcriptTokenBudget);
   return LlmPrompt(
     _system,
     'Voice memo transcript:\n$text\n\n'
@@ -62,9 +105,9 @@ LlmPrompt cassetteSummaryPrompt({
   required List<MemoDigest> newMemos,
   required String languageCode,
 }) {
-  final digests = truncate(
+  final digests = truncateTokens(
       newMemos.map((m) => '- ${m.memoSummary}').join('\n'),
-      digestsCharBudget);
+      digestsTokenBudget);
   final language = languageName(languageCode);
   final user = previousSummary == null
       ? 'Notes from a collection of voice memos:\n$digests\n\n'
@@ -84,7 +127,7 @@ LlmPrompt titlePrompt(String cassetteSummary, {required String languageCode}) {
   return LlmPrompt(
     _system,
     'Overview of a collection of voice memos:\n'
-    '${truncate(cassetteSummary, digestsCharBudget)}\n\n'
+    '${truncateTokens(cassetteSummary, digestsTokenBudget)}\n\n'
     'Suggest a topic title in ${languageName(languageCode)}: 1–4 words, '
     'like a folder name. Only output the title.\n/no_think',
     maxTokens: 24,

@@ -89,4 +89,69 @@ void main() {
     skip: available ? false : skipNote,
     timeout: const Timeout(Duration(minutes: 5)),
   );
+
+  // Per-language probes for the tr/ru/ko wave: the summary must come back
+  // non-empty and — where the script is distinctive — *in that script*
+  // (prompts pin the output language per D8); cleanup must keep its
+  // structural contract on non-latin text. Reuses the same lib/model.
+  const memoTexts = {
+    'tr': 'yarın markete gidip süt ekmek ve peynir almam lazım ayrıca '
+        'annemi arayıp hafta sonu planını sormalıyım',
+    'ru': 'надо купить молоко хлеб и корм для собаки а ещё позвонить '
+        'маме насчёт планов на выходные',
+    'ko': '내일 마트에 가서 우유랑 빵을 사야 하고 주말 계획에 대해 엄마에게 '
+        '전화해야 한다',
+  };
+  final scriptOf = {
+    'ru': RegExp(r'[Ѐ-ӿ]'),
+    'ko': RegExp(r'[가-힯]'),
+  };
+
+  for (final MapEntry(key: code, value: text) in memoTexts.entries) {
+    test(
+      'the provider summarizes and cleans a $code memo in its own script',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('dk_llm_$code');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        File(model!).copySync('${dir.path}/${LlmModel.qwen3_0_6b.fileName}');
+
+        final worker = LlamaWorker(lib!);
+        addTearDown(worker.dispose);
+        final provider = LocalLlmSummarizationProvider(
+          models: LlmModelManager(dir),
+          worker: worker,
+          tier: LlmModel.qwen3_0_6b.tier,
+        );
+
+        final transcript = Transcript(languageCode: code, segments: [
+          Segment(startMs: 0, endMs: 8000, words: [
+            for (final (i, w) in text.split(' ').indexed)
+              Word(text: w, startMs: i * 400, endMs: i * 400 + 350),
+          ]),
+        ]);
+
+        final gist =
+            await provider.summarizeMemo(transcript, languageCode: code);
+        expect(gist, isNotEmpty);
+        expect(gist, isNot(contains('<think>')));
+        final script = scriptOf[code];
+        if (script != null) {
+          expect(gist, matches(script),
+              reason: 'the summary must stay in the $code script');
+        }
+
+        final cleaned =
+            await provider.cleanTranscript(transcript, languageCode: code);
+        expect(cleaned.languageCode, transcript.languageCode);
+        expect(cleaned.segments, hasLength(transcript.segments.length));
+        for (final (i, segment) in cleaned.segments.indexed) {
+          expect(segment.startMs, transcript.segments[i].startMs);
+          expect(segment.endMs, transcript.segments[i].endMs);
+          expect(segment.words, isNotEmpty);
+        }
+      },
+      skip: available ? false : skipNote,
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+  }
 }

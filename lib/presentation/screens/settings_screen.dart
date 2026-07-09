@@ -31,6 +31,9 @@ class SettingsScreen extends ConsumerWidget {
     'de': 'Deutsch',
     'pl': 'Polski',
     'cs': 'Čeština',
+    'tr': 'Türkçe',
+    'ru': 'Русский',
+    'ko': '한국어',
   };
 
   @override

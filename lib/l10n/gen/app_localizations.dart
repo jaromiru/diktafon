@@ -10,8 +10,11 @@ import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
 import 'app_localizations_es.dart';
 import 'app_localizations_fr.dart';
+import 'app_localizations_ko.dart';
 import 'app_localizations_pl.dart';
 import 'app_localizations_pt.dart';
+import 'app_localizations_ru.dart';
+import 'app_localizations_tr.dart';
 
 // ignore_for_file: type=lint
 
@@ -104,8 +107,11 @@ abstract class AppLocalizations {
     Locale('en'),
     Locale('es'),
     Locale('fr'),
+    Locale('ko'),
     Locale('pl'),
     Locale('pt'),
+    Locale('ru'),
+    Locale('tr'),
   ];
 
   /// No description provided for @untitledCassette.
@@ -923,8 +929,11 @@ class _AppLocalizationsDelegate
     'en',
     'es',
     'fr',
+    'ko',
     'pl',
     'pt',
+    'ru',
+    'tr',
   ].contains(locale.languageCode);
 
   @override
@@ -944,10 +953,16 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsEs();
     case 'fr':
       return AppLocalizationsFr();
+    case 'ko':
+      return AppLocalizationsKo();
     case 'pl':
       return AppLocalizationsPl();
     case 'pt':
       return AppLocalizationsPt();
+    case 'ru':
+      return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
   }
 
   throw FlutterError(

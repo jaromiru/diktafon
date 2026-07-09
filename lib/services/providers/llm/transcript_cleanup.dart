@@ -10,15 +10,16 @@ library;
 import 'dart:math';
 
 import '../../../domain/models.dart';
-import 'summary_prompts.dart' show LlmPrompt, languageName;
+import 'summary_prompts.dart' show LlmPrompt, estimateTokens, languageName;
 
 const _system =
     'You clean up automatic speech-recognition transcripts. Reply with only '
     'the requested numbered lines — no preamble, no explanations.';
 
-/// Per-request char budget: keeps prompt + echoed output well inside the
-/// 4096-token context (~3 chars/token) with the instruction overhead.
-const cleanupCharBudget = 3500;
+/// Per-request budget in estimated tokens (per-script, see
+/// `estimateTokens`): keeps prompt + echoed output well inside the
+/// 4096-token context with the instruction overhead.
+const cleanupTokenBudget = 1150;
 
 /// A run of consecutive segments that fits one LLM exchange.
 class CleanupBatch {
@@ -34,7 +35,7 @@ class CleanupBatch {
     final numbered = [
       for (var i = 0; i < lines.length; i++) '${i + 1}: ${lines[i]}',
     ].join('\n');
-    final budget = lines.fold(0, (sum, l) => sum + l.length);
+    final tokens = lines.fold(0, (sum, l) => sum + estimateTokens(l));
     return LlmPrompt(
       _system,
       'Lines from an automatic speech transcript in '
@@ -45,24 +46,25 @@ class CleanupBatch {
       'content, do not merge, split or reorder lines. Reply with exactly '
       'the same numbered lines, corrected; repeat lines that are already '
       'fine unchanged.\n/no_think',
-      // Room to echo every line back, plus numbering slack.
-      maxTokens: min(2048, 64 + budget),
+      // Room to echo every line back (2× the estimate — corrections may
+      // grow, and the estimate errs low for latin), plus numbering slack.
+      maxTokens: min(2048, 96 + 2 * tokens),
     );
   }
 }
 
-/// Splits a transcript into consecutive-segment batches within the char
+/// Splits a transcript into consecutive-segment batches within the token
 /// budget. Segments without words are skipped (nothing to clean — and the
 /// numbered-line contract needs non-empty lines).
 List<CleanupBatch> cleanupBatches(Transcript t) {
   final batches = <CleanupBatch>[];
   var start = 0;
   var lines = <String>[];
-  var chars = 0;
+  var tokens = 0;
   void flush() {
     if (lines.isNotEmpty) batches.add(CleanupBatch(start, lines));
     lines = <String>[];
-    chars = 0;
+    tokens = 0;
   }
 
   for (var i = 0; i < t.segments.length; i++) {
@@ -73,12 +75,13 @@ List<CleanupBatch> cleanupBatches(Transcript t) {
       continue;
     }
     if (lines.isEmpty) start = i;
-    if (chars + text.length > cleanupCharBudget && lines.isNotEmpty) {
+    final cost = estimateTokens(text);
+    if (tokens + cost > cleanupTokenBudget && lines.isNotEmpty) {
       flush();
       start = i;
     }
     lines.add(text);
-    chars += text.length;
+    tokens += cost;
   }
   flush();
   return batches;

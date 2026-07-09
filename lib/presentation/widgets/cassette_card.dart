@@ -153,18 +153,25 @@ class _CassettePainter extends CustomPainter {
     if (name != null) {
       _text(canvas, name!, 36,
           style: TextStyle(
-              fontFamily: displayFont, fontSize: 15, color: colors.ink));
+              fontFamily: displayFont,
+              fontFamilyFallback: fontFallback,
+              fontSize: 15,
+              color: colors.ink));
     } else {
       _text(canvas, untitled, 33,
           style: TextStyle(
               fontFamily: bodyFont,
+              fontFamilyFallback: fontFallback,
               fontSize: 8,
               fontStyle: FontStyle.italic,
               color: colors.ink2));
     }
     _text(canvas, meta, 47,
         style: TextStyle(
-            fontFamily: bodyFont, fontSize: 7, color: colors.ink2));
+            fontFamily: bodyFont,
+            fontFamilyFallback: fontFallback,
+            fontSize: 7,
+            color: colors.ink2));
 
     // Window with reels.
     fill.color = colors.window;

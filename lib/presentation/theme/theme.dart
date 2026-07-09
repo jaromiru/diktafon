@@ -8,6 +8,21 @@ import 'tape_colors.dart';
 const displayFont = 'Jersey 10';
 const bodyFont = 'Space Mono';
 
+/// The bundled faces cover latin + latin-ext only — Cyrillic and Hangul
+/// (ru, ko UI and any transcript text) resolve through this deliberate
+/// chain instead of whatever fontconfig picks first: monospaced faces
+/// where the platform has them (keeps the typewriter feel), then the stock
+/// UI faces. Families a platform doesn't ship are skipped, and anything
+/// still uncovered uses the OS glyph fallback (Android: Noto). Jersey 10
+/// counters are digit-only and always render from the bundled face.
+const fontFallback = <String>[
+  'Noto Sans Mono', // Linux: monospaced Cyrillic/Greek
+  'Roboto', // Android: Cyrillic
+  'Noto Sans KR', // Hangul (Android)
+  'Noto Sans CJK KR', // Hangul (Linux fontconfig)
+  'Noto Sans',
+];
+
 ThemeData buildTheme(Brightness brightness) {
   final tape =
       brightness == Brightness.light ? TapeColors.light : TapeColors.dark;
@@ -16,6 +31,7 @@ ThemeData buildTheme(Brightness brightness) {
     useMaterial3: true,
     brightness: brightness,
     fontFamily: bodyFont,
+    fontFamilyFallback: fontFallback,
     scaffoldBackgroundColor: tape.paper,
     colorScheme: ColorScheme.fromSeed(
       seedColor: tape.accent,
@@ -42,6 +58,7 @@ ThemeData buildTheme(Brightness brightness) {
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontFamily: displayFont,
+        fontFamilyFallback: fontFallback,
         fontSize: 30,
         height: 1,
         letterSpacing: 0.6,
@@ -54,24 +71,34 @@ ThemeData buildTheme(Brightness brightness) {
       backgroundColor: tape.surface,
       titleTextStyle: TextStyle(
         fontFamily: displayFont,
+        fontFamilyFallback: fontFallback,
         fontSize: 26,
         color: tape.ink,
       ),
-      contentTextStyle:
-          TextStyle(fontFamily: bodyFont, fontSize: 13, color: tape.ink2),
+      contentTextStyle: TextStyle(
+          fontFamily: bodyFont,
+          fontFamilyFallback: fontFallback,
+          fontSize: 13,
+          color: tape.ink2),
     ),
     popupMenuTheme: PopupMenuThemeData(
       shape: hard.copyWith(side: BorderSide(color: tape.ink, width: 2)),
       color: tape.surface,
-      textStyle:
-          TextStyle(fontFamily: bodyFont, fontSize: 13, color: tape.ink),
+      textStyle: TextStyle(
+          fontFamily: bodyFont,
+          fontFamilyFallback: fontFallback,
+          fontSize: 13,
+          color: tape.ink),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         shape: hard,
         foregroundColor: tape.ink,
         textStyle: const TextStyle(
-            fontFamily: bodyFont, fontWeight: FontWeight.w700, fontSize: 13),
+            fontFamily: bodyFont,
+            fontFamilyFallback: fontFallback,
+            fontWeight: FontWeight.w700,
+            fontSize: 13),
       ),
     ),
     switchTheme: SwitchThemeData(
@@ -85,7 +112,10 @@ ThemeData buildTheme(Brightness brightness) {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: tape.ink,
       contentTextStyle: TextStyle(
-          fontFamily: bodyFont, fontSize: 12.5, color: tape.paper),
+          fontFamily: bodyFont,
+          fontFamilyFallback: fontFallback,
+          fontSize: 12.5,
+          color: tape.paper),
       shape: hard,
       behavior: SnackBarBehavior.floating,
     ),
@@ -108,7 +138,10 @@ ThemeData buildTheme(Brightness brightness) {
         borderSide: BorderSide(color: tape.accent, width: 2),
       ),
       hintStyle: TextStyle(
-          fontFamily: bodyFont, fontStyle: FontStyle.italic, color: tape.ink2),
+          fontFamily: bodyFont,
+          fontFamilyFallback: fontFallback,
+          fontStyle: FontStyle.italic,
+          color: tape.ink2),
     ),
   );
 }
@@ -118,6 +151,7 @@ TextStyle lcdStyle(BuildContext context,
         {double size = 22, Color? color}) =>
     TextStyle(
       fontFamily: displayFont,
+      fontFamilyFallback: fontFallback,
       fontSize: size,
       height: 1,
       color: color,

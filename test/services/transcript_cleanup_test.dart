@@ -1,4 +1,6 @@
 import 'package:diktafon/domain/models.dart';
+import 'package:diktafon/services/providers/llm/summary_prompts.dart'
+    show estimateTokens;
 import 'package:diktafon/services/providers/llm/transcript_cleanup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,8 +31,8 @@ void main() {
       expect(batches.single.lines, ['hello world', 'second line here']);
     });
 
-    test('long transcripts split at the char budget, indices intact', () {
-      final line = List.filled(120, 'word').join(' '); // ~600 chars
+    test('long transcripts split at the token budget, indices intact', () {
+      final line = List.filled(120, 'word').join(' '); // ~600 chars ≈ 200 tok
       final segments = [for (var i = 0; i < 10; i++) seg(line)];
       final batches = cleanupBatches(transcript(segments));
 
@@ -38,11 +40,25 @@ void main() {
       var next = 0;
       for (final batch in batches) {
         expect(batch.startIndex, next);
-        expect(batch.lines.fold(0, (s, l) => s + l.length),
-            lessThanOrEqualTo(cleanupCharBudget));
+        expect(batch.lines.fold(0, (s, l) => s + estimateTokens(l)),
+            lessThanOrEqualTo(cleanupTokenBudget));
         next += batch.lines.length;
       }
       expect(next, segments.length, reason: 'every segment is covered');
+    });
+
+    test('Hangul spends the budget sooner than latin of equal char length',
+        () {
+      // 120 four-char words ≈ 600 chars per line in both scripts.
+      List<Segment> segsOf(String ch) => [
+            for (var i = 0; i < 10; i++)
+              seg(List.filled(120, ch * 4).join(' ')),
+          ];
+      final latin = cleanupBatches(transcript(segsOf('a')));
+      final hangul = cleanupBatches(transcript(segsOf('가')));
+      expect(hangul.length, greaterThan(latin.length),
+          reason: 'per-script budgets keep Hangul prompts inside the '
+              'context window');
     });
 
     test('word-less segments are skipped without breaking indexing', () {
@@ -65,6 +81,15 @@ void main() {
       expect(prompt.user, contains('Czech'));
       expect(prompt.user, endsWith('/no_think'));
       expect(prompt.maxTokens, lessThanOrEqualTo(2048));
+    });
+
+    test('maxTokens leaves a 2× echo headroom over the line estimate', () {
+      final batch =
+          cleanupBatches(transcript([seg('내일 마트에 가서 우유를 사야 한다')]))
+              .single;
+      final tokens = batch.lines.fold(0, (s, l) => s + estimateTokens(l));
+      expect(batch.prompt('ko').maxTokens,
+          greaterThanOrEqualTo(2 * tokens));
     });
   });
 

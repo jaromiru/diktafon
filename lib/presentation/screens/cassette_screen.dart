@@ -102,6 +102,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
             style: cassette.label == null
                 ? TextStyle(
                     fontFamily: bodyFont,
+                    fontFamilyFallback: fontFallback,
                     fontSize: 16,
                     fontStyle: FontStyle.italic,
                     color: tapeColors.ink2,

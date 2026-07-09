@@ -30,6 +30,9 @@ void main() {
 
     test('unknown language codes fall back to the code itself', () {
       expect(languageName('cs'), 'Czech');
+      expect(languageName('tr'), 'Turkish');
+      expect(languageName('ru'), 'Russian');
+      expect(languageName('ko'), 'Korean');
       expect(languageName('xx'), 'xx');
     });
 
@@ -38,8 +41,8 @@ void main() {
           transcriptOf([List.filled(9000, 'slovo').join(' ')]),
           languageCode: 'cs');
       expect(prompt.user.length,
-          lessThan(transcriptCharBudget + 500),
-          reason: 'transcript text clamped + instruction overhead');
+          lessThan(3 * transcriptTokenBudget + 500),
+          reason: 'latin ~3 chars/token: clamp + instruction overhead');
       expect(prompt.user, contains('…'));
     });
 
@@ -65,6 +68,42 @@ void main() {
       final prompt = titlePrompt('nákupy na víkend', languageCode: 'cs');
       expect(prompt.user, contains('nákupy na víkend'));
       expect(prompt.user, contains('1–4 words'));
+    });
+  });
+
+  group('per-script token estimation', () {
+    test('denser scripts cost more tokens for the same char count', () {
+      final latin = estimateTokens('a' * 300);
+      final cyrillic = estimateTokens('ж' * 300);
+      final hangul = estimateTokens('가' * 300);
+      final han = estimateTokens('中' * 300);
+      expect(latin, 100, reason: '~3 chars/token for latin');
+      expect(cyrillic, greaterThan(latin));
+      expect(hangul, greaterThan(cyrillic));
+      expect(han, greaterThan(hangul));
+      expect(han, 300, reason: '~1 char/token for Han');
+    });
+
+    test('truncateTokens keeps short text; cuts dense text earlier', () {
+      expect(truncateTokens('короткий текст', 100), 'короткий текст');
+      final latinCut = truncateTokens('a' * 600, 100);
+      final hangulCut = truncateTokens('가' * 600, 100);
+      expect(latinCut, endsWith('…'));
+      expect(hangulCut, endsWith('…'));
+      expect(hangulCut.length, lessThan(latinCut.length),
+          reason: 'Hangul spends the token budget in fewer chars');
+    });
+
+    test('a Korean transcript is clamped to fewer chars than a latin one',
+        () {
+      final latin = memoSummaryPrompt(
+          transcriptOf([List.filled(9000, 'word').join(' ')]),
+          languageCode: 'en');
+      final korean = memoSummaryPrompt(
+          transcriptOf([List.filled(9000, '메모').join(' ')]),
+          languageCode: 'ko');
+      expect(korean.user, contains('…'));
+      expect(korean.user.length, lessThan(latin.user.length));
     });
   });
 
