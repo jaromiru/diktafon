@@ -137,7 +137,9 @@ jobs:
       # NDK 28.2 (android/app/build.gradle.kts ← flutter.ndkVersion) is
       # auto-installed by the Android Gradle Plugin on first build.
       - run: flutter pub get
-      - run: flutter build apk --release --split-per-abi
+      # --target-platform keeps the split 64-bit-only (armeabi-v7a is
+      # neither built by the native CMake project nor shipped).
+      - run: flutter build apk --release --split-per-abi --target-platform android-arm64,android-x64
 
       - name: Rename APKs
         run: |
