@@ -18,35 +18,19 @@ by the tape devices of the past, memos live on topic-based **cassettes**, and
 each cassette plays as **one continuous tape** of chronologically ordered
 recordings.
 
-<table>
-  <tr>
-    <td width="20%" align="center">
-      <h3>📼&nbsp;Simple to use</h3>
-      Controls you already know, inspired by real tape recorders.
-      Keep each topic on its own cassette — press record, talk,
-      and rewind to find it again.
-    </td>
-    <td width="20%" align="center">
-      <h3>🚀&nbsp;Modern</h3>
-      Automatic transcriptions and summaries — every memo transcribed,
-      every cassette summarized and titled.
-    </td>
-    <td width="20%" align="center">
-      <h3>🔒&nbsp;Completely private</h3>
-      Transcription and summaries are computed on your device.
-      No accounts, no cloud, no analytics — nothing ever leaves it.
-    </td>
-    <td width="20%" align="center">
-      <h3>🌍&nbsp;Built for you</h3>
-      Speaks your language — in recordings, summaries, and the app itself.
-    </td>
-    <td width="20%" align="center">
-      <h3>⓪&nbsp;Free &amp; open-source</h3>
-      No cost, no ads, no lock-in. MIT-licensed — read the code,
-      build it yourself, make it yours.
-    </td>
-  </tr>
-</table>
+### Key features
+
+- 📼 **Simple to use** — Controls you already know, inspired by real tape
+  recorders: keep each topic on its own cassette — press record, talk, and
+  rewind to find it again.
+- 🚀 **Modern** — Automatic transcriptions and summaries: every memo
+  transcribed, every cassette summarized and titled.
+- 🔒 **Completely private** — Transcription and summaries are computed on
+  your device; no accounts, no cloud, no analytics — nothing ever leaves it.
+- 🌍 **Built for you** — Speaks your language, in recordings, summaries, and
+  the app itself.
+- ⓪ **Free & open-source** — No cost, no ads, no lock-in; MIT-licensed —
+  read the code, build it yourself, make it yours.
 
 <p align="center">
   <img src="media/lang/en.png" width="19%" alt="English"> <img src="media/lang/cs.png" width="19%" alt="Czech"> <img src="media/lang/de.png" width="19%" alt="German"> <img src="media/lang/es.png" width="19%" alt="Spanish"> <img src="media/lang/fr.png" width="19%" alt="French"> 
