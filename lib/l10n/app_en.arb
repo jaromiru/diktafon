@@ -94,7 +94,7 @@
       "date": {"type": "String"}
     }
   },
-  "summarizing": "summarizing…",
+  "summarizing": "summarising…",
   "summaryFailedRetry": "summary failed — tap to retry",
   "transcribing": "transcribing…",
 
@@ -147,7 +147,7 @@
   "aboutPrivacy": "About & privacy",
   "aboutPrivacyDesc": "Audio never leaves this device",
   "aboutTitle": "ABOUT & PRIVACY",
-  "aboutBody": "Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.",
+  "aboutBody": "Diktafon listens, writes and summarises right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.",
   "aboutOpenSource": "Diktafon is free and open source:",
 
   "modelPickerTranscriptionTitle": "TRANSCRIPTION MODEL",
@@ -167,13 +167,13 @@
   "deleteModelTooltip": "Delete model file",
   "modelReadyTranscribe": "{label} is ready — transcribing waiting memos.",
   "@modelReadyTranscribe": {"placeholders": {"label": {"type": "String"}}},
-  "modelReadySummarize": "{label} is ready — summarizing waiting memos.",
+  "modelReadySummarize": "{label} is ready — summarising waiting memos.",
   "@modelReadySummarize": {"placeholders": {"label": {"type": "String"}}},
   "downloadFailed": "Download of {label} failed — check your connection and try again.",
   "@downloadFailed": {"placeholders": {"label": {"type": "String"}}},
 
   "firstRunWelcome": "Welcome to Diktafon",
-  "firstRunIntro": "It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.",
+  "firstRunIntro": "It listens, writes and summarises right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.",
   "@firstRunIntro": {
     "description": "The **…** span is rendered bold; keep exactly one such span."
   },
@@ -255,7 +255,7 @@
   "exportNotTranscribed": "(not transcribed)",
 
   "openSystemSettings": "SETTINGS",
-  "changeColor": "Change color",
+  "changeColor": "Change colour",
   "retranscribe": "Re-transcribe",
   "retranscribeTitle": "RE-TRANSCRIBE CASSETTE?",
   "retranscribeBody": "{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.",
@@ -264,8 +264,8 @@
     "placeholders": {"count": {"type": "int"}}
   },
   "retranscribeAction": "RE-TRANSCRIBE",
-  "colorPickerTitle": "CASSETTE COLOR",
-  "colorSwatch": "Color {n}",
+  "colorPickerTitle": "CASSETTE COLOUR",
+  "colorSwatch": "Colour {n}",
   "@colorSwatch": {"placeholders": {"n": {"type": "int"}}},
   "copyTranscript": "Copy transcription",
   "transcriptCopied": "Transcription copied.",

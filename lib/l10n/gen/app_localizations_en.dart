@@ -179,7 +179,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get summarizing => 'summarizing…';
+  String get summarizing => 'summarising…';
 
   @override
   String get summaryFailedRetry => 'summary failed — tap to retry';
@@ -291,7 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutBody =>
-      'Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.';
+      'Diktafon listens, writes and summarises right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.';
 
   @override
   String get aboutOpenSource => 'Diktafon is free and open source:';
@@ -342,7 +342,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String modelReadySummarize(String label) {
-    return '$label is ready — summarizing waiting memos.';
+    return '$label is ready — summarising waiting memos.';
   }
 
   @override
@@ -355,7 +355,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get firstRunIntro =>
-      'It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.';
+      'It listens, writes and summarises right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.';
 
   @override
   String get firstRunSetupHeader => 'First-time setup';
@@ -526,7 +526,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openSystemSettings => 'SETTINGS';
 
   @override
-  String get changeColor => 'Change color';
+  String get changeColor => 'Change colour';
 
   @override
   String get retranscribe => 'Re-transcribe';
@@ -549,11 +549,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retranscribeAction => 'RE-TRANSCRIBE';
 
   @override
-  String get colorPickerTitle => 'CASSETTE COLOR';
+  String get colorPickerTitle => 'CASSETTE COLOUR';
 
   @override
   String colorSwatch(int n) {
-    return 'Color $n';
+    return 'Colour $n';
   }
 
   @override

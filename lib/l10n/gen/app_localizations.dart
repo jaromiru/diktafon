@@ -381,7 +381,7 @@ abstract class AppLocalizations {
   /// No description provided for @summarizing.
   ///
   /// In en, this message translates to:
-  /// **'summarizing…'**
+  /// **'summarising…'**
   String get summarizing;
 
   /// No description provided for @summaryFailedRetry.
@@ -579,7 +579,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutBody.
   ///
   /// In en, this message translates to:
-  /// **'Diktafon listens, writes and summarizes right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.'**
+  /// **'Diktafon listens, writes and summarises right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.'**
   String get aboutBody;
 
   /// No description provided for @aboutOpenSource.
@@ -651,7 +651,7 @@ abstract class AppLocalizations {
   /// No description provided for @modelReadySummarize.
   ///
   /// In en, this message translates to:
-  /// **'{label} is ready — summarizing waiting memos.'**
+  /// **'{label} is ready — summarising waiting memos.'**
   String modelReadySummarize(String label);
 
   /// No description provided for @downloadFailed.
@@ -669,7 +669,7 @@ abstract class AppLocalizations {
   /// The **…** span is rendered bold; keep exactly one such span.
   ///
   /// In en, this message translates to:
-  /// **'It listens, writes and summarizes right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.'**
+  /// **'It listens, writes and summarises right here on your phone. Recordings, transcripts and summaries **never leave this device**. There is no account and no cloud.'**
   String get firstRunIntro;
 
   /// No description provided for @firstRunSetupHeader.
@@ -903,7 +903,7 @@ abstract class AppLocalizations {
   /// No description provided for @changeColor.
   ///
   /// In en, this message translates to:
-  /// **'Change color'**
+  /// **'Change colour'**
   String get changeColor;
 
   /// No description provided for @retranscribe.
@@ -933,13 +933,13 @@ abstract class AppLocalizations {
   /// No description provided for @colorPickerTitle.
   ///
   /// In en, this message translates to:
-  /// **'CASSETTE COLOR'**
+  /// **'CASSETTE COLOUR'**
   String get colorPickerTitle;
 
   /// No description provided for @colorSwatch.
   ///
   /// In en, this message translates to:
-  /// **'Color {n}'**
+  /// **'Colour {n}'**
   String colorSwatch(int n);
 
   /// No description provided for @copyTranscript.

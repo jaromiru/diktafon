@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
- <b>Voice memos on cassette tapes — transcribed and summarized entirely on your device.</b>
+ <b>Voice memos on cassette tapes — transcribed and summarised entirely on your device.</b>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@ recordings.
   recorders: keep each topic on its own cassette — press record, talk, and
   rewind to find it again.
 - 🚀 **Modern** — Automatic transcriptions and summaries: every memo
-  transcribed, every cassette summarized and titled.
+  transcribed, every cassette summarised and titled.
 - 🔒 **Completely private** — Transcription and summaries are computed on
   your device; no accounts, no cloud, no analytics — nothing ever leaves it.
 - 🌍 **Built for you** — Speaks your language, in recordings, summaries, and
@@ -52,7 +52,7 @@ recordings.
   summary of the whole cassette, and suggested titles for unnamed ones. The
   transcript is also gently cleaned (fillers, obvious slips) — the raw
   version is kept and the cleanup can be turned off.
-- **The tape illusion** — gapless playback with a color-coded segment bar;
+- **The tape illusion** — gapless playback with a colour-coded segment bar;
   memo boundaries are marked by a soft chime (optional). Scrub, seek, and
   skip across the whole tape as if it were one recording.
 - **Any language, any tape** — the spoken language is auto-detected per memo,
@@ -60,7 +60,7 @@ recordings.
 - **Export & import** — any cassette (or all of them) exports as a single
   archive with the audio and readable text inside; importing is additive —
   nothing gets overwritten.
-- **Little things** — light & dark themes, cassette color labels,
+- **Little things** — light & dark themes, cassette colour labels,
   retranscribe-cassette, per-memo copy and delete.
 - **On-device models** — transcription by Whisper, summaries by Qwen. Models
   are downloaded once on first run (Wi-Fi recommended) and can be switched in
