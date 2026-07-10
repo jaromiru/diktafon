@@ -542,18 +542,29 @@ class _ModelOption extends StatelessWidget {
                         ? Icon(Icons.check, size: 16, color: tape.ink)
                         : null,
                   ),
+                  // Wrap, not a bare Row: a long localized status ("paused
+                  // at N % — tap to resume") flows onto its own line on
+                  // narrow phones instead of crushing the model name into a
+                  // one-letter column.
                   Expanded(
-                    child: Text(
-                      model.label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.w700 : null,
-                        color: tape.ink,
-                      ),
+                    child: Wrap(
+                      spacing: 12,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          model.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: selected ? FontWeight.w700 : null,
+                            color: tape.ink,
+                          ),
+                        ),
+                        Text(status,
+                            style: TextStyle(fontSize: 10, color: tape.ink2)),
+                      ],
                     ),
                   ),
-                  Text(status,
-                      style: TextStyle(fontSize: 10, color: tape.ink2)),
                   if (onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 16),

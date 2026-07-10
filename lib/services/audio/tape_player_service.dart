@@ -12,6 +12,7 @@ class TapePlaybackState {
     required this.memoIndex,
     required this.playing,
     required this.completed,
+    this.seekCount = 0,
   });
 
   static const idle = TapePlaybackState(
@@ -29,6 +30,11 @@ class TapePlaybackState {
   final int memoIndex;
   final bool playing;
   final bool completed;
+
+  /// Bumped on every user seek (scrub, word tap, memo jump, ±15 s) — lets
+  /// the transcript follow the playhead on navigation without also chasing
+  /// it on every position tick of normal playback.
+  final int seekCount;
 }
 
 /// The chime fires only when the tape rolls forward into the next memo by
@@ -128,6 +134,7 @@ class TapePlayerService {
         memoIndex: _tape.locate(clamped).memoIndex,
         playing: _player.playing,
         completed: false,
+        seekCount: _seekCount,
       );
     }
     // A seek before the first playback only re-arms the initial position
@@ -142,6 +149,7 @@ class TapePlayerService {
         memoIndex: index,
         playing: _player.playing,
         completed: false,
+        seekCount: _seekCount,
       );
     }
     final index =
@@ -154,6 +162,7 @@ class TapePlayerService {
       memoIndex: index,
       playing: _player.playing,
       completed: _player.processingState == ProcessingState.completed,
+      seekCount: _seekCount,
     );
   }
 
@@ -220,6 +229,9 @@ class TapePlayerService {
   /// The target the UI should report while a seek is in flight (see [state]).
   int? _seekDisplayMs;
 
+  /// See [TapePlaybackState.seekCount].
+  int _seekCount = 0;
+
   /// Where playback should start when the user seeks before ever pressing
   /// play — the inactive player can't be seeked, only re-armed (see [state]
   /// and [_seekTo]).
@@ -227,6 +239,7 @@ class TapePlayerService {
 
   Future<void> seekGlobal(int globalMs) async {
     if (_tape.isEmpty) return;
+    _seekCount++;
     _seekTargetMs = globalMs;
     _seekDisplayMs = globalMs;
     _emit(); // reflect the newest target right away

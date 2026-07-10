@@ -56,6 +56,11 @@ void main() {
 
   testWidgets('select → download with progress → installed → delete',
       (tester) async {
+    // Phone-narrow viewport: the long "paused at … — tap to resume" status
+    // must flow under the label here, not crush it into a one-letter column.
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final spec = WhisperModel(
       tier: 'small',
       label: 'Whisper small',
@@ -123,6 +128,8 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.textContaining('paused at'), findsOneWidget);
+    expect(tester.getSize(find.text('Whisper small')).height, lessThan(20),
+        reason: 'the label must stay on one line next to the long status');
     expect(find.byTooltip('Delete model file'), findsOneWidget,
         reason: 'a paused partial can be discarded');
     expect(File('${manager.fileOf(spec).path}.paused').existsSync(), isTrue);

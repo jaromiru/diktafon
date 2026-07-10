@@ -1,5 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'
+    show RenderAbstractViewport, RenderParagraph;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:intl/intl.dart';
 
@@ -21,6 +25,7 @@ class TranscriptView extends StatefulWidget {
     required this.globalMs,
     required this.currentMemoIndex,
     required this.playing,
+    this.seekCount = 0,
     this.modelReady = false,
     this.onSeekGlobalMs,
     this.onRetryMemo,
@@ -32,6 +37,11 @@ class TranscriptView extends StatefulWidget {
   final int globalMs;
   final int currentMemoIndex;
   final bool playing;
+
+  /// Bumps on every user seek (scrub, word tap, memo jump, ±15 s): the view
+  /// scrolls so the highlighted word stays visible with some context (§5.3),
+  /// while plain playback ticks never yank the scroll position.
+  final int seekCount;
 
   /// Whether the transcription model is provisioned — decides what a
   /// still-untranscribed memo says while it waits (§14).
@@ -52,12 +62,20 @@ class TranscriptView extends StatefulWidget {
 class _TranscriptViewState extends State<TranscriptView> {
   final _scrollController = ScrollController();
   final Map<String, GlobalKey> _memoKeys = {};
+  final Map<String, GlobalKey<_MemoParagraphState>> _paragraphKeys = {};
+
+  /// Invalidates queued follow passes once a newer seek supersedes them.
+  int _followGeneration = 0;
 
   @override
   void didUpdateWidget(TranscriptView old) {
     super.didUpdateWidget(old);
-    // Orientation (§10.1): follow the tape into the current memo.
-    if (widget.playing && old.currentMemoIndex != widget.currentMemoIndex) {
+    if (old.seekCount != widget.seekCount) {
+      // The user navigated: keep the highlighted word in view.
+      _scheduleFollowPlayhead();
+    } else if (widget.playing &&
+        old.currentMemoIndex != widget.currentMemoIndex) {
+      // Orientation (§10.1): follow the tape into the current memo.
       _revealCurrentMemo();
     }
   }
@@ -75,6 +93,87 @@ class _TranscriptViewState extends State<TranscriptView> {
           reduceMotion ? Duration.zero : const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  /// The paragraphs restyle the highlight during this frame's rebuild —
+  /// measure only after they have laid out.
+  void _scheduleFollowPlayhead() {
+    final generation = ++_followGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && generation == _followGeneration) {
+        _followPlayhead(generation);
+      }
+    });
+  }
+
+  /// Scrolls just enough that the word under the playhead sits at least a
+  /// context margin away from both viewport edges; already-comfortable
+  /// positions don't move at all, so fine scrubs read as a steady page.
+  void _followPlayhead(int generation, {int attempt = 0}) {
+    if (widget.tape.isEmpty || !_scrollController.hasClients) return;
+    final target = widget.tape.locate(widget.globalMs);
+    final memo = widget.tape.memos[target.memoIndex];
+    final geometry =
+        _paragraphKeys[memo.id]?.currentState?.wordGeometryAt(target.localMs);
+    if (geometry == null) {
+      _followFallback(generation, memo, attempt);
+      return;
+    }
+    final (render, wordRect) = geometry;
+    final viewport = RenderAbstractViewport.maybeOf(render);
+    if (viewport == null) return;
+    final position = _scrollController.position;
+    final margin = math.min(88.0, position.viewportDimension * 0.25);
+    // Scroll offsets that park the word on the top/bottom viewport edge
+    // bound the comfortable window (word ≥ margin from either edge).
+    final atTop = viewport.getOffsetToReveal(render, 0, rect: wordRect).offset;
+    final atBottom =
+        viewport.getOffsetToReveal(render, 1, rect: wordRect).offset;
+    var lower = atBottom + margin;
+    var upper = atTop - margin;
+    if (lower > upper) lower = upper = (lower + upper) / 2;
+    final targetOffset = position.pixels
+        .clamp(lower, upper)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if ((targetOffset - position.pixels).abs() < 1) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      position.jumpTo(targetOffset);
+    } else {
+      position.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  /// No measurable word at the playhead: a memo without words (yet) is
+  /// oriented by its stamp; a memo the ListView hasn't built (virtualized
+  /// far off-screen) gets a proportional hop so it builds, then a precise
+  /// pass next frame.
+  void _followFallback(int generation, Memo memo, int attempt) {
+    final memoContext = _memoKeys[memo.id]?.currentContext;
+    if (memoContext != null) {
+      final reduceMotion = MediaQuery.disableAnimationsOf(context);
+      Scrollable.ensureVisible(
+        memoContext,
+        alignment: 0.2,
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+    final position = _scrollController.position;
+    final total = widget.tape.totalDurationMs;
+    if (attempt >= 3 || total <= 0 || position.maxScrollExtent <= 0) return;
+    position.jumpTo((position.maxScrollExtent * widget.globalMs / total)
+        .clamp(0.0, position.maxScrollExtent));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && generation == _followGeneration) {
+        _followPlayhead(generation, attempt: attempt + 1);
+      }
+    });
   }
 
   @override
@@ -138,6 +237,8 @@ class _TranscriptViewState extends State<TranscriptView> {
         return _caption(context, context.l10n.noSpeech);
       }
       return _MemoParagraph(
+        key: _paragraphKeys.putIfAbsent(
+            memo.id, GlobalKey<_MemoParagraphState>.new),
         memo: memo,
         memoIndex: index,
         tape: widget.tape,
@@ -322,6 +423,7 @@ class _MemoDivider extends StatelessWidget {
 /// a long-press anywhere in the paragraph copies the memo's transcription.
 class _MemoParagraph extends StatefulWidget {
   const _MemoParagraph({
+    super.key,
     required this.memo,
     required this.memoIndex,
     required this.tape,
@@ -343,6 +445,7 @@ class _MemoParagraph extends StatefulWidget {
 
 class _MemoParagraphState extends State<_MemoParagraph> {
   final List<TapGestureRecognizer> _recognizers = [];
+  final _textKey = GlobalKey();
 
   @override
   void dispose() {
@@ -350,6 +453,37 @@ class _MemoParagraphState extends State<_MemoParagraph> {
       r.dispose();
     }
     super.dispose();
+  }
+
+  /// The paragraph's render object plus the local rect of the word under
+  /// [localMs] — between words the upcoming word answers, past the last
+  /// word the last one does. Null before layout or with no words at all.
+  /// Character offsets mirror [build]: every word span is followed by ' '.
+  (RenderParagraph, Rect)? wordGeometryAt(int localMs) {
+    final render = _textKey.currentContext?.findRenderObject();
+    if (render is! RenderParagraph || !render.hasSize) return null;
+    var offset = 0;
+    var start = -1, end = -1;
+    var found = false;
+    for (final segment in widget.memo.transcript!.segments) {
+      for (final word in segment.words) {
+        if (!found) {
+          start = offset;
+          end = offset + word.text.length;
+          found = word.endMs > localMs;
+        }
+        offset += word.text.length + 1;
+      }
+    }
+    if (start < 0) return null;
+    final boxes = render.getBoxesForSelection(
+        TextSelection(baseOffset: start, extentOffset: end));
+    if (boxes.isEmpty) return null;
+    var rect = boxes.first.toRect();
+    for (final box in boxes.skip(1)) {
+      rect = rect.expandToInclude(box.toRect());
+    }
+    return (render, rect);
   }
 
   @override

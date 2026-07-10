@@ -151,7 +151,10 @@ class ModelManager<M extends ModelSpec> {
       _changes.add(null);
     });
     _downloads[model.tier] = download;
-    _progress[model.tier] = 0;
+    // A resume already has bytes on disk — start the visible progress there,
+    // not at 0 % (re-hashing a big partial takes a while and the bar would
+    // sit wrong the whole time).
+    _progress[model.tier] = _partialFraction(model);
     _changes.add(null);
     return download;
   }

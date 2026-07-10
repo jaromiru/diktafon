@@ -2,9 +2,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- M2: whisper model downloads from HuggingFace (all build types, incl. release). -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- D13: recording keeps running with the app backgrounded / screen off. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <!-- D13 (background recording) will need FOREGROUND_SERVICE +
+         FOREGROUND_SERVICE_MICROPHONE; declare them only together with the
+         actual service — the mic-FGS permission alone triggers Play's
+         foreground-service declaration & video review. -->
     <!-- Model-download progress notifications (Android 13+ runtime-gated;
          requested lazily when the first download starts). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

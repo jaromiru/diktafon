@@ -205,7 +205,11 @@ void main() {
     // Resuming asks the server for just the missing tail.
     stallResponses = false;
     serveRanges = true;
-    await manager.download(model);
+    final resumed = manager.download(model);
+    expect(manager.stateOf(model).progress,
+        closeTo(10 / payload.length, 1e-9),
+        reason: 'a resume starts the bar at the stashed fraction, not 0 %');
+    await resumed;
     expect(seenRanges.last, 'bytes=10-');
     expect(manager.statusOf(model), ModelStatus.ready);
     expect(manager.fileOf(model).readAsBytesSync(), payload);
