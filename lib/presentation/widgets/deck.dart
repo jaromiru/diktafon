@@ -85,12 +85,15 @@ class _GlyphPainter extends CustomPainter {
     final c = Offset(size.width / 2, size.height / 2);
 
     switch (glyph) {
+      // For left-pointing triangles the anchor is the right (base) edge; for
+      // right-pointing ones it is the left edge. Each pair spans 20 px,
+      // centred on the canvas.
       case DeckGlyph.rewind:
-        _triangle(canvas, fill, Offset(c.dx + 1, c.dy), 10, left: true);
-        _triangle(canvas, fill, Offset(c.dx - 9, c.dy), 10, left: true);
+        _triangle(canvas, fill, Offset(c.dx + 10, c.dy), 10, left: true);
+        _triangle(canvas, fill, Offset(c.dx, c.dy), 10, left: true);
       case DeckGlyph.fastForward:
-        _triangle(canvas, fill, Offset(c.dx - 11, c.dy), 10, left: false);
-        _triangle(canvas, fill, Offset(c.dx - 1, c.dy), 10, left: false);
+        _triangle(canvas, fill, Offset(c.dx - 10, c.dy), 10, left: false);
+        _triangle(canvas, fill, Offset(c.dx, c.dy), 10, left: false);
       case DeckGlyph.play:
         _triangle(canvas, fill, Offset(c.dx - 5, c.dy), 12, left: false);
       case DeckGlyph.pause:
