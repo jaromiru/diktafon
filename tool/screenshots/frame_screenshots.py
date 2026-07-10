@@ -1,28 +1,39 @@
 #!/usr/bin/env python3
-"""Wraps raw store screenshots in the docs/ui-mockups.html phone frame.
+"""Wraps raw store screenshots in the docs/ui-mockups.html device frame.
 
 The screenshot test (integration_test/store_screenshots_test.dart) captures
-bare 1080x2160 screen contents; this tool publishes each one twice:
+bare 9:16 screen contents for one device profile per run; this tool publishes
+each shot twice:
 
-  docs/store/screenshots/<name>.png          raw screen — the Play upload
-                                             (24-bit RGB, exactly 2:1)
-  docs/store/screenshots/<name>-framed.png   presentation version: status bar
-                                             (clock + wifi/battery), dark
-                                             rounded bezel and a soft drop
-                                             shadow on a transparent canvas
-  media/{01-home,02-cassette,04-settings}.png   framed README copies
+  docs/store/screenshots/<device>/<name>.png   raw screen — the Play upload
+                                               (24-bit RGB, exactly 9:16)
+  docs/store/screenshots/<device>/framed/<name>-framed.png
+                                               presentation version: status
+                                               bar (clock + wifi/battery),
+                                               dark rounded bezel and a soft
+                                               drop shadow on a transparent
+                                               canvas
+  media/{01-home,02-cassette,04-settings}.png  framed README copies
+                                               (phone profile only)
 
 Usage (from the repo root, after the screenshot test):
-  python3 tool/screenshots/frame_screenshots.py "$DIKTAFON_TEST_DIR/shots"
+  python3 tool/screenshots/frame_screenshots.py --device phone \
+      "$DIKTAFON_TEST_DIR/shots"
+
+Device profiles match DIKTAFON_SHOT_PROFILE in the test:
+  phone     1080x1920 @3x   -> screenshots/phone/
+  tablet7   1206x2144 @2x   -> screenshots/tablet-7in/
+  tablet10  1440x2560 @2x   -> screenshots/tablet-10in/
 
 The raw set stays alpha-free because Play rejects transparency; the framed
-set is RGBA so the surroundings show through outside the phone. Colors and
+set is RGBA so the surroundings show through outside the device. Colors and
 geometry mirror the phone-frame CSS in docs/ui-mockups.html (.ph / .scr /
-.status); dark shots are detected from the screen content.
+.status), with flatter corners and a wider bezel for the tablets; dark shots
+are detected from the screen content.
 """
 
+import argparse
 import os
-import sys
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
 
@@ -31,14 +42,22 @@ STORE_DIR = os.path.join(ROOT, 'docs', 'store', 'screenshots')
 MEDIA_DIR = os.path.join(ROOT, 'media')
 README_SET = {'01-home', '02-cassette', '04-settings'}
 
-SHOT_SIZE = (1080, 2160)
-S = 3    # px per mockup-CSS logical px (shots are captured @3x)
+# Per-device geometry, all logical px (the mockup-CSS unit). `s` is the px
+# per logical px the shot was captured at. Phone values are straight from
+# docs/ui-mockups.html: .ph{border-radius:36px;padding:10px}
+# .scr{border-radius:27px}; tablets get a wider bezel and flatter corners.
+PROFILES = {
+    'phone': dict(shot=(1080, 1920), s=3, dir='phone',
+                  bezel_pad=10, bezel_r=36, screen_r=27, readme=True),
+    'tablet7': dict(shot=(1206, 2144), s=2, dir='tablet-7in',
+                    bezel_pad=16, bezel_r=34, screen_r=20, readme=False),
+    'tablet10': dict(shot=(1440, 2560), s=2, dir='tablet-10in',
+                     bezel_pad=18, bezel_r=36, screen_r=20, readme=False),
+}
+
 SS = 4   # supersampling factor for masks and status-bar art
 
-# docs/ui-mockups.html: .ph{border-radius:36px;background:#26241F;padding:10px}
-# .scr{border-radius:27px}; phone --p-ink per theme.
 BEZEL_COLOR = (0x26, 0x24, 0x1F)
-BEZEL_PAD, BEZEL_R, SCREEN_R = 10, 36, 27
 INK = {'light': (0x21, 0x1F, 0x1A), 'dark': (0xEC, 0xE8, 0xDF)}
 SHADOW_COLOR = (20, 18, 12)
 
@@ -48,7 +67,9 @@ STATUS_CY = 19
 CLOCK = '17:45'          # the demo dataset is anchored to this afternoon
 FONT = os.path.join(ROOT, 'assets', 'fonts', 'SpaceMono-Bold.ttf')
 
-CANVAS = (410, 820)      # logical
+# Transparent margin around the framed device: sides / vertical (logical).
+MARGIN_W, MARGIN_H = 30, 50
+
 
 def rounded_mask(size_px, radius_px):
     """Antialiased rounded-rect mask (drawn at SSx, downscaled)."""
@@ -59,26 +80,26 @@ def rounded_mask(size_px, radius_px):
     return m.resize(size_px, Image.LANCZOS)
 
 
-def cast_shadow(canvas, pos, size, radius, dy, sigma, inset, alpha):
-    """One box-shadow layer: the phone's rect shrunk by `inset`, offset
+def cast_shadow(canvas, pos, size, radius, dy, sigma, inset, alpha, s):
+    """One box-shadow layer: the device's rect shrunk by `inset`, offset
     down by `dy`, gaussian-blurred, stamped at `alpha` (all logical px)."""
     x, y = pos
     w, h = size
     m = Image.new('L', canvas.size, 0)
     m.paste(
-        rounded_mask((w - 2 * inset * S, h - 2 * inset * S),
-                     max(1, radius - inset) * S),
-        (x + inset * S, y + (inset + dy) * S))
-    m = m.filter(ImageFilter.GaussianBlur(sigma * S))
+        rounded_mask((w - 2 * inset * s, h - 2 * inset * s),
+                     max(1, radius - inset) * s),
+        (x + inset * s, y + (inset + dy) * s))
+    m = m.filter(ImageFilter.GaussianBlur(sigma * s))
     layer = Image.new('RGBA', canvas.size, SHADOW_COLOR + (0,))
     layer.putalpha(m.point(lambda v: int(v * alpha)))
     canvas.alpha_composite(layer)
 
 
-def status_bar(width_px, bg, ink):
+def status_bar(width_px, bg, ink, s):
     """The mockups' status row: bold clock left, wifi + battery right.
     Drawn at SSx and downscaled; icon paths follow the mockup SVGs."""
-    u = S * SS  # px per logical unit while supersampling
+    u = s * SS  # px per logical unit while supersampling
     img = Image.new('RGB', (width_px * SS, STATUS_H * u), bg)
     d = ImageDraw.Draw(img)
     cy = STATUS_CY * u
@@ -99,52 +120,64 @@ def status_bar(width_px, bg, ink):
     ax, ay, r = bx - 5 * u - round(7.5 * u), cy + 6 * u, 10.7 * u
     d.pieslice([ax - r, ay - r, ax + r, ay + r], 225, 315, fill=ink)
 
-    return img.resize((width_px, STATUS_H * S), Image.LANCZOS)
+    return img.resize((width_px, STATUS_H * s), Image.LANCZOS)
 
 
-def frame(shot):
-    top = shot.crop((0, 0, shot.width, 8 * S))
+def frame(shot, p):
+    s = p['s']
+    top = shot.crop((0, 0, shot.width, 8 * s))
     theme = 'dark' if ImageStat.Stat(top.convert('L')).mean[0] < 100 else 'light'
     # Status bg = the shot's own top-edge color, so the bar joins seamlessly.
-    colors = top.crop((0, 0, top.width, 4 * S)).getcolors(top.width * 4 * S)
+    colors = top.crop((0, 0, top.width, 4 * s)).getcolors(top.width * 4 * s)
     status_bg = max(colors)[1][:3]
 
-    screen = Image.new('RGB', (shot.width, STATUS_H * S + shot.height))
-    screen.paste(status_bar(shot.width, status_bg, INK[theme]), (0, 0))
-    screen.paste(shot, (0, STATUS_H * S))
+    screen = Image.new('RGB', (shot.width, STATUS_H * s + shot.height))
+    screen.paste(status_bar(shot.width, status_bg, INK[theme], s), (0, 0))
+    screen.paste(shot, (0, STATUS_H * s))
 
-    phone = (screen.width + 2 * BEZEL_PAD * S, screen.height + 2 * BEZEL_PAD * S)
-    canvas = Image.new('RGBA', (CANVAS[0] * S, CANVAS[1] * S), (0, 0, 0, 0))
-    px = (canvas.width - phone[0]) // 2
-    py = (canvas.height - phone[1]) * 2 // 5  # shadow gets the larger margin
+    pad = p['bezel_pad']
+    device = (screen.width + 2 * pad * s, screen.height + 2 * pad * s)
+    canvas = Image.new(
+        'RGBA',
+        (device[0] + MARGIN_W * s, device[1] + MARGIN_H * s), (0, 0, 0, 0))
+    px = (canvas.width - device[0]) // 2
+    py = (canvas.height - device[1]) * 2 // 5  # shadow gets the larger margin
 
     # .ph box-shadow: 0 24px 60px -24px .45 + 0 4px 14px -6px .3 (approx).
-    cast_shadow(canvas, (px, py), phone, BEZEL_R, 20, 13, 20, 0.45)
-    cast_shadow(canvas, (px, py), phone, BEZEL_R, 4, 5, 4, 0.30)
-    bezel = Image.new('RGBA', phone, BEZEL_COLOR + (255,))
-    bezel.putalpha(rounded_mask(phone, BEZEL_R * S))
+    cast_shadow(canvas, (px, py), device, p['bezel_r'], 20, 13, 20, 0.45, s)
+    cast_shadow(canvas, (px, py), device, p['bezel_r'], 4, 5, 4, 0.30, s)
+    bezel = Image.new('RGBA', device, BEZEL_COLOR + (255,))
+    bezel.putalpha(rounded_mask(device, p['bezel_r'] * s))
     canvas.alpha_composite(bezel, dest=(px, py))
     scr = screen.convert('RGBA')
-    scr.putalpha(rounded_mask(screen.size, SCREEN_R * S))
-    canvas.alpha_composite(scr, dest=(px + BEZEL_PAD * S, py + BEZEL_PAD * S))
+    scr.putalpha(rounded_mask(screen.size, p['screen_r'] * s))
+    canvas.alpha_composite(scr, dest=(px + pad * s, py + pad * s))
     return canvas
 
 
 def main():
-    if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
-        sys.exit(f'usage: {sys.argv[0]} <raw-shots-dir>')
-    shots = sorted(f for f in os.listdir(sys.argv[1]) if f.endswith('.png'))
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--device', choices=sorted(PROFILES), default='phone')
+    ap.add_argument('shots_dir')
+    args = ap.parse_args()
+    p = PROFILES[args.device]
+    if not os.path.isdir(args.shots_dir):
+        raise SystemExit(f'not a directory: {args.shots_dir}')
+    shots = sorted(f for f in os.listdir(args.shots_dir) if f.endswith('.png'))
     if not shots:
-        sys.exit(f'no .png shots in {sys.argv[1]}')
-    os.makedirs(STORE_DIR, exist_ok=True)
+        raise SystemExit(f'no .png shots in {args.shots_dir}')
+    raw_dir = os.path.join(STORE_DIR, p['dir'])
+    framed_dir = os.path.join(raw_dir, 'framed')
+    os.makedirs(framed_dir, exist_ok=True)
     for name in shots:
-        shot = Image.open(os.path.join(sys.argv[1], name)).convert('RGB')
-        assert shot.size == SHOT_SIZE, f'{name}: {shot.size} != {SHOT_SIZE}'
-        shot.save(os.path.join(STORE_DIR, name))
-        framed = frame(shot)
-        framed.save(os.path.join(STORE_DIR, f'{name[:-4]}-framed.png'))
-        out = [f'{name} + {name[:-4]}-framed.png']
-        if name[:-4] in README_SET:
+        shot = Image.open(os.path.join(args.shots_dir, name)).convert('RGB')
+        expected = tuple(p['shot'])
+        assert shot.size == expected, f'{name}: {shot.size} != {expected}'
+        shot.save(os.path.join(raw_dir, name))
+        framed = frame(shot, p)
+        framed.save(os.path.join(framed_dir, f'{name[:-4]}-framed.png'))
+        out = [f'{p["dir"]}/{name} + framed/{name[:-4]}-framed.png']
+        if p['readme'] and name[:-4] in README_SET:
             framed.save(os.path.join(MEDIA_DIR, name))
             out.append(f'media/{name}')
         print(f'  {" + ".join(out)}')

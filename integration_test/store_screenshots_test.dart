@@ -1,18 +1,24 @@
 /// Store & README screenshots: boots the real app over a seeded, realistic
-/// dataset and captures 1080x2160 (2:1 — the Play Store aspect-ratio cap)
-/// shots of the key screens — home grid, cassette view (summary collapsed &
-/// expanded), recording, Settings, and dark mode. No ML engine runs:
-/// enrichment is pre-seeded and the model files are sparse stand-ins, so
-/// Settings reads "installed".
+/// dataset and captures exactly-9:16 shots (the Play Store requirement) of
+/// the key screens — home grid, cassette view (summary collapsed & expanded),
+/// recording, Settings, and dark mode. No ML engine runs: enrichment is
+/// pre-seeded and the model files are sparse stand-ins, so Settings reads
+/// "installed".
 ///
-///   DIKTAFON_TEST_DIR=/tmp/dk_shots \
+/// One run captures one device profile, picked by DIKTAFON_SHOT_PROFILE:
+///   phone     360x640  @3x -> 1080x1920   (default)
+///   tablet7   603x1072 @2x -> 1206x2144
+///   tablet10  720x1280 @2x -> 1440x2560   (10" needs sides >= 1080)
+///
+///   DIKTAFON_TEST_DIR=/tmp/dk_shots_phone DIKTAFON_SHOT_PROFILE=phone \
 ///   flutter test integration_test/store_screenshots_test.dart -d linux
 ///
 /// Shots land in $DIKTAFON_TEST_DIR/shots/ as raw screen captures; the
-/// framing pass (`tool/screenshots/frame_screenshots.py $DIKTAFON_TEST_DIR/shots`)
-/// publishes each to docs/store/screenshots/ both raw (the Play upload) and
-/// wrapped in the mockup phone frame + status bar on a transparent canvas
-/// (`-framed.png`), with framed README copies in media/.
+/// framing pass (`tool/screenshots/frame_screenshots.py --device phone
+/// $DIKTAFON_TEST_DIR/shots`) publishes each to
+/// `docs/store/screenshots/{device}/` raw (the Play upload) plus a framed
+/// presentation version under `{device}/framed/`, with framed README copies
+/// in media/ (phone profile only).
 library;
 
 import 'dart:convert';
@@ -43,12 +49,23 @@ final _boundaryKey = GlobalKey();
 final _kitchenCard = find.bySemanticsLabel(RegExp('^Kitchen renovation,'));
 late Directory _workDir;
 
+/// Device profiles: logical canvas + capture scale. Every output is exactly
+/// 9:16 (Play requires 16:9 or 9:16; the 10" tablet also needs sides
+/// 1080–7680 px).
+const _profiles = <String, ({Size logical, double scale})>{
+  'phone': (logical: Size(360, 640), scale: 3.0), // 1080x1920
+  'tablet7': (logical: Size(603, 1072), scale: 2.0), // 1206x2144
+  'tablet10': (logical: Size(720, 1280), scale: 2.0), // 1440x2560
+};
+final _profile = _profiles[
+    Platform.environment['DIKTAFON_SHOT_PROFILE'] ?? 'phone']!;
+
 Future<void> _shot(WidgetTester tester, String name) async {
   await _settle(tester);
   final dir = Directory('${_workDir.path}/shots')..createSync(recursive: true);
   final boundary =
       _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-  final image = await boundary.toImage(pixelRatio: 3);
+  final image = await boundary.toImage(pixelRatio: _profile.scale);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   File('${dir.path}/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
 }
@@ -113,11 +130,10 @@ void main() {
   });
 
   testWidgets('store screenshots over seeded demo data', (tester) async {
-    // Phone canvas (1080x2160 @3x) regardless of the host window; shots are
-    // captured at pixelRatio 3 for full store resolution. 2:1 is the Play
-    // Store's aspect-ratio cap; the framing tool keeps that ratio.
-    tester.view.physicalSize = const Size(1080, 2160);
-    tester.view.devicePixelRatio = 3.0;
+    // Profile canvas regardless of the host window; shots are captured at
+    // the profile's scale for full store resolution (exactly 9:16).
+    tester.view.physicalSize = _profile.logical * _profile.scale;
+    tester.view.devicePixelRatio = _profile.scale;
     addTearDown(tester.view.reset);
     tester.platformDispatcher.localesTestValue = [const Locale('en', 'US')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
