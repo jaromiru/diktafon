@@ -43,6 +43,10 @@ android {
         // AGP forbids abiFilters once --split-per-abi enables ABI splits, so
         // they only guard the fat-APK path; split builds must pass
         // --target-platform android-arm64,android-x64 to stay 64-bit-only.
+        // Non-split builds (fat APK, appbundle) additionally need
+        // -Pdisable-abi-filtering=true: the Flutter Gradle plugin otherwise
+        // clears these filters and re-adds armeabi-v7a, where llama.cpp's
+        // fp16 NEON code does not compile.
         if (!project.hasProperty("split-per-abi")) {
             ndk {
                 abiFilters += listOf("arm64-v8a", "x86_64")

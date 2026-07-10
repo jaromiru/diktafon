@@ -13,7 +13,7 @@ each shot twice:
                                                dark rounded bezel and a soft
                                                drop shadow on a transparent
                                                canvas
-  media/{01-home,02-cassette,04-settings}.png  framed README copies
+  media/{01-home,03-cassette,04-settings}.png  framed README copies
                                                (phone profile only)
 
 Usage (from the repo root, after the screenshot test):
@@ -40,7 +40,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STORE_DIR = os.path.join(ROOT, 'docs', 'store', 'screenshots')
 MEDIA_DIR = os.path.join(ROOT, 'media')
-README_SET = {'01-home', '02-cassette', '04-settings'}
+README_SET = {'01-home', '03-cassette', '04-settings'}
 
 # Per-device geometry, all logical px (the mockup-CSS unit). `s` is the px
 # per logical px the shot was captured at. Phone values are straight from

@@ -262,11 +262,21 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _RecDot(color: tapeColors.rec),
-          const SizedBox(width: 5),
           Expanded(
-            child: Text(
-              context.l10n.recordingMemo(tape.memoCount + 1),
+            // The dot rides inside the label as an inline box whose bottom
+            // sits on the text baseline — the mockup's inline-block .rec-dot.
+            child: Text.rich(
+              TextSpan(children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 5),
+                    child: _RecDot(color: tapeColors.rec),
+                  ),
+                ),
+                TextSpan(text: context.l10n.recordingMemo(tape.memoCount + 1)),
+              ]),
               style: TextStyle(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,

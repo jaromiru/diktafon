@@ -8,7 +8,7 @@
 
 <p align="center">
   <img src="media/01-home.png" width="15%" alt="Home shelf with cassettes">
-  <img src="media/02-cassette.png" width="15%" alt="Cassette tape with transcript and summary">
+  <img src="media/03-cassette.png" width="15%" alt="Cassette tape with transcript and summary">
   <img src="media/04-settings.png" width="15%" alt="Settings screen">
 </p>
 

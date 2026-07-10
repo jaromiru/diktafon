@@ -1,9 +1,12 @@
 /// Store & README screenshots: boots the real app over a seeded, realistic
 /// dataset and captures exactly-9:16 shots (the Play Store requirement) of
-/// the key screens — home grid, cassette view (summary collapsed & expanded),
-/// recording, Settings, and dark mode. No ML engine runs: enrichment is
-/// pre-seeded and the model files are sparse stand-ins, so Settings reads
-/// "installed".
+/// the key screens, each in light and dark: home grid, first-run setup,
+/// cassette view (transport + highlighted word, summary collapsed),
+/// Settings, and mid-recording. No ML engine runs: enrichment is pre-seeded
+/// and the model files are sparse stand-ins, so Settings reads "installed"
+/// (the first-run shots use a separate pristine store so its rows read
+/// "choose & download"). Animations are disabled so the pulsing record
+/// dot/tail capture at full red instead of a random mid-fade frame.
 ///
 /// One run captures one device profile, picked by DIKTAFON_SHOT_PROFILE:
 ///   phone     360x640  @3x -> 1080x1920   (default)
@@ -137,6 +140,41 @@ void main() {
     addTearDown(tester.view.reset);
     tester.platformDispatcher.localesTestValue = [const Locale('en', 'US')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    // Reduced motion: the record dot/tail rest at full opacity instead of a
+    // random pulse phase, so the recording shots are deterministic and red.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    // — 02/07: first-run setup, over its own pristine store (no models
+    //   downloaded, empty DB) so the rows read "choose & download" —
+    final frDir = Directory('${_workDir.path}/firstrun')
+      ..createSync(recursive: true);
+    final frDb = AppDatabase.forTesting(
+        NativeDatabase(File('${frDir.path}/diktafon.db')));
+    final frContainer = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(frDb),
+      audioFileStoreProvider.overrideWithValue(
+          AudioFileStore(Directory('${frDir.path}/audio')..createSync())),
+      whisperModelManagerProvider.overrideWithValue(WhisperModelManager(
+          Directory('${frDir.path}/whisper')..createSync())),
+      llmModelManagerProvider.overrideWithValue(
+          LlmModelManager(Directory('${frDir.path}/llm')..createSync())),
+    ]);
+    final frSettings = frContainer.read(settingsRepositoryProvider);
+    await frSettings.setTheme('light');
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: frContainer,
+      child: RepaintBoundary(key: _boundaryKey, child: const DiktafonApp()),
+    ));
+    await _settle(tester, frames: 20);
+    expect(find.text('START RECORDING'), findsOneWidget);
+    await _shot(tester, '02-first-run');
+    await frSettings.setTheme('dark');
+    await _settle(tester, frames: 20);
+    await _shot(tester, '07-first-run-dark');
+    await tester.pumpWidget(const SizedBox());
+    frContainer.dispose();
 
     // — Provisioned models (sparse stand-ins; nothing runs them here) —
     final whisperDir = Directory('${_workDir.path}/models/whisper')
@@ -328,25 +366,28 @@ void main() {
     ));
     await _settle(tester, frames: 20);
 
+    // Parks the playhead a quarter in: inside memo 1, whose transcript is
+    // near the top on every profile, so the highlighted current word is
+    // always on screen (file lengths don't matter: idle seeks report the
+    // pending target).
+    Future<void> seekIntoMemo1() async {
+      final player = container.read(tapePlayerProvider);
+      expect(player.tape.totalDurationMs, greaterThan(0));
+      await player.seekGlobal((player.tape.totalDurationMs * 0.25).round());
+      await _settle(tester, frames: 20);
+    }
+
     // — 01: home grid —
     expect(find.byType(CassetteCard), findsWidgets);
     await _shot(tester, '01-home');
 
-    // — 02/03: cassette view, summary collapsed & expanded —
+    // — 03: cassette view — transport, playhead mid-memo-1, highlighted
+    //   word on screen, summary collapsed —
     await tester.tap(_kitchenCard);
     await _settle(tester, frames: 20);
     expect(find.textContaining('sage green'), findsWidgets);
-    // Park the playhead mid-tape so the timeline doesn't read 0:00 (file
-    // lengths don't matter: idle seeks report the pending target).
-    final player = container.read(tapePlayerProvider);
-    expect(player.tape.totalDurationMs, greaterThan(0));
-    await player.seekGlobal((player.tape.totalDurationMs * 0.55).round());
-    await _settle(tester, frames: 20);
-    await _shot(tester, '02-cassette');
-    await tester.tap(find.textContaining('The kitchen refit is moving'));
-    await _shot(tester, '03-cassette-summary');
-    await tester.tap(find.textContaining('The kitchen refit is moving'));
-    await _settle(tester);
+    await seekIntoMemo1();
+    await _shot(tester, '03-cassette');
 
     // — 04: Settings (models read "installed") —
     await tester.pageBack();
@@ -358,21 +399,26 @@ void main() {
     await tester.pageBack();
     await _settle(tester);
 
-    // — 05/06: dark mode —
+    // — 06/08/09: the dark set —
     await settings.setTheme('dark');
     await _settle(tester, frames: 20);
-    await _shot(tester, '05-home-dark');
+    await _shot(tester, '06-home-dark');
     await tester.tap(_kitchenCard);
     await _settle(tester, frames: 20);
-    await _shot(tester, '06-cassette-dark');
+    await seekIntoMemo1();
+    await _shot(tester, '08-cassette-dark');
     await tester.pageBack();
     await _settle(tester);
-    await settings.setTheme('light');
+    await tester.tap(find.byTooltip('Settings'));
     await _settle(tester, frames: 20);
+    await _shot(tester, '09-settings-dark');
+    await tester.pageBack();
+    await _settle(tester);
 
-    // — 07: recording (best-effort: needs a live capture source; the fake
-    //   whisper file is removed first so the new memo's transcribe job
-    //   parks quietly instead of feeding the real engine a sparse file) —
+    // — 10/05: recording, dark then light in one take (best-effort: needs a
+    //   live capture source; the fake whisper file is removed first so the
+    //   new memo's transcribe job parks quietly instead of feeding the real
+    //   engine a sparse file) —
     File(whisperFile).deleteSync();
     await tester.tap(_kitchenCard);
     await _settle(tester, frames: 20);
@@ -381,11 +427,14 @@ void main() {
     final recording = container.read(recordingControllerProvider);
     if (recording.isRecordingIn('c-kitchen')) {
       await _settle(tester, frames: 40);
-      await _shot(tester, '07-recording');
+      await _shot(tester, '10-recording-dark');
+      await settings.setTheme('light');
+      await _settle(tester, frames: 20);
+      await _shot(tester, '05-recording');
       await tester.tap(find.bySemanticsLabel('Stop recording'));
       await _settle(tester, frames: 20);
     } else {
-      debugPrint('recorder unavailable — skipping 07-recording');
+      debugPrint('recorder unavailable — skipping the recording shots');
     }
   }, timeout: const Timeout(Duration(minutes: 5)));
 }
