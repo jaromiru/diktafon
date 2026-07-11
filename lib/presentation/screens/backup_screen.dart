@@ -12,6 +12,7 @@ import '../../l10n/l10n.dart';
 import '../../services/export/cassette_exporter.dart';
 import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
+import '../widgets/content_width.dart';
 import '../widgets/settings_rows.dart';
 
 /// Backup, export & import (§8): OS backup covers the metadata
@@ -47,7 +48,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         ),
         title: Text(l10n.backupTitle),
       ),
-      body: ListView(
+      body: ContentWidth(
+          child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           Padding(
@@ -80,7 +82,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             ),
           ]),
         ],
-      ),
+      )),
     );
   }
 

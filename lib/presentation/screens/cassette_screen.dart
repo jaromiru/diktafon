@@ -15,6 +15,7 @@ import '../../services/providers/transcription_provider.dart';
 import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
+import '../widgets/content_width.dart';
 import '../widgets/deck.dart';
 import '../widgets/level_meter.dart';
 import '../widgets/timeline_bar.dart';
@@ -139,7 +140,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: ContentWidth(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (!isRecordingHere) _summaryLine(cassette),
@@ -197,7 +199,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
           else
             _deck(playback, tape),
         ],
-      ),
+      )),
     );
   }
 

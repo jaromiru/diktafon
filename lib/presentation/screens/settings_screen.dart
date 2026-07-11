@@ -13,6 +13,7 @@ import '../../services/providers/transcription_provider.dart';
 import '../../services/providers/whisper/whisper_model_manager.dart';
 import '../../services/system/device_ram.dart';
 import '../theme/tape_colors.dart';
+import '../widgets/content_width.dart';
 import '../widgets/ink_progress_bar.dart';
 import '../widgets/ink_toggle.dart';
 import '../widgets/settings_rows.dart';
@@ -53,7 +54,8 @@ class SettingsScreen extends ConsumerWidget {
         ),
         title: Text(l10n.settingsTitle),
       ),
-      body: ListView(
+      body: ContentWidth(
+          child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           SettingsGroup(title: l10n.groupLanguage, rows: [
@@ -137,7 +139,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ]),
         ],
-      ),
+      )),
     );
   }
 

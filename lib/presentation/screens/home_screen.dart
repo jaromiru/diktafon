@@ -56,7 +56,9 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   // Two per row in portrait; more columns on wider screens.
-                  maxCrossAxisExtent: 220,
+                  // 260 keeps phones at 2-up while tablets get generous
+                  // cards instead of many small ones (§5.7).
+                  maxCrossAxisExtent: 260,
                   childAspectRatio: 157 / 92,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
