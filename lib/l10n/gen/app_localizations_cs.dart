@@ -300,6 +300,9 @@ class AppLocalizationsCs extends AppLocalizations {
       'Diktafon je zdarma a s otevřeným zdrojovým kódem:';
 
   @override
+  String get aboutPrivacyPolicy => 'Zásady ochrany soukromí';
+
+  @override
   String get modelPickerTranscriptionTitle => 'MODEL PŘEPISU';
 
   @override

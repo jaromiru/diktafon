@@ -304,6 +304,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Диктафон — бесплатное приложение с открытым исходным кодом:';
 
   @override
+  String get aboutPrivacyPolicy => 'Политика конфиденциальности';
+
+  @override
   String get modelPickerTranscriptionTitle => 'МОДЕЛЬ РАСШИФРОВКИ';
 
   @override

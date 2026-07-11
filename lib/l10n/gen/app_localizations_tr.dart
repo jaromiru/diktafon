@@ -297,6 +297,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutOpenSource => 'Diktafon ücretsiz ve açık kaynaklıdır:';
 
   @override
+  String get aboutPrivacyPolicy => 'Gizlilik politikası';
+
+  @override
   String get modelPickerTranscriptionTitle => 'YAZIYA DÖKME MODELİ';
 
   @override

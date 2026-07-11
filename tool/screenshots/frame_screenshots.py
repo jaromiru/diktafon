@@ -21,11 +21,13 @@ Usage (from the repo root, after the screenshot test):
       "$DIKTAFON_TEST_DIR/shots"
 
 Device profiles match DIKTAFON_SHOT_PROFILE in the test:
-  phone     1080x1920 @3x   -> screenshots/phone/
-  tablet7   1206x2144 @2x   -> screenshots/tablet-7in/
-  tablet10  1440x2560 @2x   -> screenshots/tablet-10in/
+  phone     1080x1920 @3x   -> screenshots/phone/        (Play)
+  tablet7   1206x2144 @2x   -> screenshots/tablet-7in/   (Play)
+  tablet10  1440x2560 @2x   -> screenshots/tablet-10in/  (Play)
+  iphone69  1320x2868 @3x   -> screenshots/iphone-6.9in/ (App Store)
+  ipad13    2064x2752 @2x   -> screenshots/ipad-13in/    (App Store, 3:4)
 
-The raw set stays alpha-free because Play rejects transparency; the framed
+The raw set stays alpha-free because both stores reject transparency; the framed
 set is RGBA so the surroundings show through outside the device. Colors and
 geometry mirror the phone-frame CSS in docs/ui-mockups.html (.ph / .scr /
 .status), with flatter corners and a wider bezel for the tablets; dark shots
@@ -53,6 +55,10 @@ PROFILES = {
                     bezel_pad=16, bezel_r=34, screen_r=20, readme=False),
     'tablet10': dict(shot=(1440, 2560), s=2, dir='tablet-10in',
                      bezel_pad=18, bezel_r=36, screen_r=20, readme=False),
+    'iphone69': dict(shot=(1320, 2868), s=3, dir='iphone-6.9in',
+                     bezel_pad=10, bezel_r=36, screen_r=27, readme=False),
+    'ipad13': dict(shot=(2064, 2752), s=2, dir='ipad-13in',
+                   bezel_pad=18, bezel_r=36, screen_r=20, readme=False),
 }
 
 SS = 4   # supersampling factor for masks and status-bar art

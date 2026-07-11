@@ -289,6 +289,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutOpenSource => 'Diktafon은 무료 오픈 소스입니다:';
 
   @override
+  String get aboutPrivacyPolicy => '개인정보 처리방침';
+
+  @override
   String get modelPickerTranscriptionTitle => '텍스트 변환 모델';
 
   @override

@@ -85,6 +85,7 @@
   "aboutTitle": "O APLIKACI A SOUKROMÍ",
   "aboutBody": "Diktafon poslouchá, zapisuje a shrnuje přímo ve vašem telefonu.\n\nNahrávky, přepisy ani souhrny nikdy neopustí zařízení. Žádný účet, žádný cloud, žádná analytika. Data odcházejí jen zálohou nebo exportem, který spustíte sami.",
   "aboutOpenSource": "Diktafon je zdarma a s otevřeným zdrojovým kódem:",
+  "aboutPrivacyPolicy": "Zásady ochrany soukromí",
 
   "modelPickerTranscriptionTitle": "MODEL PŘEPISU",
   "modelPickerSummaryTitle": "MODEL SOUHRNŮ",

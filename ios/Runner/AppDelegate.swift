@@ -69,6 +69,26 @@ import UIKit
           self?.startSaveDocument(
             source: (call.arguments as? [String: Any])?["source"] as? String,
             result: result)
+        // Keeps re-downloadable bulk (the models dir, ~1-2 GB) out of
+        // iCloud/device backups — App Review rejects apps that back up
+        // regenerable data. Counterpart of Android's backup-rules XML (§7.1).
+        case "excludeFromBackup":
+          guard let path = (call.arguments as? [String: Any])?["path"] as? String
+          else {
+            result(FlutterError(code: "bad_args", message: "path required",
+                                details: nil))
+            return
+          }
+          do {
+            var url = URL(fileURLWithPath: path)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try url.setResourceValues(values)
+            result(nil)
+          } catch {
+            result(FlutterError(code: "exclude_failed",
+                                message: error.localizedDescription, details: nil))
+          }
         default:
           result(FlutterMethodNotImplemented)
         }

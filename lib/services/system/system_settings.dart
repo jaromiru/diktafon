@@ -26,6 +26,21 @@ Future<void> openAppSystemSettings() async {
   }
 }
 
+/// Marks [path] `NSURLIsExcludedFromBackupKey` so re-downloadable bulk (the
+/// models dir) stays out of iCloud/device backups — App Review rejects apps
+/// that back up regenerable data. The attribute rides the directory item, so
+/// one call covers everything under it; re-applied every launch because
+/// restores and file-system migrations can drop it. No-op off iOS: Android
+/// handles this declaratively in its backup-rules XML (§7.1).
+Future<void> excludeFromIosBackup(String path) async {
+  if (!Platform.isIOS) return;
+  try {
+    await _channel.invokeMethod<void>('excludeFromBackup', {'path': path});
+  } on PlatformException {
+    // Best-effort: a failure here must never block startup.
+  }
+}
+
 /// Offers the OS "save document" dialog (SAF create-document on Android,
 /// export document picker on iOS) and lands the finished file at [sourcePath]
 /// wherever the user picked (Drive, Files, …). Returns false when the user

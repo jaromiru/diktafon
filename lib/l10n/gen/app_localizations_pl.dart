@@ -305,6 +305,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'Diktafon jest darmowy i ma otwarty kod źródłowy:';
 
   @override
+  String get aboutPrivacyPolicy => 'Polityka prywatności';
+
+  @override
   String get modelPickerTranscriptionTitle => 'MODEL TRANSKRYPCJI';
 
   @override

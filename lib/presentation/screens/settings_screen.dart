@@ -259,6 +259,10 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   static final _repoUrl = Uri.parse('https://github.com/jaromiru/diktafon');
+  // The same document the store listings point at (Play console & App Store
+  // Connect privacy policy URL).
+  static final _privacyUrl = Uri.parse(
+      'https://github.com/jaromiru/diktafon/blob/main/PRIVACY.md');
 
   void _about(BuildContext context) {
     showDialog<void>(
@@ -278,6 +282,17 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => launchUrl(_repoUrl),
                 child: Text(
                   'github.com/jaromiru/diktafon',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: dialogContext.tape.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                onTap: () => launchUrl(_privacyUrl),
+                child: Text(
+                  context.l10n.aboutPrivacyPolicy,
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                     color: dialogContext.tape.ink,

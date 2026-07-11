@@ -8,10 +8,13 @@
 /// "choose & download"). Animations are disabled so the pulsing record
 /// dot/tail capture at full red instead of a random mid-fade frame.
 ///
-/// One run captures one device profile, picked by DIKTAFON_SHOT_PROFILE:
-///   phone     360x640  @3x -> 1080x1920   (default)
-///   tablet7   603x1072 @2x -> 1206x2144
-///   tablet10  720x1280 @2x -> 1440x2560   (10" needs sides >= 1080)
+/// One run captures one device profile, picked by DIKTAFON_SHOT_PROFILE.
+/// Play wants 16:9/9:16; the App Store wants its exact pixel sizes:
+///   phone     360x640   @3x -> 1080x1920   (default; Play, 9:16)
+///   tablet7   603x1072  @2x -> 1206x2144   (Play, 9:16)
+///   tablet10  720x1280  @2x -> 1440x2560   (Play, 9:16; sides >= 1080)
+///   iphone69  440x956   @3x -> 1320x2868   (App Store, iPhone 6.9")
+///   ipad13    1032x1376 @2x -> 2064x2752   (App Store, iPad 13", 3:4)
 ///
 ///   DIKTAFON_TEST_DIR=/tmp/dk_shots_phone DIKTAFON_SHOT_PROFILE=phone \
 ///   flutter test integration_test/store_screenshots_test.dart -d linux
@@ -55,13 +58,16 @@ final _boundaryKey = GlobalKey();
 final _kitchenCard = find.bySemanticsLabel(RegExp('^Kitchen renovation,'));
 late Directory _workDir;
 
-/// Device profiles: logical canvas + capture scale. Every output is exactly
+/// Device profiles: logical canvas + capture scale. The Play trio is exactly
 /// 9:16 (Play requires 16:9 or 9:16; the 10" tablet also needs sides
-/// 1080–7680 px).
+/// 1080–7680 px); the App Store pair are Apple's exact required pixel sizes
+/// (iPhone 6.9" and iPad 13" — the iPad is 3:4).
 const _profiles = <String, ({Size logical, double scale})>{
   'phone': (logical: Size(360, 640), scale: 3.0), // 1080x1920
   'tablet7': (logical: Size(603, 1072), scale: 2.0), // 1206x2144
   'tablet10': (logical: Size(720, 1280), scale: 2.0), // 1440x2560
+  'iphone69': (logical: Size(440, 956), scale: 3.0), // 1320x2868
+  'ipad13': (logical: Size(1032, 1376), scale: 2.0), // 2064x2752
 };
 final _profile = _profiles[
     testEnv('DIKTAFON_SHOT_PROFILE') ?? 'phone']!;

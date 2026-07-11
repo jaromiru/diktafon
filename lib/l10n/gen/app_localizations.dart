@@ -588,6 +588,12 @@ abstract class AppLocalizations {
   /// **'Diktafon is free and open source:'**
   String get aboutOpenSource;
 
+  /// No description provided for @aboutPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get aboutPrivacyPolicy;
+
   /// No description provided for @modelPickerTranscriptionTitle.
   ///
   /// In en, this message translates to:

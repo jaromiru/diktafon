@@ -85,6 +85,7 @@
   "aboutTitle": "ÜBER & DATENSCHUTZ",
   "aboutBody": "Diktafon hört zu, schreibt mit und fasst zusammen — direkt auf deinem Telefon.\n\nAufnahmen, Transkripte und Zusammenfassungen verlassen das Gerät nie. Es gibt kein Konto, keine Cloud und keine Analyse. Daten verlassen das Gerät nur über eine Sicherung oder einen Export, den du selbst startest.",
   "aboutOpenSource": "Diktafon ist kostenlos und quelloffen:",
+  "aboutPrivacyPolicy": "Datenschutzerklärung",
 
   "modelPickerTranscriptionTitle": "TRANSKRIPTIONSMODELL",
   "modelPickerSummaryTitle": "ZUSAMMENFASSUNGSMODELL",

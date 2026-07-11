@@ -85,6 +85,7 @@
   "aboutTitle": "HAKKINDA VE GİZLİLİK",
   "aboutBody": "Diktafon doğrudan telefonunuzda dinler, yazar ve özetler.\n\nKayıtlar, transkriptler ve özetler cihazdan asla çıkmaz. Hesap yok, bulut yok, analitik yok. Veriler yalnızca sizin başlattığınız bir yedekleme veya dışa aktarmayla cihazdan ayrılır.",
   "aboutOpenSource": "Diktafon ücretsiz ve açık kaynaklıdır:",
+  "aboutPrivacyPolicy": "Gizlilik politikası",
 
   "modelPickerTranscriptionTitle": "YAZIYA DÖKME MODELİ",
   "modelPickerSummaryTitle": "ÖZET MODELİ",

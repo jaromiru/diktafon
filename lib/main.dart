@@ -17,6 +17,7 @@ import 'services/notifications/local_notifications_sink.dart';
 import 'services/providers/llm/llm_model_manager.dart';
 import 'services/providers/model_manager.dart';
 import 'services/providers/whisper/whisper_model_manager.dart';
+import 'services/system/system_settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,10 +34,12 @@ Future<void> main() async {
   final fileStore = await AudioFileStore.open();
   // Models are regenerable → app-support, excluded from backup (§7.1).
   final supportDir = await getApplicationSupportDirectory();
+  final modelsDir = Directory('${supportDir.path}/models')
+    ..createSync(recursive: true);
+  unawaited(excludeFromIosBackup(modelsDir.path));
   final whisperModels =
-      WhisperModelManager(Directory('${supportDir.path}/models/whisper'));
-  final llmModels =
-      LlmModelManager(Directory('${supportDir.path}/models/llm'));
+      WhisperModelManager(Directory('${modelsDir.path}/whisper'));
+  final llmModels = LlmModelManager(Directory('${modelsDir.path}/llm'));
   final container = ProviderContainer(overrides: [
     audioFileStoreProvider.overrideWithValue(fileStore),
     whisperModelManagerProvider.overrideWithValue(whisperModels),

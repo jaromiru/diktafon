@@ -1,5 +1,9 @@
-# Release: build Linux + Android artifacts on a version tag (v*), checksum
-# them, attest build provenance, and publish a GitHub release.
+# Release: build Linux + Android + iOS artifacts on a version tag (v*),
+# checksum them, attest build provenance, and publish a GitHub release.
+# macOS runners are free for public repos, so the iOS job costs nothing;
+# it ships an *unsigned* ipa (usable via re-signing sideloaders like
+# AltStore) — App Store uploads are built and signed locally per
+# docs/store/appstore-checklist.md.
 #
 # Verify a download:
 #   sha256sum -c SHA256SUMS --ignore-missing
@@ -154,9 +158,52 @@ jobs:
           path: diktafon-*-android-*.apk
           if-no-files-found: error
 
+  build-ios:
+    needs: preflight
+    # Xcode 26 lives on the macOS 26 image — the same SDK the port targets
+    # (mandatory for App Store submissions since 2026-04-28).
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install ninja  # cmake is preinstalled on the macOS image
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # dk_whisper/dk_llama as xcframeworks into ios/Frameworks/ (gitignored;
+      # the Runner project links + embeds them).
+      - name: Build engine xcframeworks
+        run: tool/ios/build_engine_frameworks.sh
+
+      - run: flutter pub get
+      # No signing on CI: this proves the port compiles against the store
+      # SDK and yields an artifact for inspection/sideloading. Store builds
+      # are signed locally (needs the team's certificates).
+      - run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned ipa
+        run: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -r -y "diktafon-$VERSION-ios-unsigned.ipa" Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: diktafon-*-ios-unsigned.ipa
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-linux, build-android]
+    needs: [build-linux, build-android, build-ios]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

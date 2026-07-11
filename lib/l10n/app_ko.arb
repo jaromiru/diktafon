@@ -85,6 +85,7 @@
   "aboutTitle": "정보 및 개인정보",
   "aboutBody": "Diktafon은 휴대폰 안에서 바로 듣고, 적고, 요약합니다.\n\n녹음, 변환 텍스트, 요약은 기기를 절대 벗어나지 않습니다. 계정도, 클라우드도, 분석 도구도 없습니다. 데이터가 나가는 유일한 길은 직접 시작한 백업이나 내보내기뿐입니다.",
   "aboutOpenSource": "Diktafon은 무료 오픈 소스입니다:",
+  "aboutPrivacyPolicy": "개인정보 처리방침",
 
   "modelPickerTranscriptionTitle": "텍스트 변환 모델",
   "modelPickerSummaryTitle": "요약 모델",

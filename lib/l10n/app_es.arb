@@ -85,6 +85,7 @@
   "aboutTitle": "ACERCA DE Y PRIVACIDAD",
   "aboutBody": "Diktafon escucha, escribe y resume aquí mismo, en tu teléfono.\n\nLas grabaciones, transcripciones y resúmenes nunca salen del dispositivo. No hay cuenta, ni nube, ni analíticas. Los datos solo salen mediante una copia o exportación que inicias tú.",
   "aboutOpenSource": "Diktafon es gratuito y de código abierto:",
+  "aboutPrivacyPolicy": "Política de privacidad",
 
   "modelPickerTranscriptionTitle": "MODELO DE TRANSCRIPCIÓN",
   "modelPickerSummaryTitle": "MODELO DE RESÚMENES",

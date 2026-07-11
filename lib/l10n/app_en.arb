@@ -149,6 +149,7 @@
   "aboutTitle": "ABOUT & PRIVACY",
   "aboutBody": "Diktafon listens, writes and summarises right here on your phone.\n\nRecordings, transcripts and summaries never leave the device. There is no account, no cloud and no analytics. The only way data leaves is a backup or export you start yourself.",
   "aboutOpenSource": "Diktafon is free and open source:",
+  "aboutPrivacyPolicy": "Privacy policy",
 
   "modelPickerTranscriptionTitle": "TRANSCRIPTION MODEL",
   "modelPickerSummaryTitle": "SUMMARY MODEL",
