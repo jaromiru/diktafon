@@ -12,11 +12,13 @@ import 'package:ffi/ffi.dart';
 /// Where the engine lives, per platform:
 /// 1. `DIKTAFON_LIBLLAMA` env override (unit tests, dev builds);
 /// 2. Android: bare soname, resolved by the app's linker namespace;
-/// 3. Linux: `lib/` inside the Flutter bundle, next to the executable.
+/// 3. iOS: embedded dynamic framework, resolved by dyld via @rpath;
+/// 4. Linux: `lib/` inside the Flutter bundle, next to the executable.
 String resolveLlamaLibraryPath() {
   final override = Platform.environment['DIKTAFON_LIBLLAMA'];
   if (override != null && override.isNotEmpty) return override;
   if (Platform.isAndroid) return 'libdiktafon_llama.so';
+  if (Platform.isIOS) return 'diktafon_llama.framework/diktafon_llama';
   if (Platform.isLinux) {
     final executableDir = File(Platform.resolvedExecutable).parent.path;
     return '$executableDir/lib/libdiktafon_llama.so';

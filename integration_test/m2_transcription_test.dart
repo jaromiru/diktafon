@@ -29,6 +29,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
+import 'test_env.dart';
+
 final _boundaryKey = GlobalKey();
 late Directory _workDir;
 
@@ -53,7 +55,7 @@ Finder _key(DeckGlyph glyph) =>
     find.byWidgetPredicate((w) => w is DeckKey && w.glyph == glyph);
 
 void main() {
-  final modelPath = Platform.environment['DIKTAFON_WHISPER_MODEL'];
+  final modelPath = testEnv('DIKTAFON_WHISPER_MODEL');
 
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -62,10 +64,10 @@ void main() {
       JustAudioMediaKit.ensureInitialized(
         linux: true,
         windows: false,
-        libmpv: Platform.environment['LIBMPV_PATH'],
+        libmpv: testEnv('LIBMPV_PATH'),
       );
     }
-    final base = Platform.environment['DIKTAFON_TEST_DIR'];
+    final base = testEnv('DIKTAFON_TEST_DIR');
     if (base != null) {
       _workDir = Directory(base);
       if (_workDir.existsSync()) _workDir.deleteSync(recursive: true);

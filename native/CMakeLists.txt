@@ -39,6 +39,24 @@ set_target_properties(diktafon_whisper diktafon_llama PROPERTIES
   CXX_VISIBILITY_PRESET hidden
 )
 
+# iOS ships dynamic code as embedded *frameworks*: dyld resolves them via
+# @rpath inside the app bundle (see resolve*LibraryPath() in the Dart
+# bindings). Built per-SDK and fused into xcframeworks by
+# tool/ios/build_engine_frameworks.sh.
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  foreach(engine_target diktafon_whisper diktafon_llama)
+    # Bundle identifiers allow no underscores: diktafon_whisper → whisper.
+    string(REPLACE "diktafon_" "" engine_suffix ${engine_target})
+    set_target_properties(${engine_target} PROPERTIES
+      FRAMEWORK TRUE
+      MACOSX_FRAMEWORK_IDENTIFIER "cz.mod42.diktafon.${engine_suffix}"
+      MACOSX_FRAMEWORK_BUNDLE_VERSION "1"
+      MACOSX_FRAMEWORK_SHORT_VERSION_STRING "1.0"
+      INSTALL_NAME_DIR "@rpath"
+    )
+  endforeach()
+endif()
+
 # The engines must stay fast in app *debug* builds too (Flutter debug ⇒ CMake
 # Debug ⇒ no optimization ⇒ ~20× slower inference). Nobody debugs engine
 # internals through the app build, so always optimize these targets.

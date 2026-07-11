@@ -3,18 +3,21 @@
 /// seek into an mpv playlist-entry reload that rejects in-file seeks until
 /// its playback restart finishes (see TapePlayerService._seekTo).
 ///
-/// Seeds a cassette with three ffmpeg-generated tone memos (8 s / 6 s / 10 s)
+/// Seeds a cassette with three synthesized tone memos (8 s / 6 s / 10 s)
 /// and drives the real app: a pre-play seek (the player is still inactive —
 /// it must survive the first play instead of restarting at 0:00), play,
 /// drag-scrub across two memo boundaries, rewind across boundaries,
-/// tap-to-jump — asserting the playhead lands where aimed. Desktop-only
-/// (needs the ffmpeg CLI, like the recorder):
+/// tap-to-jump — asserting the playhead lands where aimed. The fixtures are
+/// pure-Dart WAV, so this runs against every just_audio backend (mpv on
+/// Linux, AVPlayer on iOS — whose seek semantics differ; §15 iOS port):
 ///
 ///   DIKTAFON_TEST_DIR=/tmp/dk_seek \
 ///   flutter test integration_test/seek_verify_test.dart -d linux
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:diktafon/app.dart';
@@ -32,6 +35,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+
+import 'test_env.dart';
 
 final _boundaryKey = GlobalKey();
 late Directory _workDir;
@@ -64,26 +69,49 @@ Future<void> _wait(WidgetTester tester, int ms) async {
 Finder _key(DeckGlyph glyph) =>
     find.byWidgetPredicate((w) => w is DeckKey && w.glyph == glyph);
 
-/// Three tone memos rendered by the ffmpeg CLI (a desktop dependency of the
-/// recorder already) — returns their paths, tape = 0–8 s | 8–14 s | 14–24 s.
+/// Three tone memos, tape = 0–8 s | 8–14 s | 14–24 s. Synthesized in-process
+/// (WAV is sample-exact — no AAC priming-frame padding to skew boundaries).
 Future<List<String>> _renderTones() async {
   final dir = Directory('${_workDir.path}/tones')..createSync(recursive: true);
   final specs = [(440, 8), (660, 6), (880, 10)];
   final paths = <String>[];
   for (var i = 0; i < specs.length; i++) {
     final (hz, seconds) = specs[i];
-    final path = '${dir.path}/memo$i.m4a';
-    final result = await Process.run('ffmpeg', [
-      '-y', '-loglevel', 'error',
-      '-f', 'lavfi', '-i', 'sine=frequency=$hz:duration=$seconds',
-      '-c:a', 'aac', path,
-    ]);
-    if (result.exitCode != 0) {
-      throw StateError('ffmpeg failed: ${result.stderr}');
-    }
+    final path = '${dir.path}/memo$i.wav';
+    File(path).writeAsBytesSync(_toneWav(hz: hz, seconds: seconds));
     paths.add(path);
   }
   return paths;
+}
+
+/// Minimal RIFF/WAVE writer: [seconds] of a [hz] sine, 16-bit PCM mono.
+Uint8List _toneWav({required int hz, required int seconds, int rate = 44100}) {
+  final samples = seconds * rate;
+  final data = ByteData(44 + samples * 2);
+  void ascii(int offset, String s) {
+    for (var i = 0; i < s.length; i++) {
+      data.setUint8(offset + i, s.codeUnitAt(i));
+    }
+  }
+
+  ascii(0, 'RIFF');
+  data.setUint32(4, 36 + samples * 2, Endian.little);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  data.setUint32(16, 16, Endian.little); // fmt chunk size
+  data.setUint16(20, 1, Endian.little); // PCM
+  data.setUint16(22, 1, Endian.little); // mono
+  data.setUint32(24, rate, Endian.little);
+  data.setUint32(28, rate * 2, Endian.little); // byte rate
+  data.setUint16(32, 2, Endian.little); // block align
+  data.setUint16(34, 16, Endian.little); // bits per sample
+  ascii(36, 'data');
+  data.setUint32(40, samples * 2, Endian.little);
+  for (var i = 0; i < samples; i++) {
+    final v = math.sin(2 * math.pi * hz * i / rate);
+    data.setInt16(44 + i * 2, (v * 0.4 * 32767).round(), Endian.little);
+  }
+  return data.buffer.asUint8List();
 }
 
 void main() {
@@ -94,10 +122,10 @@ void main() {
       JustAudioMediaKit.ensureInitialized(
         linux: true,
         windows: false,
-        libmpv: Platform.environment['LIBMPV_PATH'],
+        libmpv: testEnv('LIBMPV_PATH'),
       );
     }
-    final base = Platform.environment['DIKTAFON_TEST_DIR'];
+    final base = testEnv('DIKTAFON_TEST_DIR');
     if (base != null) {
       _workDir = Directory(base);
       if (_workDir.existsSync()) _workDir.deleteSync(recursive: true);
@@ -267,8 +295,6 @@ void main() {
       expect(s.playing, isTrue);
       expect(s.globalMs, closeTo(7200 + 1200, 1800));
     },
-    // The tone fixtures come from the ffmpeg CLI — a desktop-only dependency.
-    skip: !(Platform.isLinux || Platform.isMacOS || Platform.isWindows),
     timeout: const Timeout(Duration(minutes: 3)),
   );
 }

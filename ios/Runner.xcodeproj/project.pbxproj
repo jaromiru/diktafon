@@ -16,6 +16,10 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		DFDF000000000000000000A2 /* diktafon_whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFDF000000000000000000A1 /* diktafon_whisper.xcframework */; };
+		DFDF000000000000000000A3 /* diktafon_whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DFDF000000000000000000A1 /* diktafon_whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		DFDF000000000000000000B2 /* diktafon_llama.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFDF000000000000000000B1 /* diktafon_llama.xcframework */; };
+		DFDF000000000000000000B3 /* diktafon_llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DFDF000000000000000000B1 /* diktafon_llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +39,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				DFDF000000000000000000A3 /* diktafon_whisper.xcframework in Embed Frameworks */,
+				DFDF000000000000000000B3 /* diktafon_llama.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -59,6 +65,8 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DFDF000000000000000000A1 /* diktafon_whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = diktafon_whisper.xcframework; path = Frameworks/diktafon_whisper.xcframework; sourceTree = "<group>"; };
+		DFDF000000000000000000B1 /* diktafon_llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = diktafon_llama.xcframework; path = Frameworks/diktafon_llama.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +75,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+				DFDF000000000000000000A2 /* diktafon_whisper.xcframework in Frameworks */,
+				DFDF000000000000000000B2 /* diktafon_llama.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,7 +110,17 @@
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
+				DFDF000000000000000000C1 /* Frameworks */,
 			);
+			sourceTree = "<group>";
+		};
+		DFDF000000000000000000C1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DFDF000000000000000000A1 /* diktafon_whisper.xcframework */,
+				DFDF000000000000000000B1 /* diktafon_llama.xcframework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		97C146EF1CF9000F007C117D /* Products */ = {

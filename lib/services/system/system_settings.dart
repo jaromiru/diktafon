@@ -1,7 +1,7 @@
-/// Android-only OS glue behind the `diktafon/system` channel (see
-/// MainActivity.kt): the settings escape hatch for a permanently denied
-/// microphone permission, and the SAF "create document" hand-off that
-/// `file_selector` lacks on Android.
+/// Mobile OS glue behind the `diktafon/system` channel (MainActivity.kt on
+/// Android, AppDelegate.swift on iOS): the settings escape hatch for a
+/// permanently denied microphone permission, and the "save a finished file
+/// through the OS" hand-off that `file_selector` lacks on both platforms.
 library;
 
 import 'dart:io';
@@ -10,11 +10,15 @@ import 'package:flutter/services.dart';
 
 const _channel = MethodChannel('diktafon/system');
 
-/// Opens this app's details page in the system settings (Android; see
-/// MainActivity.kt). Best-effort no-op elsewhere — desktop recorders don't
-/// gate on a permission.
+/// Whether saving a file goes through [saveDocumentMobile] instead of a
+/// `getSaveLocation` dialog (which file_selector implements on desktop only).
+bool get useMobileSaveFlow => Platform.isAndroid || Platform.isIOS;
+
+/// Opens this app's page in the system settings (Android app details / iOS
+/// Settings pane) — both OSes can permanently deny the mic prompt. Best-effort
+/// no-op elsewhere — desktop recorders don't gate on a permission.
 Future<void> openAppSystemSettings() async {
-  if (!Platform.isAndroid) return;
+  if (!Platform.isAndroid && !Platform.isIOS) return;
   try {
     await _channel.invokeMethod<void>('openAppSettings');
   } on PlatformException {
@@ -22,11 +26,13 @@ Future<void> openAppSystemSettings() async {
   }
 }
 
-/// Offers the OS "create document" dialog and copies the finished file at
-/// [sourcePath] into whatever the user picked (Drive, Files, …). Returns
-/// false when the user backs out. Android-only: desktop saves through
-/// `getSaveLocation` and never lands here.
-Future<bool> saveDocumentAndroid({
+/// Offers the OS "save document" dialog (SAF create-document on Android,
+/// export document picker on iOS) and lands the finished file at [sourcePath]
+/// wherever the user picked (Drive, Files, …). Returns false when the user
+/// backs out. Mobile-only: desktop saves through `getSaveLocation` and never
+/// lands here. iOS exports the staged file by name — [suggestedName] must be
+/// its basename (true for the staging flow in backup_screen.dart).
+Future<bool> saveDocumentMobile({
   required String sourcePath,
   required String suggestedName,
   String mimeType = 'application/zip',

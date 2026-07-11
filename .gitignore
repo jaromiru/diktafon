@@ -51,3 +51,5 @@ app.*.map.json
 
 # md -> html
 /*.html
+# iOS engine frameworks — build products of tool/ios/build_engine_frameworks.sh
+ios/Frameworks/

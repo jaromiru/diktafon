@@ -90,12 +90,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final labels = _exportLabels(context);
     final suggested = _suggestedName(selection, l10n.untitledCassette);
 
-    // Desktop saves straight into the picked location; Android has no SAF
-    // save dialog in file_selector, so the zip is staged in the cache and
-    // handed to the OS "create document" dialog afterwards.
+    // Desktop saves straight into the picked location; mobile file_selector
+    // has no save dialog, so the zip is staged in the cache and handed to
+    // the OS save dialog (SAF / iOS export picker) afterwards.
     String outputPath;
     Directory? staging;
-    if (Platform.isAndroid) {
+    if (useMobileSaveFlow) {
       staging = await Directory.systemTemp.createTemp('diktafon_export_zip_');
       outputPath = '${staging.path}/$suggested';
     } else {
@@ -128,8 +128,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           .exportArchive(items: items, outputPath: outputPath);
 
       var shownPath = outputPath;
-      if (Platform.isAndroid) {
-        final saved = await saveDocumentAndroid(
+      if (useMobileSaveFlow) {
+        final saved = await saveDocumentMobile(
             sourcePath: outputPath, suggestedName: suggested);
         if (!saved) return; // backed out of the OS dialog — not an error
         shownPath = suggested; // content URIs are opaque; name the file

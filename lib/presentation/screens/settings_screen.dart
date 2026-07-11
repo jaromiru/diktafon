@@ -11,6 +11,7 @@ import '../../services/providers/llm/llm_model_manager.dart';
 import '../../services/providers/model_manager.dart';
 import '../../services/providers/transcription_provider.dart';
 import '../../services/providers/whisper/whisper_model_manager.dart';
+import '../../services/system/device_ram.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/ink_progress_bar.dart';
 import '../widgets/ink_toggle.dart';
@@ -298,9 +299,16 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 /// Soft device gate for heavyweight tiers (§6.6): total RAM where
-/// /proc/meminfo exists (Linux/Android); unknown platforms don't block.
+/// /proc/meminfo exists (Linux/Android), sysctl on iOS; unknown platforms
+/// don't block. The thresholds transfer to iOS as-is: they were calibrated
+/// as "model needs ≈ half the device's RAM", which matches the ~50–60 % of
+/// physical RAM jetsam lets an iOS app touch — revisit after a device pass.
 bool deviceHasRamGb(int gb) {
   if (gb <= 0) return true;
+  if (Platform.isIOS) {
+    final bytes = applePhysicalRamBytes();
+    return bytes == null || bytes >= gb * 1024 * 1024 * 1024;
+  }
   try {
     final meminfo = File('/proc/meminfo').readAsLinesSync();
     final total = meminfo.firstWhere((l) => l.startsWith('MemTotal:'));

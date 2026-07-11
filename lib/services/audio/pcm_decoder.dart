@@ -12,10 +12,12 @@ abstract interface class PcmDecoder {
   Future<void> decodeToF32(String audioPath, String pcmPath);
 }
 
-/// Picks the platform decoder: MediaCodec on Android, ffmpeg CLI elsewhere
+/// Picks the platform decoder: the host-app codec channel on mobile
+/// (MediaCodec on Android, AVAssetReader on iOS), ffmpeg CLI elsewhere
 /// (the Linux dev/E2E box already depends on ffmpeg for recording).
-PcmDecoder defaultPcmDecoder() =>
-    Platform.isAndroid ? MediaCodecPcmDecoder() : FfmpegPcmDecoder();
+PcmDecoder defaultPcmDecoder() => Platform.isAndroid || Platform.isIOS
+    ? HostCodecPcmDecoder()
+    : FfmpegPcmDecoder();
 
 class FfmpegPcmDecoder implements PcmDecoder {
   @override
@@ -36,9 +38,10 @@ class FfmpegPcmDecoder implements PcmDecoder {
   }
 }
 
-/// Android: MediaExtractor + MediaCodec in the host app
-/// (android/…/MainActivity.kt), reached over a method channel.
-class MediaCodecPcmDecoder implements PcmDecoder {
+/// Mobile: the host app decodes with its platform codec — MediaExtractor +
+/// MediaCodec on Android (android/…/MainActivity.kt), AVAssetReader on iOS
+/// (ios/Runner/AppDelegate.swift) — reached over a method channel.
+class HostCodecPcmDecoder implements PcmDecoder {
   static const _channel = MethodChannel('diktafon/pcm_decoder');
 
   @override
