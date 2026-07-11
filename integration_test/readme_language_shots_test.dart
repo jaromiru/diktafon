@@ -33,6 +33,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'test_env.dart';
+import 'tone_wav.dart';
 
 final _boundaryKey = GlobalKey();
 late Directory _workDir;
@@ -444,12 +445,8 @@ void main() {
       _workDir = Directory.systemTemp.createTempSync('diktafon_lang_');
     }
     // One real (tone) file the tape player can load, copied per memo.
-    _toneFile = File('${_workDir.path}/tone.m4a');
-    final r = await Process.run('ffmpeg', [
-      '-y', '-f', 'lavfi', '-i', 'sine=frequency=330:duration=2',
-      '-ar', '16000', '-ac', '1', _toneFile.path,
-    ]);
-    expect(r.exitCode, 0, reason: 'ffmpeg: ${r.stderr}');
+    _toneFile = File('${_workDir.path}/tone.wav')
+      ..writeAsBytesSync(toneWav(hz: 330, seconds: 2));
   });
 
   for (final loc in _locales) {
@@ -507,7 +504,7 @@ void main() {
         ..createSync(recursive: true);
       for (final (i, memo) in loc.memos.indexed) {
         final transcript = _transcript(loc.code, memo.sentences);
-        final path = '${kitchenAudio.path}/m-$i.m4a';
+        final path = '${kitchenAudio.path}/m-$i.wav';
         _toneFile.copySync(path);
         await db.into(db.memos).insert(MemoRow(
               id: 'm-$i',

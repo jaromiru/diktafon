@@ -46,6 +46,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'test_env.dart';
+import 'tone_wav.dart';
 
 final _boundaryKey = GlobalKey();
 
@@ -236,7 +237,7 @@ void main() {
       await db.into(db.memos).insert(MemoRow(
             id: id,
             cassetteId: cassetteId,
-            filePath: '${audioDir.path}/$cassetteId/$id.m4a',
+            filePath: '${audioDir.path}/$cassetteId/$id.wav',
             durationMs: durationMs ?? transcript!.segments.last.endMs + 700,
             createdAt: createdAt,
             detectedLang: transcript == null ? null : 'en',
@@ -287,11 +288,8 @@ void main() {
         'split. All appliances stay except the oven.');
     // Real (tone) audio so the tape player has files to load.
     for (final f in ['m-measure', 'm-quote', 'm-colors']) {
-      final r = await Process.run('ffmpeg', [
-        '-y', '-f', 'lavfi', '-i', 'sine=frequency=330:duration=2',
-        '-ar', '16000', '-ac', '1', '${kitchenAudio.path}/$f.m4a',
-      ]);
-      expect(r.exitCode, 0, reason: 'ffmpeg: ${r.stderr}');
+      File('${kitchenAudio.path}/$f.wav')
+          .writeAsBytesSync(toneWav(hz: 330, seconds: 2));
     }
 
     // The rest of the shelf (never opened — rows only).

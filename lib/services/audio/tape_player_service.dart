@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:just_audio/just_audio.dart';
 
@@ -258,6 +259,11 @@ class TapePlayerService {
     _emit();
   }
 
+  /// just_audio_media_kit (mpv) backs playback only on desktop Linux/Windows;
+  /// the indexed-seek restart dance in [_seekTo] compensates for its playlist
+  /// reload and must not run on ExoPlayer/AVPlayer (see below).
+  static final bool _mpvBackend = Platform.isLinux || Platform.isWindows;
+
   /// Seeking with an `index:` is broken on media_kit: any indexed seek becomes
   /// an mpv `playlist-pos` write, which (re)loads that entry — even when the
   /// index is unchanged — and mpv rejects in-file seeks ("error running
@@ -287,6 +293,13 @@ class TapePlayerService {
     final localPosition = Duration(milliseconds: position.localMs);
     if (position.memoIndex == (_player.currentIndex ?? 0)) {
       await _player.seek(localPosition);
+      return;
+    }
+    if (!_mpvBackend) {
+      // ExoPlayer/AVPlayer take the index+position jump atomically. Never
+      // pass a null position here: just_audio's darwin impl maps null to
+      // kCMTimePositiveInfinity, i.e. AVPlayer seeks to the item's *end*.
+      await _player.seek(localPosition, index: position.memoIndex);
       return;
     }
     final needsLocalSeek = position.localMs > 0;

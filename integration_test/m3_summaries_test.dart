@@ -35,6 +35,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'test_env.dart';
+import 'tone_wav.dart';
 
 final _boundaryKey = GlobalKey();
 late Directory _workDir;
@@ -126,13 +127,8 @@ void main() {
       //   needs a real file; the words come from the transcript) —
       final memoDir = Directory('${audioDir.path}/c-m3')
         ..createSync(recursive: true);
-      final audioPath = '${memoDir.path}/m-m3.m4a';
-      final ffmpeg = await Process.run('ffmpeg', [
-        '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=4',
-        '-ar', '16000', '-ac', '1', audioPath,
-      ]);
-      expect(ffmpeg.exitCode, 0, reason: 'ffmpeg tone render: '
-          '${ffmpeg.stderr}');
+      final audioPath = '${memoDir.path}/m-m3.wav';
+      File(audioPath).writeAsBytesSync(toneWav(hz: 440, seconds: 4));
 
       await db.into(db.cassettes).insert(CassetteRow(
             id: 'c-m3',
