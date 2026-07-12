@@ -9,6 +9,10 @@ class AudioFileStore {
 
   final Directory _root;
 
+  /// Current audio root — the anchor for rebasing paths a previous install
+  /// persisted (iOS moves the data container on updates, §7.1).
+  String get rootPath => _root.path;
+
   static Future<AudioFileStore> open() async {
     final docs = await getApplicationDocumentsDirectory();
     final root = Directory('${docs.path}/audio');

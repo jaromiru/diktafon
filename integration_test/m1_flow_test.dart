@@ -183,4 +183,88 @@ void main() {
     await _settle(tester);
     await _shot(tester, '09-home-light');
   });
+
+  testWidgets('switching cassettes never leaks the timeline position',
+      (tester) async {
+    final db = AppDatabase.forTesting(
+        NativeDatabase(File('${_workDir.path}/diktafon.db')));
+    final audioDir = Directory('${_workDir.path}/audio')
+      ..createSync(recursive: true);
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      audioFileStoreProvider.overrideWithValue(AudioFileStore(audioDir)),
+      whisperModelManagerProvider.overrideWithValue(WhisperModelManager(
+          Directory('${_workDir.path}/models/whisper')
+            ..createSync(recursive: true))),
+      llmModelManagerProvider.overrideWithValue(LlmModelManager(
+          Directory('${_workDir.path}/models/llm')
+            ..createSync(recursive: true))),
+    ]);
+    // Like the M1 flow, the db is deliberately never closed: the still-
+    // mounted screens hold live drift streams through teardown, and closing
+    // under them deadlocks the suite. The process exit reclaims it.
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: RepaintBoundary(key: _boundaryKey, child: const DiktafonApp()),
+    ));
+    await _settle(tester);
+
+    // Cassette A (with its memo) carries over from the M1 flow above;
+    // record cassette B so both tapes are non-empty.
+    await tester.tap(_key(DeckGlyph.plus));
+    await _settle(tester);
+    await tester.tap(_key(DeckGlyph.record));
+    await _settle(tester);
+    await Future<void>.delayed(const Duration(seconds: 3));
+    await tester.tap(_key(DeckGlyph.stop));
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Back'));
+    await _settle(tester);
+
+    final overviews = await container
+        .read(cassetteRepositoryProvider)
+        .watchOverviews()
+        .first;
+    expect(overviews, hasLength(2));
+    final byAge = [...overviews]..sort(
+        (x, y) => x.cassette.createdAt.compareTo(y.cassette.createdAt));
+    final a = byAge.first.cassette;
+    final b = byAge.last.cassette;
+
+    Finder cardOf(String id) => find.byWidgetPredicate(
+        (w) => w is CassetteCard && w.overview.cassette.id == id);
+
+    // Park A's playhead mid-tape.
+    await tester.tap(cardOf(a.id));
+    await _settle(tester);
+    await tester.tap(_key(DeckGlyph.play));
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    await _settle(tester, frames: 4);
+    await tester.tap(_key(DeckGlyph.pause));
+    await _settle(tester);
+    final player = container.read(tapePlayerProvider);
+    final posA = player.state.globalMs;
+    expect(posA, greaterThan(0));
+
+    // Switching to B must not leak A's position onto B's timeline.
+    await tester.tap(find.byTooltip('Back'));
+    await _settle(tester);
+    await tester.tap(cardOf(b.id));
+    await _settle(tester);
+    expect(player.state.globalMs, 0,
+        reason: 'B never played — its playhead starts at the top');
+    expect(player.state.playing, isFalse,
+        reason: 'a switched-to cassette waits for its own play press');
+
+    // Coming back resumes A at its own remembered spot (session memory).
+    await tester.tap(find.byTooltip('Back'));
+    await _settle(tester);
+    await tester.tap(cardOf(a.id));
+    await _settle(tester);
+    expect((player.state.globalMs - posA).abs(), lessThan(300),
+        reason: 'reopening a cassette resumes at its remembered position');
+  });
 }

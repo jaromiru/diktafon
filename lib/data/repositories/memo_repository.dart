@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 
@@ -103,4 +104,30 @@ class MemoRepository {
 
   Future<void> delete(String id) =>
       (_db.delete(_db.memos)..where((m) => m.id.equals(id))).go();
+
+  /// Heals stale absolute audio paths (§7.1): iOS moves the app's data
+  /// container on every update/reinstall — the audio files migrate with it,
+  /// but paths recorded by an older install keep pointing into the dead
+  /// container. A memo whose stored file is gone but whose audio sits at
+  /// the canonical `<root>/<cassetteId>/<memoId>.<ext>` under the *current*
+  /// root is repointed there. Idempotent, runs at every launch; genuinely
+  /// missing audio is left alone.
+  Future<int> rebaseAudioPaths(String audioRoot) async {
+    final rows = await _db.select(_db.memos).get();
+    var rebased = 0;
+    for (final row in rows) {
+      if (File(row.filePath).existsSync()) continue;
+      final slash = row.filePath.lastIndexOf('/');
+      final dot = row.filePath.lastIndexOf('.');
+      final ext = dot > slash ? row.filePath.substring(dot) : '.m4a';
+      final candidate = '$audioRoot/${row.cassetteId}/${row.id}$ext';
+      if (candidate == row.filePath || !File(candidate).existsSync()) {
+        continue;
+      }
+      await (_db.update(_db.memos)..where((m) => m.id.equals(row.id)))
+          .write(MemosCompanion(filePath: Value(candidate)));
+      rebased++;
+    }
+    return rebased;
+  }
 }

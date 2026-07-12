@@ -89,6 +89,11 @@ dk_llama * dk_llama_init(const char * model_path,
     }
 
     llama_model_params mparams = llama_model_default_params();
+    // CPU backend only, like whisper (§6.5): on the Metal-embedded iOS build
+    // the default (-1) puts every layer on the GPU, and inference saturates
+    // the phone GPU so hard that Flutter stops presenting frames — the app
+    // reads as frozen for the length of a summary batch.
+    mparams.n_gpu_layers = 0;
     llama_model * model = llama_model_load_from_file(model_path, mparams);
     if (model == nullptr) {
         return nullptr;
@@ -99,6 +104,9 @@ dk_llama * dk_llama_init(const char * model_path,
     cparams.n_batch         = 512;
     cparams.n_threads       = n_threads;
     cparams.n_threads_batch = n_threads;
+    // Zero layers is not enough: the scheduler still offloads batched
+    // prompt-processing matmuls to any registered GPU backend.
+    cparams.op_offload      = false;
 
     llama_context * ctx = llama_init_from_model(model, cparams);
     if (ctx == nullptr) {

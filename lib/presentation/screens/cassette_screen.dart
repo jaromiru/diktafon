@@ -55,7 +55,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
         .join('|');
     if (signature == _loadedTapeSignature) return;
     _loadedTapeSignature = signature;
-    await ref.read(tapePlayerProvider).load(tape);
+    await ref
+        .read(tapePlayerProvider)
+        .load(tape, cassetteId: widget.cassetteId);
   }
 
   @override

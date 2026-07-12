@@ -180,10 +180,22 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         false;
     if (!proceed || !mounted) return;
 
-    final file = await openFile(acceptedTypeGroups: const [
-      XTypeGroup(
-          label: 'zip', extensions: ['zip'], mimeTypes: ['application/zip']),
-    ]);
+    // Every platform reads a different XTypeGroup field; iOS *throws* on a
+    // group without UTIs — and asynchronously, so keep the picker inside a
+    // catch or a failure is an invisible no-op.
+    final XFile? file;
+    try {
+      file = await openFile(acceptedTypeGroups: const [
+        XTypeGroup(
+            label: 'zip',
+            extensions: ['zip'],
+            mimeTypes: ['application/zip'],
+            uniformTypeIdentifiers: ['public.zip-archive']),
+      ]);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.importFailed('$e'))));
+      return;
+    }
     if (file == null || !mounted) return;
 
     setState(() => _importing = true);

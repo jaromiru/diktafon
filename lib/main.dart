@@ -48,6 +48,15 @@ Future<void> main() async {
         await _materializeChime(supportDir.path)),
   ]);
 
+  // iOS moves the data container on app updates/reinstalls — repoint stored
+  // audio paths at the current root before jobs or playback read them
+  // (§7.1). Best-effort: a failure just leaves per-memo missing audio.
+  try {
+    await container
+        .read(memoRepositoryProvider)
+        .rebaseAudioPaths(fileStore.rootPath);
+  } catch (_) {}
+
   // Model downloads mirror into the notification area while they run.
   _attachDownloadNotifications(whisperModels, llmModels);
 

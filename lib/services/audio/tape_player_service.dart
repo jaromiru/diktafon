@@ -118,6 +118,14 @@ class TapePlayerService {
   Tape _tape = Tape(const []);
   Tape get tape => _tape;
 
+  /// The cassette the loaded tape belongs to — switching cassettes must not
+  /// leak the old tape's position into the new one's timeline.
+  String? _cassetteId;
+
+  /// Session-scoped resume points: leaving a cassette stashes its position,
+  /// coming back to it restores it (cleared with the app, never persisted).
+  final Map<String, int> _lastPositions = {};
+
   Stream<TapePlaybackState> get stateStream => _stateController.stream;
 
   TapePlaybackState get state {
@@ -171,11 +179,25 @@ class TapePlayerService {
     if (!_stateController.isClosed) _stateController.add(state);
   }
 
-  /// (Re)loads the tape. On memo add/delete the tape re-flows (§4.2); the
-  /// playhead stays at the same global position when it still exists.
-  Future<void> load(Tape tape, {bool preservePosition = true}) async {
-    final wasPlaying = _player.playing;
-    final previousGlobalMs = preservePosition ? state.globalMs : 0;
+  /// (Re)loads the tape. Reloading the *same* cassette (memo add/delete
+  /// re-flows the tape, §4.2) keeps the playhead at its global position.
+  /// Loading a *different* cassette stashes the old cassette's position and
+  /// resumes at the new one's own remembered spot (or the top) — never at
+  /// the previous tape's position. A null [cassetteId] is treated as a
+  /// same-tape reload.
+  Future<void> load(Tape tape, {String? cassetteId}) async {
+    final sameCassette = cassetteId == null || cassetteId == _cassetteId;
+    // Auto-resume only survives a same-tape re-flow; a switched-to cassette
+    // waits for its own play press.
+    final wasPlaying = _player.playing && sameCassette;
+    final previousGlobalMs =
+        sameCassette ? state.globalMs : (_lastPositions[cassetteId] ?? 0);
+    if (!sameCassette) {
+      final leaving = _cassetteId;
+      if (leaving != null) _lastPositions[leaving] = state.globalMs;
+      _cassetteId = cassetteId;
+      if (_player.playing) await _player.pause();
+    }
     _tape = tape;
     _pendingIdleSeek = null;
     _loading = true;
@@ -191,6 +213,10 @@ class TapePlayerService {
         position = tape.locate(previousGlobalMs);
       }
       await _setSources(position);
+      // preload: false parks the player idle, where it reports 0:00 — arm
+      // the same display seam pre-play seeks use (see [state]) so a
+      // restored/preserved position shows before the first play press.
+      if (position != null && !wasPlaying) _pendingIdleSeek = position;
       if (wasPlaying) _player.play();
     } finally {
       _lastIndex = _player.currentIndex;
