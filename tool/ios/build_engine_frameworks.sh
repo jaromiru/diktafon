@@ -19,6 +19,10 @@ common=(
   -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
   -DCMAKE_BUILD_TYPE=Release
   -DGGML_NATIVE=OFF
+  # -g on top of Release (-O3 kept): dsymutil below needs DWARF in the .o
+  # files to build the dSYMs that symbolicate App Store crash reports.
+  -DCMAKE_C_FLAGS=-g
+  -DCMAKE_CXX_FLAGS=-g
 )
 
 cmake -G Ninja -S "$root/native" -B "$build/device" "${common[@]}" \
@@ -36,10 +40,16 @@ for engine in diktafon_whisper diktafon_llama; do
     # App Store validation requires of every embedded framework.
     plutil -replace MinimumOSVersion -string "13.0" \
       "$build/$sdk/$engine.framework/Info.plist"
+    # dSYM per slice; must run while the build dir's .o files still exist
+    # (the dylib only carries a debug map pointing at them).
+    dsymutil "$build/$sdk/$engine.framework/$engine" \
+      -o "$build/$sdk/$engine.framework.dSYM"
   done
   rm -rf "$out/$engine.xcframework"
   xcodebuild -create-xcframework \
     -framework "$build/device/$engine.framework" \
+    -debug-symbols "$build/device/$engine.framework.dSYM" \
     -framework "$build/simulator/$engine.framework" \
+    -debug-symbols "$build/simulator/$engine.framework.dSYM" \
     -output "$out/$engine.xcframework"
 done
