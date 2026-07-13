@@ -233,11 +233,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get summaryModel => 'Model podsumowań';
 
   @override
-  String get summariesRow => 'Podsumowania';
+  String get summariesOffOption => 'Bez podsumowań';
 
   @override
-  String get summariesRowDesc =>
-      'Streszczenia nagrań i przeglądy kaset, tworzone lokalnie';
+  String get summariesOffDesc =>
+      'Nagrania są tylko transkrybowane — bez streszczeń, przeglądów kaset i proponowanych tytułów.';
 
   @override
   String modelInstalled(String label, String size) {

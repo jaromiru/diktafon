@@ -220,10 +220,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get summaryModel => '요약 모델';
 
   @override
-  String get summariesRow => '요약';
+  String get summariesOffOption => '요약 없음';
 
   @override
-  String get summariesRowDesc => '메모 요약과 카세트 개요를 기기에서 생성합니다';
+  String get summariesOffDesc => '메모를 텍스트로만 변환하고 요약, 카세트 개요, 제목 제안은 만들지 않습니다.';
 
   @override
   String modelInstalled(String label, String size) {

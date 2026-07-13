@@ -227,11 +227,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get summaryModel => 'Modèle de résumé';
 
   @override
-  String get summariesRow => 'Résumés';
+  String get summariesOffOption => 'Pas de résumés';
 
   @override
-  String get summariesRowDesc =>
-      'L\'essentiel des mémos et de chaque cassette, généré localement';
+  String get summariesOffDesc =>
+      'Les mémos sont seulement transcrits — pas d\'essentiel, d\'aperçu de cassette ni de titre suggéré.';
 
   @override
   String modelInstalled(String label, String size) {

@@ -226,11 +226,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get summaryModel => 'Summary model';
 
   @override
-  String get summariesRow => 'Summaries';
+  String get summariesOffOption => 'No summaries';
 
   @override
-  String get summariesRowDesc =>
-      'Memo gists & cassette overviews, generated locally';
+  String get summariesOffDesc =>
+      'Memos are only transcribed — no gists, overviews or suggested titles.';
 
   @override
   String modelInstalled(String label, String size) {

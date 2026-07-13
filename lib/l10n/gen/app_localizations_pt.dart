@@ -229,11 +229,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get summaryModel => 'Modelo de resumos';
 
   @override
-  String get summariesRow => 'Resumos';
+  String get summariesOffOption => 'Sem resumos';
 
   @override
-  String get summariesRowDesc =>
-      'A essência de cada nota e de cada cassete, gerada localmente';
+  String get summariesOffDesc =>
+      'As notas são apenas transcritas — sem essência, resumo da cassete nem título sugerido.';
 
   @override
   String modelInstalled(String label, String size) {

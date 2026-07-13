@@ -88,18 +88,6 @@ class SettingsScreen extends ConsumerWidget {
               value: _llmRowValue(context, ref, settings),
               onTap: () => _pickModel(context, const LlmModelPickerDialog()),
             ),
-            SettingsRow(
-              title: l10n.summariesRow,
-              value: l10n.summariesRowDesc,
-              trailing: InkToggle(
-                value: settings.summariesEnabled,
-                onChanged: (on) async {
-                  await repo.setSummariesEnabled(on);
-                  // Re-enabling releases summary jobs parked in the queue.
-                  if (on) await ref.read(jobQueueProvider).drain();
-                },
-              ),
-            ),
           ]),
           SettingsGroup(title: l10n.groupAppearance, rows: [
             SettingsRow(
@@ -222,6 +210,9 @@ class SettingsScreen extends ConsumerWidget {
 
   String _llmRowValue(
       BuildContext context, WidgetRef ref, AppSettings settings) {
+    // Summaries are switched off inside the picker (its first option);
+    // the row mirrors that choice instead of a model's install state.
+    if (!settings.summariesEnabled) return context.l10n.summariesOffOption;
     final model = LlmModel.byTier(settings.llmTier);
     return _modelRowValue(context, model,
         ref.watch(llmModelStatesProvider).value, model.sizeLabel);
@@ -333,11 +324,30 @@ class ModelPickerDialog extends ConsumerWidget {
   static bool deviceCanRun(WhisperModel model) =>
       model.tier != WhisperModel.largeV3Turbo.tier || deviceHasRamGb(5);
 
+  /// Device-aware tier copy (§6.6, revised with the §6.3a quality bench):
+  /// where the RAM gate passes, large-v3-turbo is the recommended tier —
+  /// the bench measured roughly half small's error rate, and the gap widens
+  /// on noisy recordings. Below the gate the catalog copy stands (small
+  /// recommended, large disabled with the RAM note).
+  static String describe(WhisperModel model, {required bool largeCapable}) {
+    if (!largeCapable) return model.description;
+    if (model.tier == WhisperModel.small.tier) {
+      return 'Lighter and faster — less accurate, '
+          'especially on noisy recordings.';
+    }
+    if (model.tier == WhisperModel.largeV3Turbo.tier) {
+      return 'Recommended — much more accurate, especially in noise '
+          '(~2.5 GB RAM while transcribing).';
+    }
+    return model.description;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final states = ref.watch(whisperModelStatesProvider).value ?? const [];
     final manager = ref.read(whisperModelManagerProvider);
+    final largeCapable = deviceCanRun(WhisperModel.largeV3Turbo);
 
     return _EnginePickerDialog(
       title: context.l10n.modelPickerTranscriptionTitle,
@@ -345,6 +355,8 @@ class ModelPickerDialog extends ConsumerWidget {
       selectedTier: settings.whisperTier,
       enabledOf: (model) => deviceCanRun(model as WhisperModel),
       disabledReason: context.l10n.needsRam(5),
+      descriptionOf: (model) =>
+          describe(model as WhisperModel, largeCapable: largeCapable),
       installedBytes: manager.installedBytes(),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as WhisperModel),
@@ -373,7 +385,10 @@ class ModelPickerDialog extends ConsumerWidget {
 }
 
 /// The summary-model picker (§5.5 Summaries): same mechanics over the LLM
-/// catalog; when a model lands, parked summary jobs resume.
+/// catalog; when a model lands, parked summary jobs resume. Its first row
+/// is "No summaries" — the summaries on/off switch lives here, next to the
+/// models it governs: picking the off row parks summary jobs, picking any
+/// model turns summaries back on.
 class LlmModelPickerDialog extends ConsumerWidget {
   const LlmModelPickerDialog({super.key});
 
@@ -386,10 +401,16 @@ class LlmModelPickerDialog extends ConsumerWidget {
     return _EnginePickerDialog(
       title: context.l10n.modelPickerSummaryTitle,
       states: states,
-      selectedTier: settings.llmTier,
+      // Off claims the checkmark: no tier reads as selected while disabled.
+      selectedTier: settings.summariesEnabled ? settings.llmTier : null,
       enabledOf: (model) => deviceHasRamGb((model as LlmModel).minRamGb),
       disabledReason: context.l10n.needsRam(LlmModel.qwen3_4b.minRamGb),
       installedBytes: manager.installedBytes(),
+      offLabel: context.l10n.summariesOffOption,
+      offDescription: context.l10n.summariesOffDesc,
+      offSelected: !settings.summariesEnabled,
+      onOff: () =>
+          ref.read(settingsRepositoryProvider).setSummariesEnabled(false),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as LlmModel),
     );
@@ -406,6 +427,9 @@ class LlmModelPickerDialog extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
     await repo.setLlmTier(state.model.tier);
+    // Choosing a model is also the way back from "No summaries" — re-enable
+    // before the drain so parked summary jobs are released with it.
+    await repo.setSummariesEnabled(true);
     manager.cancelExcept(state.model.tier);
     await downloadAndDrain(messenger, ref, state,
         download: () => manager.download(state.model as LlmModel),
@@ -456,16 +480,32 @@ class _EnginePickerDialog extends ConsumerWidget {
     required this.installedBytes,
     required this.onSelect,
     required this.onDelete,
+    this.descriptionOf,
+    this.offLabel,
+    this.offDescription,
+    this.offSelected = false,
+    this.onOff,
   });
 
   final String title;
   final List<ModelState<ModelSpec>> states;
-  final String selectedTier;
+
+  /// null → no tier carries the checkmark (summaries switched off).
+  final String? selectedTier;
   final bool Function(ModelSpec) enabledOf;
   final String disabledReason;
   final int installedBytes;
   final void Function(ModelState<ModelSpec>) onSelect;
   final void Function(ModelState<ModelSpec>) onDelete;
+
+  /// Device-aware copy override; null → the catalog description.
+  final String Function(ModelSpec)? descriptionOf;
+
+  /// When [offLabel] is set, an "off" row leads the list (summary picker).
+  final String? offLabel;
+  final String? offDescription;
+  final bool offSelected;
+  final VoidCallback? onOff;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -480,13 +520,28 @@ class _EnginePickerDialog extends ConsumerWidget {
       title: Text(title),
       contentPadding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
       children: [
+        if (offLabel != null)
+          _PickerOption(
+            label: offLabel!,
+            status: '',
+            description: offDescription ?? '',
+            selected: offSelected,
+            enabled: true,
+            onSelect: onOff ?? () {},
+          ),
         for (final state in visible)
-          _ModelOption(
-            state: state,
+          _PickerOption(
+            label: state.model.label,
+            status: _statusOf(context, state),
+            description:
+                (descriptionOf ?? (m) => m.description)(state.model),
             selected: selectedTier == state.model.tier,
             enabled: enabledOf(state.model),
-            disabledReason: disabledReason,
             onSelect: () => onSelect(state),
+            progress: state.status == ModelStatus.downloading ||
+                    state.status == ModelStatus.paused
+                ? state.progress
+                : null,
             // Ready → free the storage; paused → discard the partial.
             onDelete: state.status == ModelStatus.ready ||
                     state.status == ModelStatus.paused
@@ -503,39 +558,48 @@ class _EnginePickerDialog extends ConsumerWidget {
       ],
     );
   }
+
+  String _statusOf(BuildContext context, ModelState<ModelSpec> state) =>
+      switch (state.status) {
+        ModelStatus.ready =>
+          context.l10n.pickerInstalled(state.model.sizeLabel),
+        ModelStatus.downloading =>
+          context.l10n.pickerDownloading((state.progress * 100).round()),
+        ModelStatus.paused =>
+          context.l10n.pickerPaused((state.progress * 100).round()),
+        ModelStatus.notInstalled => enabledOf(state.model)
+            ? context.l10n.pickerDownload(state.model.sizeLabel)
+            : disabledReason,
+      };
 }
 
-class _ModelOption extends StatelessWidget {
-  const _ModelOption({
-    required this.state,
+/// One picker row: checkmark channel, label, small right-hand status,
+/// description line, optional progress bar and delete affordance. Renders
+/// model tiers and the summary picker's "No summaries" row alike.
+class _PickerOption extends StatelessWidget {
+  const _PickerOption({
+    required this.label,
+    required this.status,
+    required this.description,
     required this.selected,
     required this.enabled,
-    required this.disabledReason,
     required this.onSelect,
+    this.progress,
     this.onDelete,
   });
 
-  final ModelState<ModelSpec> state;
+  final String label;
+  final String status;
+  final String description;
   final bool selected;
   final bool enabled;
-  final String disabledReason;
   final VoidCallback onSelect;
+  final double? progress;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final tape = context.tape;
-    final model = state.model;
-    final status = switch (state.status) {
-      ModelStatus.ready => context.l10n.pickerInstalled(model.sizeLabel),
-      ModelStatus.downloading =>
-        context.l10n.pickerDownloading((state.progress * 100).round()),
-      ModelStatus.paused =>
-        context.l10n.pickerPaused((state.progress * 100).round()),
-      ModelStatus.notInstalled => enabled
-          ? context.l10n.pickerDownload(model.sizeLabel)
-          : disabledReason,
-    };
 
     return InkWell(
       onTap: enabled ? onSelect : null,
@@ -565,15 +629,17 @@ class _ModelOption extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          model.label,
+                          label,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: selected ? FontWeight.w700 : null,
                             color: tape.ink,
                           ),
                         ),
-                        Text(status,
-                            style: TextStyle(fontSize: 10, color: tape.ink2)),
+                        if (status.isNotEmpty)
+                          Text(status,
+                              style:
+                                  TextStyle(fontSize: 10, color: tape.ink2)),
                       ],
                     ),
                   ),
@@ -587,19 +653,19 @@ class _ModelOption extends StatelessWidget {
                     ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: 22, top: 1),
-                child: Text(
-                  model.description,
-                  style: TextStyle(
-                      fontSize: 9.5, height: 1.4, color: tape.ink2),
+              if (description.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 22, top: 1),
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                        fontSize: 9.5, height: 1.4, color: tape.ink2),
+                  ),
                 ),
-              ),
-              if (state.status == ModelStatus.downloading ||
-                  state.status == ModelStatus.paused)
+              if (progress != null)
                 Padding(
                   padding: const EdgeInsets.only(left: 22, top: 6, bottom: 2),
-                  child: InkProgressBar(fraction: state.progress),
+                  child: InkProgressBar(fraction: progress!),
                 ),
             ],
           ),

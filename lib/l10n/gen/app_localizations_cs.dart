@@ -228,11 +228,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get summaryModel => 'Model souhrnů';
 
   @override
-  String get summariesRow => 'Souhrny';
+  String get summariesOffOption => 'Bez souhrnů';
 
   @override
-  String get summariesRowDesc =>
-      'Shrnutí záznamů a přehledy kazet, vytvářené přímo v zařízení';
+  String get summariesOffDesc =>
+      'Záznamy se pouze přepisují — žádná shrnutí, přehledy ani navrhované názvy.';
 
   @override
   String modelInstalled(String label, String size) {

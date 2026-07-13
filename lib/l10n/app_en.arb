@@ -110,8 +110,8 @@
   "groupIntelligence": "On-device intelligence",
   "transcriptionModel": "Transcription model",
   "summaryModel": "Summary model",
-  "summariesRow": "Summaries",
-  "summariesRowDesc": "Memo gists & cassette overviews, generated locally",
+  "summariesOffOption": "No summaries",
+  "summariesOffDesc": "Memos are only transcribed — no gists, overviews or suggested titles.",
   "modelInstalled": "{label} · {size} — installed, tap to manage",
   "@modelInstalled": {
     "placeholders": {

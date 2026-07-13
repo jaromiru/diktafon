@@ -125,8 +125,9 @@ class JobQueue {
   Future<void> _drainLoop() async {
     while (true) {
       // Enrichment waits for a provisioned model (§14) — and summarization
-      // additionally for the Settings toggle; blocked jobs stay queued.
-      // Re-checked every iteration: models/settings can change mid-drain.
+      // additionally for the summaries switch (the model picker's "No
+      // summaries" row); blocked jobs stay queued. Re-checked every
+      // iteration: models/settings can change mid-drain.
       final settings = await _settings.get();
       final llmReady =
           await _summarization().modelStatus() == ModelStatus.ready;

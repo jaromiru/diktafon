@@ -468,17 +468,17 @@ abstract class AppLocalizations {
   /// **'Summary model'**
   String get summaryModel;
 
-  /// No description provided for @summariesRow.
+  /// No description provided for @summariesOffOption.
   ///
   /// In en, this message translates to:
-  /// **'Summaries'**
-  String get summariesRow;
+  /// **'No summaries'**
+  String get summariesOffOption;
 
-  /// No description provided for @summariesRowDesc.
+  /// No description provided for @summariesOffDesc.
   ///
   /// In en, this message translates to:
-  /// **'Memo gists & cassette overviews, generated locally'**
-  String get summariesRowDesc;
+  /// **'Memos are only transcribed — no gists, overviews or suggested titles.'**
+  String get summariesOffDesc;
 
   /// No description provided for @modelInstalled.
   ///

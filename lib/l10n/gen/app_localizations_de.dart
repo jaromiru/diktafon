@@ -229,11 +229,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get summaryModel => 'Zusammenfassungsmodell';
 
   @override
-  String get summariesRow => 'Zusammenfassungen';
+  String get summariesOffOption => 'Keine Zusammenfassungen';
 
   @override
-  String get summariesRowDesc =>
-      'Memo-Kurzfassungen & Kassettenüberblicke, lokal erzeugt';
+  String get summariesOffDesc =>
+      'Memos werden nur transkribiert — keine Kurzfassungen, Überblicke oder Titelvorschläge.';
 
   @override
   String modelInstalled(String label, String size) {

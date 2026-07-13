@@ -226,11 +226,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get summaryModel => 'Özet modeli';
 
   @override
-  String get summariesRow => 'Özetler';
+  String get summariesOffOption => 'Özet yok';
 
   @override
-  String get summariesRowDesc =>
-      'Not özetleri ve kaset genel özetleri, cihazda üretilir';
+  String get summariesOffDesc =>
+      'Notlar yalnızca yazıya dökülür — özet, kaset genel özeti ve başlık önerisi olmaz.';
 
   @override
   String modelInstalled(String label, String size) {

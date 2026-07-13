@@ -228,11 +228,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get summaryModel => 'Modelo de resúmenes';
 
   @override
-  String get summariesRow => 'Resúmenes';
+  String get summariesOffOption => 'Sin resúmenes';
 
   @override
-  String get summariesRowDesc =>
-      'La esencia de cada nota y de cada casete, generada localmente';
+  String get summariesOffDesc =>
+      'Las notas solo se transcriben — sin esencia, resumen del casete ni título sugerido.';
 
   @override
   String modelInstalled(String label, String size) {

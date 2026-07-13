@@ -180,4 +180,31 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  group('tier copy (§6.6 nudge)', () {
+    test('capable device: large-v3-turbo carries the recommendation', () {
+      expect(
+        ModelPickerDialog.describe(WhisperModel.largeV3Turbo,
+            largeCapable: true),
+        startsWith('Recommended'),
+      );
+      expect(
+        ModelPickerDialog.describe(WhisperModel.small, largeCapable: true),
+        isNot(startsWith('Recommended')),
+      );
+    });
+
+    test('below the RAM gate the catalog copy stands', () {
+      for (final model in [WhisperModel.small, WhisperModel.largeV3Turbo]) {
+        expect(ModelPickerDialog.describe(model, largeCapable: false),
+            model.description);
+      }
+      expect(WhisperModel.small.description, startsWith('Recommended'));
+    });
+
+    test('unrecognized tiers fall through to their catalog copy', () {
+      expect(ModelPickerDialog.describe(WhisperModel.tiny, largeCapable: true),
+          WhisperModel.tiny.description);
+    });
+  });
 }

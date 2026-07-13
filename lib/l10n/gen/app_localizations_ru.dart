@@ -232,11 +232,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get summaryModel => 'Модель сводок';
 
   @override
-  String get summariesRow => 'Сводки';
+  String get summariesOffOption => 'Без сводок';
 
   @override
-  String get summariesRowDesc =>
-      'Суть записей и обзоры кассет, создаются прямо на устройстве';
+  String get summariesOffDesc =>
+      'Записи только расшифровываются — без сводок, обзоров кассет и предлагаемых названий.';
 
   @override
   String modelInstalled(String label, String size) {
