@@ -577,13 +577,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get memoActions => 'Memo-Aktionen';
 
   @override
-  String get cleanupRow => 'Transkript-Korrektur';
-
-  @override
-  String get cleanupRowDesc =>
-      'Das Zusammenfassungsmodell glättet frische Transkripte — Tipp- und Hörfehler';
-
-  @override
   String notifDownloading(String label) {
     return '$label wird heruntergeladen';
   }

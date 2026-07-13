@@ -8,9 +8,8 @@
 ///   flutter test test/quality/transcription_quality_test.dart
 ///
 /// Optional: DIKTAFON_QUALITY_OUT, DIKTAFON_QUALITY_FILTER (ffmpeg -af),
-/// DIKTAFON_QUALITY_LANG=file, DIKTAFON_LIBLLAMA + DIKTAFON_LLM_MODEL +
-/// DIKTAFON_LLM_TIER (cleanup), DIKTAFON_QUALITY_SOURCE (reuse another
-/// variant's raw transcripts), DIKTAFON_QUALITY_NOTE (provenance).
+/// DIKTAFON_QUALITY_LANG=file, DIKTAFON_QUALITY_HPF / _BEAM / _VAD,
+/// DIKTAFON_QUALITY_RESCORE=1, DIKTAFON_QUALITY_NOTE (provenance).
 library;
 
 import 'dart:io';

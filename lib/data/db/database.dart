@@ -35,12 +35,12 @@ class Memos extends Table {
   TextColumn get detectedLang => text().nullable()();
 
   /// Transcript stored as a JSON blob per memo (§7.2 — no search in v1).
-  /// After LLM cleanup (§6.8) this is the *cleaned* transcript.
   TextColumn get transcript => text().nullable()();
 
-  /// The engine's original transcript, kept when cleanup (§6.8) rewrote
-  /// [transcript] — cleanup is lossy about word timings, so the raw take
-  /// stays recoverable. Null → transcript untouched.
+  /// Legacy LLM-cleanup bookkeeping (§6.8, retired 2026-07-13): the
+  /// engine's original take from when cleanup rewrote [transcript]. No
+  /// longer written — kept, like [foldedAt], so existing databases need no
+  /// migration.
   TextColumn get rawTranscript => text().nullable()();
   TextColumn get memoSummary => text().nullable()();
 
@@ -96,7 +96,7 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(memos, memos.foldedAt);
           }
           if (from < 3) {
-            // Transcript cleanup (§6.8): the raw take survives the rewrite.
+            // The retired transcript cleanup's raw-take column (§6.8).
             await m.addColumn(memos, memos.rawTranscript);
           }
         },

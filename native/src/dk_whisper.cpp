@@ -29,6 +29,27 @@ bool dk_abort_cb(void * user_data) {
     return cancel != nullptr && *cancel != 0;
 }
 
+// Production VAD tuning (design.md §6.3a): upstream defaults (0.5 threshold,
+// 30 ms pad, 100 ms min silence) clip quiet speech onsets — the phase-0
+// bench lost whole words to them. These values were tuned on the verified
+// corpus; the env knobs stay for bench sweeps only.
+whisper_vad_params dk_vad_params() {
+    whisper_vad_params params = whisper_vad_default_params();
+    params.threshold               = 0.35f;
+    params.speech_pad_ms           = 150;
+    params.min_silence_duration_ms = 300;
+    if (const char * t = std::getenv("DK_WHISPER_VAD_THRESHOLD")) {
+        params.threshold = static_cast<float>(atof(t));
+    }
+    if (const char * p = std::getenv("DK_WHISPER_VAD_PAD_MS")) {
+        params.speech_pad_ms = atoi(p);
+    }
+    if (const char * s = std::getenv("DK_WHISPER_VAD_MIN_SILENCE_MS")) {
+        params.min_silence_duration_ms = atoi(s);
+    }
+    return params;
+}
+
 } // namespace
 
 extern "C" {
@@ -85,23 +106,12 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
 
     // Silero VAD (docs/features/noise-robust-transcription.md phase 1.1):
     // only detected speech regions reach the whisper encoder — cuts
-    // hallucinations on noise-only stretches and skips silence. Defaults
-    // from whisper_vad_default_params (threshold 0.5, min speech 250 ms).
+    // hallucinations on noise-only stretches and skips silence.
     dw->vad_used = !dw->vad_model_path.empty();
     if (dw->vad_used) {
         wparams.vad            = true;
         wparams.vad_model_path = dw->vad_model_path.c_str();
-        // Bench/dev-only tuning knobs (quality bench sweeps these; a
-        // production default would be baked in here once chosen).
-        if (const char * t = std::getenv("DK_WHISPER_VAD_THRESHOLD")) {
-            wparams.vad_params.threshold = static_cast<float>(atof(t));
-        }
-        if (const char * p = std::getenv("DK_WHISPER_VAD_PAD_MS")) {
-            wparams.vad_params.speech_pad_ms = atoi(p);
-        }
-        if (const char * s = std::getenv("DK_WHISPER_VAD_MIN_SILENCE_MS")) {
-            wparams.vad_params.min_silence_duration_ms = atoi(s);
-        }
+        wparams.vad_params     = dk_vad_params();
     }
 
     wparams.print_realtime   = false;
@@ -222,6 +232,33 @@ float dk_whisper_segment_avg_token_p(dk_whisper * dw, int32_t i) {
         text_tokens++;
     }
     return text_tokens > 0 ? sum / text_tokens : 0.0f;
+}
+
+int32_t dk_whisper_vad_has_speech(const char * vad_model_path,
+                                  const float * pcm,
+                                  int32_t n_samples,
+                                  int32_t n_threads) {
+    if (std::getenv("DK_WHISPER_LOG") == nullptr) {
+        whisper_log_set(dk_quiet_log, nullptr);
+        ggml_log_set(dk_quiet_log, nullptr);
+    }
+    whisper_vad_context_params cparams = whisper_vad_default_context_params();
+    cparams.n_threads = n_threads;
+    cparams.use_gpu   = false; // CPU backend only (§6.5)
+    whisper_vad_context * vctx =
+        whisper_vad_init_from_file_with_params(vad_model_path, cparams);
+    if (vctx == nullptr) {
+        return -1;
+    }
+    whisper_vad_segments * segments = whisper_vad_segments_from_samples(
+        vctx, dk_vad_params(), pcm, n_samples);
+    int32_t result = -1;
+    if (segments != nullptr) {
+        result = whisper_vad_segments_n_segments(segments) > 0 ? 1 : 0;
+        whisper_vad_free_segments(segments);
+    }
+    whisper_vad_free(vctx);
+    return result;
 }
 
 } // extern "C"

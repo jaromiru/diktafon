@@ -154,8 +154,6 @@
   "transcriptCopied": "변환 텍스트가 복사되었습니다.",
   "deleteMemo": "메모 삭제",
   "memoActions": "메모 동작",
-  "cleanupRow": "변환 텍스트 다듬기",
-  "cleanupRowDesc": "요약 모델이 새 변환 텍스트를 다듬습니다 — 맞춤법과 인식 오류",
   "notifDownloading": "{label} 다운로드 중",
   "notifModelInstalled": "{label} 설치됨"
 }

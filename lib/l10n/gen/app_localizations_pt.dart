@@ -576,13 +576,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get memoActions => 'Ações da nota';
 
   @override
-  String get cleanupRow => 'Limpeza de transcrições';
-
-  @override
-  String get cleanupRowDesc =>
-      'O modelo de resumos corrige as transcrições — erros de grafia e de reconhecimento';
-
-  @override
   String notifDownloading(String label) {
     return 'Baixando $label';
   }

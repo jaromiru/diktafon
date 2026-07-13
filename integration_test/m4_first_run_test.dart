@@ -95,11 +95,6 @@ class _FakeSummarization implements SummarizationProvider {
   Future<void> ensureModel({ProgressSink? onProgress}) async {}
 
   @override
-  Future<Transcript> cleanTranscript(Transcript t,
-          {required String languageCode}) async =>
-      t;
-
-  @override
   Future<String> summarizeMemo(Transcript t,
           {required String languageCode}) async =>
       'A first memo.';

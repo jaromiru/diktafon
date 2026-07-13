@@ -154,8 +154,6 @@
   "transcriptCopied": "Přepis zkopírován.",
   "deleteMemo": "Smazat záznam",
   "memoActions": "Akce záznamu",
-  "cleanupRow": "Čištění přepisů",
-  "cleanupRowDesc": "Model pro shrnutí opraví čerstvé přepisy — překlepy a přeslechy",
   "notifDownloading": "Stahuje se {label}",
   "notifModelInstalled": "{label} — nainstalováno"
 }

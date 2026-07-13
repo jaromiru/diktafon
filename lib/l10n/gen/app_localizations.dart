@@ -972,18 +972,6 @@ abstract class AppLocalizations {
   /// **'Memo actions'**
   String get memoActions;
 
-  /// No description provided for @cleanupRow.
-  ///
-  /// In en, this message translates to:
-  /// **'Transcript cleanup'**
-  String get cleanupRow;
-
-  /// No description provided for @cleanupRowDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'The summary model tidies fresh transcripts — spelling & recognition slips'**
-  String get cleanupRowDesc;
-
   /// No description provided for @notifDownloading.
   ///
   /// In en, this message translates to:

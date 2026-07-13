@@ -63,22 +63,6 @@ class MemoRepository {
         ),
       );
 
-  /// Swaps in the cleaned-up transcript (§6.8), preserving the engine's
-  /// original take in rawTranscript — cleanup re-estimates word timings, so
-  /// the raw one must stay recoverable. detectedLang is already set and
-  /// cleanup never changes the language.
-  Future<void> setCleanedTranscript(
-    String id,
-    Transcript cleaned,
-    String rawTranscriptJson,
-  ) =>
-      (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
-        MemosCompanion(
-          transcript: Value(jsonEncode(cleaned.toJson())),
-          rawTranscript: Value(rawTranscriptJson),
-        ),
-      );
-
   /// [summary] null → the memo yielded no usable gist (§6.7 skip).
   Future<void> setMemoSummary(String id, String? summary, MemoStatus status) =>
       (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(

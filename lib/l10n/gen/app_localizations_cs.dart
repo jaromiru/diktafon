@@ -587,13 +587,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get memoActions => 'Akce záznamu';
 
   @override
-  String get cleanupRow => 'Čištění přepisů';
-
-  @override
-  String get cleanupRowDesc =>
-      'Model pro shrnutí opraví čerstvé přepisy — překlepy a přeslechy';
-
-  @override
   String notifDownloading(String label) {
     return 'Stahuje se $label';
   }

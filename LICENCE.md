@@ -52,6 +52,14 @@ ggml tree from this copy.
   (https://github.com/googlefonts/spacemono), licensed under the
   SIL Open Font License, Version 1.1. See `assets/fonts/OFL-SpaceMono.txt`.
 
+### Silero VAD model (bundled)
+
+`assets/models/ggml-silero-v5.1.2.bin` is a ggml conversion (via
+[ggml-org/whisper-vad](https://huggingface.co/ggml-org/whisper-vad)) of the
+[Silero VAD](https://github.com/snakers4/silero-vad) voice-activity-detection
+model, Copyright (c) 2020-present Silero Team, licensed under the MIT
+License. It is distributed with this repository and inside the app.
+
 ### Whisper models (downloaded at runtime)
 
 Speech-recognition models are not distributed with this repository or the app;

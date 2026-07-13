@@ -12,11 +12,12 @@ import '../../domain/models.dart';
 import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
 
-/// The §6.5 job types. `cleanupTranscript` (§6.8) slots between
-/// transcription and the gist. The cassette overview is always rebuilt from
-/// *all* memo gists (§6.7 revised 2026-07-08), so `recomputeCassetteSummary`
-/// and `updateCassetteSummary` run the same code — the former stays only so
-/// job rows persisted by older builds keep draining.
+/// The §6.5 job types. The cassette overview is always rebuilt from *all*
+/// memo gists (§6.7 revised 2026-07-08), so `recomputeCassetteSummary` and
+/// `updateCassetteSummary` run the same code — it stays, like
+/// `cleanupTranscript` (the retired §6.8 LLM cleanup stage, now routed
+/// straight to the gist), only so job rows persisted by older builds keep
+/// draining.
 enum JobType {
   transcribe,
   cleanupTranscript,
@@ -63,9 +64,8 @@ class JobQueue {
   }
 
   /// Failed memo → back on the queue at the right stage (§14 retry
-  /// affordance): no transcript yet → transcribe again; transcript already
-  /// there → re-enter at cleanup when it is still owed (§6.8), otherwise
-  /// only the summarization is redone.
+  /// affordance): no transcript yet → transcribe again, otherwise only the
+  /// summarization is redone.
   Future<void> retryEnrichment(String memoId) async {
     final row = await _memoRow(memoId);
     if (row == null) return;
@@ -74,11 +74,7 @@ class JobQueue {
       await _insertJob(JobType.transcribe, memoId);
     } else {
       await _memos.updateStatus(memoId, MemoStatus.transcribed);
-      final cleanupOwed =
-          (await _settings.get()).cleanupEnabled && row.rawTranscript == null;
-      await _insertJob(
-          cleanupOwed ? JobType.cleanupTranscript : JobType.summarizeMemo,
-          memoId);
+      await _insertJob(JobType.summarizeMemo, memoId);
     }
     unawaited(drain());
   }
@@ -138,11 +134,9 @@ class JobQueue {
       if (await _transcription().modelStatus() == ModelStatus.ready) {
         runnable.add(JobType.transcribe.name);
       }
-      // Cleanup jobs also run with the toggle off — they pass the memo
-      // through to the gist stage instead of parking it forever.
-      if (llmReady || !settings.cleanupEnabled) {
-        runnable.add(JobType.cleanupTranscript.name);
-      }
+      // Legacy cleanup rows only hand over to the gist — no LLM involved,
+      // so they are always runnable.
+      runnable.add(JobType.cleanupTranscript.name);
       if (settings.summariesEnabled && llmReady) {
         runnable.addAll([
           JobType.summarizeMemo.name,
@@ -150,7 +144,6 @@ class JobQueue {
           JobType.recomputeCassetteSummary.name,
         ]);
       }
-      if (runnable.isEmpty) return;
 
       final job = await (_db.select(_db.jobs)
             ..where((j) => j.status.equals('queued') & j.type.isIn(runnable))
@@ -170,7 +163,7 @@ class JobQueue {
         case JobType.transcribe:
           await _transcribe(job.targetId);
         case JobType.cleanupTranscript:
-          await _cleanupTranscript(job.targetId);
+          await _legacyCleanupPassthrough(job.targetId);
         case JobType.summarizeMemo:
           await _summarizeMemo(job.targetId);
         case JobType.updateCassetteSummary:
@@ -221,47 +214,21 @@ class JobQueue {
         await _memos.setTranscript(memoId, transcript, MemoStatus.ready);
       } else {
         await _memos.setTranscript(memoId, transcript, MemoStatus.transcribed);
-        // Cleanup (§6.8) slots in front of the gist when enabled. Either
-        // job waits in the queue while its model is missing or summaries
-        // are disabled — the drain gate holds it, never the memo.
-        await _insertJob(
-            settings.cleanupEnabled
-                ? JobType.cleanupTranscript
-                : JobType.summarizeMemo,
-            memoId);
+        // The gist job waits in the queue while its model is missing or
+        // summaries are disabled — the drain gate holds it, never the memo.
+        await _insertJob(JobType.summarizeMemo, memoId);
       }
     } finally {
       _active.remove(memoId);
     }
   }
 
-  /// Best-effort polish (§6.8): the raw transcript is already readable, so
-  /// any cleanup trouble — engine error, model gone mid-job — degrades to
-  /// "keep the original" and the pipeline moves on to the gist. The raw
-  /// take is preserved next to the rewrite (schema v3).
-  Future<void> _cleanupTranscript(String memoId) async {
+  /// A cleanup row persisted by a pre-removal build (§6.8, retired
+  /// 2026-07-13: the phase-0 bench showed LLM cleanup is accuracy-inert at
+  /// ~1.2× the ASR's runtime): hand the memo to the gist stage unchanged.
+  Future<void> _legacyCleanupPassthrough(String memoId) async {
     final row = await _memoRow(memoId);
-    if (row == null) return; // deleted meanwhile (§14)
-    final transcriptJson = row.transcript;
-    if (transcriptJson == null) return; // can't happen; be safe
-
-    final settings = await _settings.get();
-    // Only fresh transcripts are cleaned (rawTranscript set → already done);
-    // a mid-queue toggle-off just passes the memo through.
-    if (settings.cleanupEnabled && row.rawTranscript == null) {
-      final transcript = Transcript.fromJson(
-          (jsonDecode(transcriptJson) as Map).cast<String, dynamic>());
-      if (!transcript.isEmpty) {
-        final language = await _languageFor(row.detectedLang);
-        try {
-          final cleaned = await _summarization()
-              .cleanTranscript(transcript, languageCode: language);
-          await _memos.setCleanedTranscript(memoId, cleaned, transcriptJson);
-        } catch (_) {
-          // Keep the original; the gist still runs.
-        }
-      }
-    }
+    if (row == null || row.transcript == null) return;
     await _insertJob(JobType.summarizeMemo, memoId);
   }
 

@@ -574,13 +574,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get memoActions => 'Actions du mémo';
 
   @override
-  String get cleanupRow => 'Nettoyage des transcriptions';
-
-  @override
-  String get cleanupRowDesc =>
-      'Le modèle de résumé corrige les transcriptions — fautes et erreurs de reconnaissance';
-
-  @override
   String notifDownloading(String label) {
     return 'Téléchargement de $label';
   }

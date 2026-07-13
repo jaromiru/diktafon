@@ -606,13 +606,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get memoActions => 'Действия с записью';
 
   @override
-  String get cleanupRow => 'Чистка расшифровок';
-
-  @override
-  String get cleanupRowDesc =>
-      'Модель сводок приводит свежие расшифровки в порядок — орфография и ослышки';
-
-  @override
   String notifDownloading(String label) {
     return 'Скачивается $label';
   }

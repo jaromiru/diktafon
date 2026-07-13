@@ -272,8 +272,6 @@
   "transcriptCopied": "Transcription copied.",
   "deleteMemo": "Delete memo",
   "memoActions": "Memo actions",
-  "cleanupRow": "Transcript cleanup",
-  "cleanupRowDesc": "The summary model tidies fresh transcripts — spelling & recognition slips",
   "notifDownloading": "Downloading {label}",
   "@notifDownloading": {"placeholders": {"label": {"type": "String"}}},
   "notifModelInstalled": "{label} installed",

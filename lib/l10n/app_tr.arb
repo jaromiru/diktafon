@@ -154,8 +154,6 @@
   "transcriptCopied": "Transkript kopyalandı.",
   "deleteMemo": "Notu sil",
   "memoActions": "Not işlemleri",
-  "cleanupRow": "Transkript temizliği",
-  "cleanupRowDesc": "Özet modeli yeni transkriptleri toparlar — yazım ve tanıma hataları",
   "notifDownloading": "{label} indiriliyor",
   "notifModelInstalled": "{label} yüklendi"
 }

@@ -69,14 +69,10 @@ class FakeSummarizationProvider implements SummarizationProvider {
   FakeSummarizationProvider({this.status = ModelStatus.ready});
 
   ModelStatus status;
-  int memoCalls = 0, cassetteCalls = 0, titleCalls = 0, cleanCalls = 0;
+  int memoCalls = 0, cassetteCalls = 0, titleCalls = 0;
   int memoFailuresBeforeSuccess = 0;
   String memoResult = 'gist';
   String titleResult = 'Suggested Title';
-
-  /// Rewrites applied by cleanTranscript; identity when null.
-  Transcript Function(Transcript)? cleanTransform;
-  bool cleanThrows = false;
 
   String? lastLanguageCode;
   String? lastPreviousSummary;
@@ -90,14 +86,6 @@ class FakeSummarizationProvider implements SummarizationProvider {
 
   @override
   Future<void> ensureModel({ProgressSink? onProgress}) async {}
-
-  @override
-  Future<Transcript> cleanTranscript(Transcript t,
-      {required String languageCode}) async {
-    cleanCalls++;
-    if (cleanThrows) throw StateError('flaky cleanup');
-    return cleanTransform?.call(t) ?? t;
-  }
 
   @override
   Future<String> summarizeMemo(Transcript t,
@@ -345,98 +333,79 @@ void main() {
     });
   });
 
-  group('§6.8 transcript cleanup', () {
-    test('cleanup slots between transcription and the gist; raw preserved',
+  group('§6.8 legacy cleanup rows (feature retired 2026-07-13)', () {
+    /// A `cleanupTranscript` row as persisted by a pre-removal build.
+    Future<void> seedLegacyCleanupJob(String memoId) =>
+        db.into(db.jobs).insert(JobRow(
+              id: 'legacy-$memoId',
+              type: JobType.cleanupTranscript.name,
+              targetId: memoId,
+              status: 'queued',
+              attempts: 0,
+              createdAt: 500,
+            ));
+
+    test('a persisted cleanup job passes the memo through to the gist',
         () async {
-      llm.cleanTransform = (t) => Transcript(
-            languageCode: t.languageCode,
-            segments: [
-              Segment(startMs: 0, endMs: 900, words: const [
-                Word(text: 'Ahoj,', startMs: 0, endMs: 450),
-                Word(text: 'světe!', startMs: 450, endMs: 900),
-              ]),
-            ],
-          );
       await seedMemo('m1');
-      await queue.enqueueTranscription('m1');
+      await memos.setTranscript(
+          'm1',
+          Transcript(languageCode: 'cs', segments: [
+            Segment(startMs: 0, endMs: 900, words: const [
+              Word(text: 'ahoj', startMs: 0, endMs: 400),
+            ]),
+          ]),
+          MemoStatus.transcribed);
+      await seedLegacyCleanupJob('m1');
       await queue.drain();
 
       final memo = await memoRow('m1');
       expect(memo.status, 'ready');
-      expect(llm.cleanCalls, 1);
-      expect(memo.transcript, contains('světe!'),
-          reason: 'the cleaned transcript is the one shown');
-      expect(memo.rawTranscript, isNotNull,
-          reason: 'the engine\'s original take stays recoverable');
-      expect(memo.rawTranscript, isNot(contains('světe!')));
-      expect(memo.memoSummary, 'gist',
-          reason: 'the gist runs after (and on) the cleaned transcript');
+      expect(memo.memoSummary, 'gist');
+      expect(memo.rawTranscript, isNull, reason: 'nothing is rewritten');
       expect((await jobs()).map((j) => j.status), everyElement('done'));
     });
 
-    test('toggled off → straight to the gist, transcript untouched',
+    test('a cleanup row whose memo vanished (or never transcribed) is a no-op',
         () async {
-      await settings.setCleanupEnabled(false);
-      await seedMemo('m1');
-      await queue.enqueueTranscription('m1');
+      await seedLegacyCleanupJob('gone');
+      await seedMemo('m2'); // stored, no transcript
+      await seedLegacyCleanupJob('m2');
       await queue.drain();
 
-      expect(llm.cleanCalls, 0);
-      final memo = await memoRow('m1');
-      expect(memo.status, 'ready');
-      expect(memo.rawTranscript, isNull);
+      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect((await memoRow('m2')).memoSummary, isNull);
     });
 
-    test('cleanup is best-effort: an engine error keeps the original and '
-        'still summarizes', () async {
-      llm.cleanThrows = true;
-      await seedMemo('m1');
-      await queue.enqueueTranscription('m1');
-      await queue.drain();
-
-      final memo = await memoRow('m1');
-      expect(memo.status, 'ready');
-      expect(memo.rawTranscript, isNull, reason: 'nothing was rewritten');
-      expect(memo.transcript, contains('světe'));
-      expect(memo.memoSummary, 'gist');
-      expect((await jobs()).map((j) => j.status), everyElement('done'),
-          reason: 'a cleanup hiccup never fails the pipeline');
-    });
-
-    test('cleanup waits for the LLM; toggling off releases the memo as a '
-        'pass-through', () async {
+    test('legacy rows drain even while the LLM is missing', () async {
       llm.status = ModelStatus.notInstalled;
       await seedMemo('m1');
-      await queue.enqueueTranscription('m1');
+      await memos.setTranscript(
+          'm1',
+          Transcript(languageCode: 'cs', segments: [
+            Segment(startMs: 0, endMs: 900, words: const [
+              Word(text: 'ahoj', startMs: 0, endMs: 400),
+            ]),
+          ]),
+          MemoStatus.transcribed);
+      await seedLegacyCleanupJob('m1');
       await queue.drain();
-      expect((await memoRow('m1')).status, 'transcribed',
-          reason: 'cleanup parked on the missing model (§14)');
-      expect(llm.cleanCalls, 0);
 
-      await settings.setCleanupEnabled(false);
-      await queue.drain();
-      expect(llm.cleanCalls, 0,
-          reason: 'released as a pass-through, not run');
-      expect((await memoRow('m1')).rawTranscript, isNull);
+      final handed = await jobs();
+      expect(
+          handed
+              .where((j) => j.type == JobType.cleanupTranscript.name)
+              .map((j) => j.status),
+          everyElement('done'),
+          reason: 'the passthrough needs no model');
+      expect(
+          handed.where((j) => j.type == JobType.summarizeMemo.name).length, 1,
+          reason: 'the gist job parks on the missing model instead');
 
       llm.status = ModelStatus.ready;
       await queue.drain();
       expect((await memoRow('m1')).status, 'ready');
       expect((await memoRow('m1')).memoSummary, 'gist');
-    });
-
-    test('an already-cleaned memo is not cleaned twice on retry', () async {
-      await seedMemo('m1');
-      await queue.enqueueTranscription('m1');
-      await queue.drain();
-      expect(llm.cleanCalls, 1);
-      expect((await memoRow('m1')).rawTranscript, isNotNull);
-
-      await queue.retryEnrichment('m1');
-      await queue.drain();
-      expect(llm.cleanCalls, 1,
-          reason: 'rawTranscript marks the cleanup as done');
-      expect((await memoRow('m1')).status, 'ready');
     });
   });
 
@@ -684,7 +653,8 @@ void main() {
       await queue.enqueueTranscription('m2');
       await queue.drain();
       expect(engine.calls, 2);
-      expect((await memoRow('m1')).rawTranscript, isNotNull);
+      expect((await memoRow('m1')).transcript, isNotNull);
+      expect((await memoRow('m1')).memoSummary, 'gist');
 
       // "A better model was installed": the engine now hears more.
       engine.result = Transcript(languageCode: 'cs', segments: [

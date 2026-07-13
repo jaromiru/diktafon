@@ -572,13 +572,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get memoActions => 'Not işlemleri';
 
   @override
-  String get cleanupRow => 'Transkript temizliği';
-
-  @override
-  String get cleanupRowDesc =>
-      'Özet modeli yeni transkriptleri toparlar — yazım ve tanıma hataları';
-
-  @override
   String notifDownloading(String label) {
     return '$label indiriliyor';
   }

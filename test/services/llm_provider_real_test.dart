@@ -71,20 +71,6 @@ void main() {
       expect(title, isNotEmpty);
       expect(title.length, lessThanOrEqualTo(60));
       expect(title, isNot(contains('\n')));
-
-      // §6.8 cleanup smoke: the structural contract must hold regardless of
-      // what the model decides to fix — same segments/spans/language, no
-      // empty rewrites. (Actual corrections are not asserted: a 0.6B tier
-      // is too erratic for content expectations.)
-      final cleaned =
-          await provider.cleanTranscript(transcript, languageCode: 'cs');
-      expect(cleaned.languageCode, transcript.languageCode);
-      expect(cleaned.segments, hasLength(transcript.segments.length));
-      for (final (i, segment) in cleaned.segments.indexed) {
-        expect(segment.startMs, transcript.segments[i].startMs);
-        expect(segment.endMs, transcript.segments[i].endMs);
-        expect(segment.words, isNotEmpty);
-      }
     },
     skip: available ? false : skipNote,
     timeout: const Timeout(Duration(minutes: 5)),
@@ -92,8 +78,7 @@ void main() {
 
   // Per-language probes for the tr/ru/ko wave: the summary must come back
   // non-empty and — where the script is distinctive — *in that script*
-  // (prompts pin the output language per D8); cleanup must keep its
-  // structural contract on non-latin text. Reuses the same lib/model.
+  // (prompts pin the output language per D8). Reuses the same lib/model.
   const memoTexts = {
     'tr': 'yarın markete gidip süt ekmek ve peynir almam lazım ayrıca '
         'annemi arayıp hafta sonu planını sormalıyım',
@@ -109,7 +94,7 @@ void main() {
 
   for (final MapEntry(key: code, value: text) in memoTexts.entries) {
     test(
-      'the provider summarizes and cleans a $code memo in its own script',
+      'the provider summarizes a $code memo in its own script',
       () async {
         final dir = Directory.systemTemp.createTempSync('dk_llm_$code');
         addTearDown(() => dir.deleteSync(recursive: true));
@@ -138,16 +123,6 @@ void main() {
         if (script != null) {
           expect(gist, matches(script),
               reason: 'the summary must stay in the $code script');
-        }
-
-        final cleaned =
-            await provider.cleanTranscript(transcript, languageCode: code);
-        expect(cleaned.languageCode, transcript.languageCode);
-        expect(cleaned.segments, hasLength(transcript.segments.length));
-        for (final (i, segment) in cleaned.segments.indexed) {
-          expect(segment.startMs, transcript.segments[i].startMs);
-          expect(segment.endMs, transcript.segments[i].endMs);
-          expect(segment.words, isNotEmpty);
         }
       },
       skip: available ? false : skipNote,

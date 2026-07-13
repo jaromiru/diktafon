@@ -75,6 +75,95 @@ void main() {
     timeout: const Timeout(Duration(minutes: 3)),
   );
 
+  // The bundled Silero model ships in the repo — no extra env needed.
+  final vadModel =
+      '${Directory.current.path}/assets/models/ggml-silero-v5.1.2.bin';
+
+  test(
+    'full VAD path (§6.3a small/tiny mode): speech is transcribed with '
+    'original-timeline word timings',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('dk_whisper_vad_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      File(model!).copySync('${dir.path}/${WhisperModel.tiny.fileName}');
+
+      final worker = WhisperWorker(lib!);
+      addTearDown(worker.dispose);
+      final provider = WhisperCppTranscriptionProvider(
+        models: WhisperModelManager(dir),
+        decoder: FfmpegPcmDecoder(),
+        worker: worker,
+        tier: 'tiny',
+        vadModelPath: vadModel,
+      );
+
+      final transcript = await provider.transcribe(AudioRef(sample!));
+      final words = [
+        for (final segment in transcript.segments) ...segment.words
+      ];
+      final text = words.map((w) => w.text).join(' ').toLowerCase();
+      expect(text, contains('ask not what your country'),
+          reason: 'VAD must not eat real speech');
+      // Token times are interpolated back from the VAD-collapsed stream
+      // onto the original timeline — they must stay usable for tap-to-seek.
+      for (final word in words) {
+        expect(word.startMs, greaterThanOrEqualTo(0));
+        expect(word.endMs, greaterThanOrEqualTo(word.startMs));
+        expect(word.endMs, lessThanOrEqualTo(12_000));
+      }
+      for (var i = 1; i < words.length; i++) {
+        expect(words[i].startMs, greaterThanOrEqualTo(words[i - 1].startMs),
+            reason: 'word starts are monotonic after VAD re-mapping');
+      }
+    },
+    skip: available
+        ? false
+        : 'set DIKTAFON_LIBWHISPER / DIKTAFON_WHISPER_MODEL / '
+            'DIKTAFON_WHISPER_SAMPLE to run the real engine test',
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
+    'gate-only VAD (§6.3a large mode): speech detected, silence skipped',
+    () async {
+      final worker = WhisperWorker(lib!);
+      addTearDown(worker.dispose);
+
+      final dir = Directory.systemTemp.createTempSync('dk_vad_gate_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final speechPcm = '${dir.path}/speech.f32';
+      await FfmpegPcmDecoder().decodeToF32(sample!, speechPcm);
+      expect(
+        await worker.detectSpeech(
+            vadModelPath: vadModel, pcmPath: speechPcm, threads: 4),
+        isTrue,
+      );
+
+      // 5 s of pure silence — the gate must say "skip whisper".
+      final silencePcm = '${dir.path}/silence.f32';
+      File(silencePcm).writeAsBytesSync(List.filled(16000 * 5 * 4, 0));
+      expect(
+        await worker.detectSpeech(
+            vadModelPath: vadModel, pcmPath: silencePcm, threads: 4),
+        isFalse,
+      );
+
+      // A bad model path surfaces as an exception (the provider fails open).
+      expect(
+        () => worker.detectSpeech(
+            vadModelPath: '${dir.path}/missing.bin',
+            pcmPath: silencePcm,
+            threads: 4),
+        throwsA(isA<WhisperWorkerException>()),
+      );
+    },
+    skip: available
+        ? false
+        : 'set DIKTAFON_LIBWHISPER / DIKTAFON_WHISPER_MODEL / '
+            'DIKTAFON_WHISPER_SAMPLE to run the real engine test',
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
   test(
     'cancellation mid-inference surfaces as TranscriptionCancelled',
     () async {

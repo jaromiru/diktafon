@@ -72,6 +72,15 @@ DK_EXPORT int32_t      dk_whisper_token_is_text(dk_whisper * dw, int32_t i, int3
 DK_EXPORT float        dk_whisper_segment_no_speech_prob(dk_whisper * dw, int32_t i);
 DK_EXPORT float        dk_whisper_segment_avg_token_p(dk_whisper * dw, int32_t i);
 
+/* Gate-only VAD (design.md §6.3a, the large-tier mode): scans 16 kHz mono
+ * float32 PCM with the Silero model and reports whether any speech region
+ * exists, without touching the audio that whisper later sees.
+ * Returns 1 = speech, 0 = none, -1 = error (bad model path etc.). */
+DK_EXPORT int32_t dk_whisper_vad_has_speech(const char * vad_model_path,
+                                            const float * pcm,
+                                            int32_t n_samples,
+                                            int32_t n_threads);
+
 #ifdef __cplusplus
 }
 #endif

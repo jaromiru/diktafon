@@ -58,6 +58,11 @@ class RecorderService {
         sampleRate: 16000,
         numChannels: 1,
         bitRate: 48000,
+        // VOICE_RECOGNITION is the CDD-mandated clean feed (flat ±3 dB,
+        // OEM noise-suppression/AGC off) — closest to whisper's training
+        // distribution (§6.4; noise-robust-transcription.md §3.5).
+        androidConfig: AndroidRecordConfig(
+            audioSource: AndroidAudioSource.voiceRecognition),
       ),
       path: path,
     );

@@ -76,7 +76,11 @@ class WhisperBindings {
         segmentAvgTokenP = lib.lookupFunction<
             Float Function(Pointer<Void>, Int32),
             double Function(
-                Pointer<Void>, int)>('dk_whisper_segment_avg_token_p');
+                Pointer<Void>, int)>('dk_whisper_segment_avg_token_p'),
+        vadHasSpeech = lib.lookupFunction<
+            Int32 Function(Pointer<Utf8>, Pointer<Float>, Int32, Int32),
+            int Function(Pointer<Utf8>, Pointer<Float>, int,
+                int)>('dk_whisper_vad_has_speech');
 
   factory WhisperBindings.open(String libraryPath) =>
       WhisperBindings(DynamicLibrary.open(libraryPath));
@@ -106,6 +110,12 @@ class WhisperBindings {
   /// segment — the hallucination-filter signals (phase 1.3).
   final double Function(Pointer<Void>, int) segmentNoSpeechProb;
   final double Function(Pointer<Void>, int) segmentAvgTokenP;
+
+  /// Gate-only VAD: 1 = the PCM contains speech, 0 = none, -1 = error.
+  /// Standalone (no dk_whisper context) — the large tier uses it to skip
+  /// inference entirely on non-speech memos without altering the audio.
+  final int Function(Pointer<Utf8> vadModelPath, Pointer<Float> pcm,
+      int nSamples, int nThreads) vadHasSpeech;
 }
 
 /// Copies a NUL-terminated C string as raw bytes. Token text may hold a

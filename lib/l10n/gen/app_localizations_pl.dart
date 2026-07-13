@@ -607,13 +607,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get memoActions => 'Działania nagrania';
 
   @override
-  String get cleanupRow => 'Czyszczenie transkrypcji';
-
-  @override
-  String get cleanupRowDesc =>
-      'Model streszczeń poprawia świeże transkrypcje — literówki i przesłyszenia';
-
-  @override
   String notifDownloading(String label) {
     return 'Pobieranie: $label';
   }

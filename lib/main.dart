@@ -45,7 +45,9 @@ Future<void> main() async {
     whisperModelManagerProvider.overrideWithValue(whisperModels),
     llmModelManagerProvider.overrideWithValue(llmModels),
     chimeFileProvider.overrideWithValue(
-        await _materializeChime(supportDir.path)),
+        await _materializeAsset('assets/audio/chime.wav', supportDir.path)),
+    vadModelFileProvider.overrideWithValue(await _materializeAsset(
+        'assets/models/ggml-silero-v5.1.2.bin', modelsDir.path)),
   ]);
 
   // iOS moves the data container on app updates/reinstalls — repoint stored
@@ -105,14 +107,15 @@ Future<void> _attachDownloadNotifications(
     ..attach(llmModels, idBase: 200);
 }
 
-/// just_audio's media_kit backend plays files, not bundle assets — copy the
-/// chime out of the bundle once. Null (asset missing) → no chime, D5's "off"
-/// behavior, rather than a startup failure.
-Future<String?> _materializeChime(String supportDir) async {
+/// Neither just_audio's media_kit backend nor the native engines read
+/// bundle assets — copy the asset out once (chime → app-support, Silero VAD
+/// → the backup-excluded models dir). Null (asset missing) → the feature
+/// quietly stays off rather than failing startup.
+Future<String?> _materializeAsset(String assetKey, String dir) async {
   try {
-    final file = File('$supportDir/chime.wav');
+    final file = File('$dir/${assetKey.split('/').last}');
     if (!await file.exists()) {
-      final data = await rootBundle.load('assets/audio/chime.wav');
+      final data = await rootBundle.load(assetKey);
       await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
     }
     return file.path;

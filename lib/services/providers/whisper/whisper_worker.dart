@@ -106,6 +106,31 @@ class WhisperWorker {
         (response['transcript'] as Map).cast<String, dynamic>());
   }
 
+  /// Gate-only VAD (design.md §6.3a): does the PCM file contain any speech?
+  /// Runs the Silero model alone — whisper never loads. Errors surface as
+  /// [WhisperWorkerException]; the caller decides whether to fail open.
+  Future<bool> detectSpeech({
+    required String vadModelPath,
+    required String pcmPath,
+    required int threads,
+  }) async {
+    await _ensureSpawned();
+    final id = _nextRequestId++;
+    final completer = Completer<Map<dynamic, dynamic>>();
+    _inFlight[id] = completer;
+    _commands!.send({
+      'id': id,
+      'detect': true,
+      'vad': vadModelPath,
+      'pcm': pcmPath,
+      'threads': threads,
+    });
+    final response = await completer.future;
+    final error = response['error'];
+    if (error != null) throw WhisperWorkerException(error as String);
+    return response['speech'] as bool;
+  }
+
   Future<void> dispose() async {
     _spawning = null;
     _commands?.send(const {'id': -1, 'close': true});
@@ -143,6 +168,18 @@ void _workerMain(List<Object> args) {
     final id = request['id'] as int;
     try {
       bindings ??= WhisperBindings.open(libraryPath);
+      if (request['detect'] == true) {
+        replyTo.send({
+          'id': id,
+          'speech': _detectSpeech(
+            bindings!,
+            vadModelPath: request['vad'] as String,
+            pcmPath: request['pcm'] as String,
+            threads: request['threads'] as int,
+          ),
+        });
+        return;
+      }
       final modelPath = request['model'] as String;
       if (context == nullptr || loadedModelPath != modelPath) {
         if (context != nullptr) bindings!.free(context);
@@ -177,6 +214,29 @@ void _workerMain(List<Object> args) {
       replyTo.send({'id': id, 'error': e.toString()});
     }
   });
+}
+
+bool _detectSpeech(
+  WhisperBindings bindings, {
+  required String vadModelPath,
+  required String pcmPath,
+  required int threads,
+}) {
+  final bytes = File(pcmPath).readAsBytesSync();
+  final pcm = bytes.buffer.asFloat32List(0, bytes.lengthInBytes ~/ 4);
+  final pcmC = calloc<Float>(max(pcm.length, 1));
+  final pathC = vadModelPath.toNativeUtf8();
+  try {
+    pcmC.asTypedList(max(pcm.length, 1)).setRange(0, pcm.length, pcm);
+    final ret = bindings.vadHasSpeech(pathC, pcmC, pcm.length, threads);
+    if (ret < 0) {
+      throw WhisperWorkerException('VAD failed on $vadModelPath');
+    }
+    return ret == 1;
+  } finally {
+    calloc.free(pcmC);
+    calloc.free(pathC);
+  }
 }
 
 Pointer<Void> _initContext(WhisperBindings bindings, String modelPath) {

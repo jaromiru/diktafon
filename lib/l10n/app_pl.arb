@@ -154,8 +154,6 @@
   "transcriptCopied": "Skopiowano transkrypcję.",
   "deleteMemo": "Usuń nagranie",
   "memoActions": "Działania nagrania",
-  "cleanupRow": "Czyszczenie transkrypcji",
-  "cleanupRowDesc": "Model streszczeń poprawia świeże transkrypcje — literówki i przesłyszenia",
   "notifDownloading": "Pobieranie: {label}",
   "notifModelInstalled": "Zainstalowano {label}"
 }

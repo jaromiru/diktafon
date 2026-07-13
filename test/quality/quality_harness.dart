@@ -1,15 +1,13 @@
 /// Transcription quality bench (docs/features/noise-robust-transcription.md,
 /// phase 0): runs one *variant* — a whisper model + engine build + optional
-/// ffmpeg decode filter + optional LLM cleanup — over the verified fixtures
-/// in `quality_test/` and scores WER/CER against the sibling `.txt`
-/// references.
+/// ffmpeg decode filter — over the verified fixtures in `quality_test/` and
+/// scores WER/CER against the sibling `.txt` references. (The phase-0 LLM
+/// cleanup mode left with the §6.8 feature — the bench proved it WER-inert.)
 ///
 /// Results are written after every clip to
 /// `<out>/<variant>.json` so an interrupted sweep resumes where it stopped
 /// (existing clips whose config matches are not re-run). Raw whisper
-/// transcripts (with word timings) are stored in the JSON, so cleanup-only
-/// variants can reuse them via [QualityConfig.sourceVariant] instead of
-/// re-running the (slow, deterministic) whisper pass.
+/// transcripts (with word timings) are stored in the JSON.
 ///
 /// Everything is env-driven — see `test/quality/README.md`.
 library;
@@ -21,9 +19,6 @@ import 'dart:math';
 
 import 'package:diktafon/domain/models.dart';
 import 'package:diktafon/services/audio/pcm_highpass.dart';
-import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
-import 'package:diktafon/services/providers/llm/llm_summarization_provider.dart';
-import 'package:diktafon/services/providers/llm/llama_worker.dart';
 import 'package:diktafon/services/providers/whisper/whisper_worker.dart';
 import 'package:ffi/ffi.dart';
 
@@ -38,10 +33,6 @@ class QualityConfig {
     required this.whisperModel,
     required this.ffmpegFilter,
     required this.forceLanguage,
-    required this.llamaLib,
-    required this.llmModel,
-    required this.llmTier,
-    required this.sourceVariant,
     required this.note,
     this.rescore = false,
     this.highPassHz,
@@ -65,14 +56,6 @@ class QualityConfig {
   /// override path); default is auto-detect (D8, production default).
   final bool forceLanguage;
 
-  final String? llamaLib;
-  final String? llmModel;
-  final String llmTier;
-
-  /// When set, whisper is skipped: raw transcripts are read from this
-  /// variant's results file and only cleanup + scoring run.
-  final String? sourceVariant;
-
   /// Free-form provenance (branch/commit), stored in the results file.
   final String? note;
 
@@ -87,11 +70,10 @@ class QualityConfig {
   /// > 1 = beam-search decoding with this beam size (quality/beam branch).
   final int beamSize;
 
-  /// Silero VAD ggml model gating inference to detected speech regions
-  /// (quality/vad branch); null = off.
+  /// Silero VAD ggml model gating inference to detected speech regions;
+  /// null = off. Tuned params are baked into the shim (DK_WHISPER_VAD_*
+  /// env knobs still override for sweeps).
   final String? vadModelPath;
-
-  bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
     final variant = env['DIKTAFON_QUALITY_VARIANT'];
@@ -105,10 +87,6 @@ class QualityConfig {
       whisperModel: env['DIKTAFON_WHISPER_MODEL'],
       ffmpegFilter: env['DIKTAFON_QUALITY_FILTER'],
       forceLanguage: env['DIKTAFON_QUALITY_LANG'] == 'file',
-      llamaLib: env['DIKTAFON_LIBLLAMA'],
-      llmModel: env['DIKTAFON_LLM_MODEL'],
-      llmTier: env['DIKTAFON_LLM_TIER'] ?? LlmModel.qwen3_1_7b.tier,
-      sourceVariant: env['DIKTAFON_QUALITY_SOURCE'],
       note: env['DIKTAFON_QUALITY_NOTE'],
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
       highPassHz: double.tryParse(env['DIKTAFON_QUALITY_HPF'] ?? ''),
@@ -123,8 +101,6 @@ class QualityConfig {
             whisperModel == null ? null : File(whisperModel!).uri.pathSegments.last,
         'ffmpegFilter': ffmpegFilter,
         'forceLanguage': forceLanguage,
-        'cleanupTier': cleanupEnabled ? llmTier : null,
-        'sourceVariant': sourceVariant,
         if (highPassHz != null) 'highPassHz': highPassHz,
         if (beamSize > 1) 'beamSize': beamSize,
         if (vadModelPath != null)
@@ -195,38 +171,11 @@ Future<void> runVariant(QualityConfig config) async {
   }
   final clipResults = results['clips'] as Map<String, dynamic>;
 
-  // Source transcripts for cleanup-only variants.
-  Map<String, dynamic>? sourceClips;
-  if (config.sourceVariant != null) {
-    final sourceFile =
-        File('${config.outDir.path}/${config.sourceVariant}.json');
-    sourceClips = (jsonDecode(sourceFile.readAsStringSync())
-        as Map<String, dynamic>)['clips'] as Map<String, dynamic>;
-  }
-
-  WhisperWorker? whisper;
-  LlamaWorker? llama;
-  LocalLlmSummarizationProvider? cleaner;
-  Directory? llmDir;
+  // Spawned lazily on first transcribe — a pure rescore run (all clips
+  // cached) needs no engine lib at all.
+  final whisper = WhisperWorker(config.whisperLib ?? '');
   final cancelFlag = calloc<Int32>();
   try {
-    if (config.sourceVariant == null) {
-      whisper = WhisperWorker(config.whisperLib!);
-    }
-    if (config.cleanupEnabled) {
-      // The provider resolves models by canonical file name in a dir.
-      final model = LlmModel.byTier(config.llmTier);
-      llmDir = Directory.systemTemp.createTempSync('dk_quality_llm_');
-      Link('${llmDir.path}/${model.fileName}')
-          .createSync(File(config.llmModel!).absolute.path);
-      llama = LlamaWorker(config.llamaLib!);
-      cleaner = LocalLlmSummarizationProvider(
-        models: LlmModelManager(llmDir),
-        worker: llama,
-        tier: model.tier,
-      );
-    }
-
     for (final clip in clips) {
       if (clipResults.containsKey(clip.name)) {
         if (config.rescore) {
@@ -242,66 +191,42 @@ Future<void> runVariant(QualityConfig config) async {
       stdout.writeln('[bench] ${clip.name}: running…');
       final entry = <String, dynamic>{'language': clip.language};
 
-      Transcript raw;
-      if (sourceClips != null) {
-        final source = sourceClips[clip.name] as Map<String, dynamic>?;
-        if (source == null) {
-          throw StateError(
-              'source variant ${config.sourceVariant} has no clip ${clip.name}');
-        }
-        raw = Transcript.fromJson(
-            (source['transcript'] as Map).cast<String, dynamic>());
-        entry['detectedLanguage'] = source['detectedLanguage'];
-        entry['transcribeMs'] = source['transcribeMs'];
-      } else {
-        final pcmPath = '${Directory.systemTemp.path}/dk_quality_'
-            '${clip.name}.f32';
-        final decodeWatch = Stopwatch()..start();
-        await decodeToF32(clip.audioPath, pcmPath, config.ffmpegFilter);
-        if (config.highPassHz != null) {
-          await highPassPcmFile(pcmPath, cutoffHz: config.highPassHz!);
-        }
-        entry['decodeMs'] = decodeWatch.elapsedMilliseconds;
-
-        final watch = Stopwatch()..start();
-        raw = await whisper!.transcribe(
-          modelPath: config.whisperModel!,
-          pcmPath: pcmPath,
-          languageCode: config.forceLanguage ? clip.language : null,
-          cancelFlagAddress: cancelFlag.address,
-          threads: benchThreads,
-          beamSize: config.beamSize,
-          vadModelPath: config.vadModelPath,
-        );
-        entry['transcribeMs'] = watch.elapsedMilliseconds;
-        entry['detectedLanguage'] = raw.languageCode;
-        // Decoder confidence per kept segment (quality/confidence branch):
-        // recorded for post-hoc threshold analysis, not filtered here.
-        entry['segmentConfidence'] = [
-          for (final (i, c) in whisper.lastSegmentConfidence.indexed)
-            {
-              'noSpeechProb': c.noSpeechProb,
-              'avgTokenP': c.avgTokenP,
-              'text': raw.segments[i].words.map((w) => w.text).join(' '),
-            },
-        ];
-        File(pcmPath).deleteSync();
+      final pcmPath = '${Directory.systemTemp.path}/dk_quality_'
+          '${clip.name}.f32';
+      final decodeWatch = Stopwatch()..start();
+      await decodeToF32(clip.audioPath, pcmPath, config.ffmpegFilter);
+      if (config.highPassHz != null) {
+        await highPassPcmFile(pcmPath, cutoffHz: config.highPassHz!);
       }
+      entry['decodeMs'] = decodeWatch.elapsedMilliseconds;
+
+      final watch = Stopwatch()..start();
+      final raw = await whisper.transcribe(
+        modelPath: config.whisperModel!,
+        pcmPath: pcmPath,
+        languageCode: config.forceLanguage ? clip.language : null,
+        cancelFlagAddress: cancelFlag.address,
+        threads: benchThreads,
+        beamSize: config.beamSize,
+        vadModelPath: config.vadModelPath,
+      );
+      entry['transcribeMs'] = watch.elapsedMilliseconds;
+      entry['detectedLanguage'] = raw.languageCode;
+      // Decoder confidence per kept segment: recorded for post-hoc
+      // threshold analysis, not filtered here.
+      entry['segmentConfidence'] = [
+        for (final (i, c) in whisper.lastSegmentConfidence.indexed)
+          {
+            'noSpeechProb': c.noSpeechProb,
+            'avgTokenP': c.avgTokenP,
+            'text': raw.segments[i].words.map((w) => w.text).join(' '),
+          },
+      ];
+      File(pcmPath).deleteSync();
       entry['transcript'] = raw.toJson();
       entry['rawText'] = transcriptText(raw);
 
-      var scored = raw;
-      if (cleaner != null) {
-        final watch = Stopwatch()..start();
-        // Production passes the memo's (detected) language to cleanup.
-        scored = await cleaner.cleanTranscript(raw,
-            languageCode: raw.languageCode);
-        entry['cleanupMs'] = watch.elapsedMilliseconds;
-        entry['cleanedText'] = transcriptText(scored);
-      }
-
-      final text = transcriptText(scored);
-      score(entry, clip, text);
+      score(entry, clip, transcriptText(raw));
 
       clipResults[clip.name] = entry;
       results['aggregate'] = aggregate(clipResults);
@@ -327,9 +252,7 @@ Future<void> runVariant(QualityConfig config) async {
         ' en ${(agg['werEn'] * 100).toStringAsFixed(1)}%)');
   } finally {
     calloc.free(cancelFlag);
-    await whisper?.dispose();
-    await llama?.dispose();
-    llmDir?.deleteSync(recursive: true);
+    await whisper.dispose();
   }
 }
 

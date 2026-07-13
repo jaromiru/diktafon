@@ -154,8 +154,6 @@
   "transcriptCopied": "Расшифровка скопирована.",
   "deleteMemo": "Удалить запись",
   "memoActions": "Действия с записью",
-  "cleanupRow": "Чистка расшифровок",
-  "cleanupRowDesc": "Модель сводок приводит свежие расшифровки в порядок — орфография и ослышки",
   "notifDownloading": "Скачивается {label}",
   "notifModelInstalled": "{label} — установлено"
 }

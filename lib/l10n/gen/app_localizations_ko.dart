@@ -536,12 +536,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memoActions => '메모 동작';
 
   @override
-  String get cleanupRow => '변환 텍스트 다듬기';
-
-  @override
-  String get cleanupRowDesc => '요약 모델이 새 변환 텍스트를 다듬습니다 — 맞춤법과 인식 오류';
-
-  @override
   String notifDownloading(String label) {
     return '$label 다운로드 중';
   }

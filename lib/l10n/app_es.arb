@@ -154,8 +154,6 @@
   "transcriptCopied": "Transcripción copiada.",
   "deleteMemo": "Eliminar nota",
   "memoActions": "Acciones de la nota",
-  "cleanupRow": "Limpieza de transcripciones",
-  "cleanupRowDesc": "El modelo de resúmenes pule las transcripciones — errores de ortografía y de reconocimiento",
   "notifDownloading": "Descargando {label}",
   "notifModelInstalled": "{label} instalado"
 }

@@ -154,8 +154,6 @@
   "transcriptCopied": "Transkript kopiert.",
   "deleteMemo": "Memo löschen",
   "memoActions": "Memo-Aktionen",
-  "cleanupRow": "Transkript-Korrektur",
-  "cleanupRowDesc": "Das Zusammenfassungsmodell glättet frische Transkripte — Tipp- und Hörfehler",
   "notifDownloading": "{label} wird heruntergeladen",
   "notifModelInstalled": "{label} installiert"
 }

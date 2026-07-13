@@ -71,6 +71,10 @@ final llamaWorkerProvider = Provider<LlamaWorker>((ref) {
   return worker;
 });
 
+/// Silero VAD model file, materialized from the bundled asset by main()
+/// (§6.3a). Null (tests, missing asset) → transcription runs VAD-free.
+final vadModelFileProvider = Provider<String?>((ref) => null);
+
 /// The two swappable intelligence seams (§6.3): whisper (D2, M2) and the
 /// local LLM (D3, M3).
 final transcriptionProvider = Provider<TranscriptionProvider>((ref) {
@@ -80,6 +84,7 @@ final transcriptionProvider = Provider<TranscriptionProvider>((ref) {
     decoder: ref.watch(pcmDecoderProvider),
     worker: ref.watch(whisperWorkerProvider),
     tier: settings.whisperTier,
+    vadModelPath: ref.watch(vadModelFileProvider),
   );
 });
 

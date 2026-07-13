@@ -572,13 +572,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoActions => 'Memo actions';
 
   @override
-  String get cleanupRow => 'Transcript cleanup';
-
-  @override
-  String get cleanupRowDesc =>
-      'The summary model tidies fresh transcripts — spelling & recognition slips';
-
-  @override
   String notifDownloading(String label) {
     return 'Downloading $label';
   }
