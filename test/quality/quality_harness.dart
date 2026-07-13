@@ -43,6 +43,7 @@ class QualityConfig {
     required this.sourceVariant,
     required this.note,
     this.rescore = false,
+    this.vadModelPath,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -76,6 +77,10 @@ class QualityConfig {
   /// changes) instead of skipping them.
   final bool rescore;
 
+  /// Silero VAD ggml model gating inference to detected speech regions
+  /// (quality/vad branch); null = off.
+  final String? vadModelPath;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -96,6 +101,7 @@ class QualityConfig {
       sourceVariant: env['DIKTAFON_QUALITY_SOURCE'],
       note: env['DIKTAFON_QUALITY_NOTE'],
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
+      vadModelPath: env['DIKTAFON_QUALITY_VAD'],
     );
   }
 
@@ -107,6 +113,8 @@ class QualityConfig {
         'forceLanguage': forceLanguage,
         'cleanupTier': cleanupEnabled ? llmTier : null,
         'sourceVariant': sourceVariant,
+        if (vadModelPath != null)
+          'vad': File(vadModelPath!).uri.pathSegments.last,
       };
 }
 
@@ -245,6 +253,7 @@ Future<void> runVariant(QualityConfig config) async {
           languageCode: config.forceLanguage ? clip.language : null,
           cancelFlagAddress: cancelFlag.address,
           threads: benchThreads,
+          vadModelPath: config.vadModelPath,
         );
         entry['transcribeMs'] = watch.elapsedMilliseconds;
         entry['detectedLanguage'] = raw.languageCode;

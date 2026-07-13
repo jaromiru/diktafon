@@ -11,6 +11,10 @@ struct dk_whisper {
     whisper_context * ctx = nullptr;
     // Language actually used for the last run (explicit or detected).
     std::string lang;
+    // Silero VAD model path; empty = VAD off.
+    std::string vad_model_path;
+    // Whether the last run used VAD (token times then need mapping).
+    bool vad_used = false;
 };
 
 namespace {
@@ -56,6 +60,10 @@ void dk_whisper_free(dk_whisper * dw) {
     delete dw;
 }
 
+void dk_whisper_set_vad_model(dk_whisper * dw, const char * model_path) {
+    dw->vad_model_path = model_path != nullptr ? model_path : "";
+}
+
 int32_t dk_whisper_transcribe(dk_whisper * dw,
                               const float * pcm,
                               int32_t n_samples,
@@ -64,6 +72,16 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
                               const int32_t * cancel) {
     whisper_full_params wparams =
         whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+
+    // Silero VAD (docs/features/noise-robust-transcription.md phase 1.1):
+    // only detected speech regions reach the whisper encoder — cuts
+    // hallucinations on noise-only stretches and skips silence. Defaults
+    // from whisper_vad_default_params (threshold 0.5, min speech 250 ms).
+    dw->vad_used = !dw->vad_model_path.empty();
+    if (dw->vad_used) {
+        wparams.vad            = true;
+        wparams.vad_model_path = dw->vad_model_path.c_str();
+    }
 
     wparams.print_realtime   = false;
     wparams.print_progress   = false;
@@ -115,12 +133,42 @@ const char * dk_whisper_token_text(dk_whisper * dw, int32_t i, int32_t j) {
     return whisper_full_get_token_text(dw->ctx, i, j);
 }
 
+namespace {
+
+// With VAD enabled, whisper.cpp maps only *segment* timestamps back to the
+// original timeline (state->vad_mapping_table, whisper.cpp:7983+); token
+// getters still return times on the VAD-collapsed stream. Interpolate each
+// token linearly from the segment's raw token span onto its mapped span —
+// exact within one speech region, and keeps word taps/highlight usable.
+int64_t dk_token_time_ms(dk_whisper * dw, int32_t i, int64_t t_raw) {
+    if (!dw->vad_used) {
+        return t_raw * 10;
+    }
+    const int32_t n = whisper_full_n_tokens(dw->ctx, i);
+    if (n <= 0) {
+        return whisper_full_get_segment_t0(dw->ctx, i) * 10;
+    }
+    const int64_t raw0 = whisper_full_get_token_data(dw->ctx, i, 0).t0;
+    const int64_t raw1 = whisper_full_get_token_data(dw->ctx, i, n - 1).t1;
+    const int64_t map0 = whisper_full_get_segment_t0(dw->ctx, i);
+    const int64_t map1 = whisper_full_get_segment_t1(dw->ctx, i);
+    if (raw1 <= raw0) {
+        return map0 * 10;
+    }
+    const int64_t clamped = t_raw < raw0 ? raw0 : (t_raw > raw1 ? raw1 : t_raw);
+    return (map0 + ((clamped - raw0) * (map1 - map0)) / (raw1 - raw0)) * 10;
+}
+
+} // namespace
+
 int64_t dk_whisper_token_t0_ms(dk_whisper * dw, int32_t i, int32_t j) {
-    return whisper_full_get_token_data(dw->ctx, i, j).t0 * 10;
+    return dk_token_time_ms(
+        dw, i, whisper_full_get_token_data(dw->ctx, i, j).t0);
 }
 
 int64_t dk_whisper_token_t1_ms(dk_whisper * dw, int32_t i, int32_t j) {
-    return whisper_full_get_token_data(dw->ctx, i, j).t1 * 10;
+    return dk_token_time_ms(
+        dw, i, whisper_full_get_token_data(dw->ctx, i, j).t1);
 }
 
 int32_t dk_whisper_token_is_text(dk_whisper * dw, int32_t i, int32_t j) {

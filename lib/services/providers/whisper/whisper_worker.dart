@@ -62,13 +62,15 @@ class WhisperWorker {
   }
 
   /// Transcribes the raw PCM file; [cancelFlagAddress] is a caller-owned
-  /// native int32 polled by the engine (non-zero aborts).
+  /// native int32 polled by the engine (non-zero aborts). [vadModelPath]
+  /// (a Silero ggml file) gates inference to detected speech regions.
   Future<Transcript> transcribe({
     required String modelPath,
     required String pcmPath,
     String? languageCode,
     required int cancelFlagAddress,
     required int threads,
+    String? vadModelPath,
   }) async {
     await _ensureSpawned();
     final id = _nextRequestId++;
@@ -81,6 +83,7 @@ class WhisperWorker {
       'lang': languageCode,
       'cancel': cancelFlagAddress,
       'threads': threads,
+      'vad': vadModelPath,
     });
     final response = await completer.future;
     final error = response['error'];
@@ -131,6 +134,12 @@ void _workerMain(List<Object> args) {
         if (context != nullptr) bindings!.free(context);
         context = _initContext(bindings!, modelPath);
         loadedModelPath = modelPath;
+      }
+      final vadC = ((request['vad'] as String?) ?? '').toNativeUtf8();
+      try {
+        bindings!.setVadModel(context, vadC);
+      } finally {
+        calloc.free(vadC);
       }
       final transcript = _transcribeFile(
         bindings!,

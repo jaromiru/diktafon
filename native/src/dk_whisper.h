@@ -27,6 +27,14 @@ typedef struct dk_whisper dk_whisper;
 DK_EXPORT dk_whisper * dk_whisper_init(const char * model_path);
 DK_EXPORT void dk_whisper_free(dk_whisper * dw);
 
+/* Silero VAD model (ggml) for subsequent transcribes; NULL or empty
+ * disables VAD (the default). With VAD on, only detected speech regions
+ * reach the encoder; segment AND token timestamps stay on the original
+ * timeline (tokens via segment-bounded interpolation in the shim —
+ * docs/features/noise-robust-transcription.md phase 1.1). */
+DK_EXPORT void dk_whisper_set_vad_model(dk_whisper * dw,
+                                        const char * model_path);
+
 /* Transcribes 16 kHz mono float32 PCM.
  * lang    ISO-639-1 code, or NULL to auto-detect (D8).
  * cancel  optional flag; set *cancel to non-zero to abort mid-inference.
