@@ -248,6 +248,16 @@ Future<void> runVariant(QualityConfig config) async {
         );
         entry['transcribeMs'] = watch.elapsedMilliseconds;
         entry['detectedLanguage'] = raw.languageCode;
+        // Decoder confidence per kept segment (quality/confidence branch):
+        // recorded for post-hoc threshold analysis, not filtered here.
+        entry['segmentConfidence'] = [
+          for (final (i, c) in whisper.lastSegmentConfidence.indexed)
+            {
+              'noSpeechProb': c.noSpeechProb,
+              'avgTokenP': c.avgTokenP,
+              'text': raw.segments[i].words.map((w) => w.text).join(' '),
+            },
+        ];
         File(pcmPath).deleteSync();
       }
       entry['transcript'] = raw.toJson();
