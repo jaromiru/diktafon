@@ -47,4 +47,24 @@ void main() {
     expect(counts.substitutions, 1);
     expect(counts.referenceLength, 4);
   });
+
+  test('[???] matches any one word or none, free of charge', () {
+    final matched = wordErrors('šel jsem [???] domů', 'šel jsem rychle domů');
+    expect(matched.errors, 0);
+    expect(matched.referenceLength, 3, reason: 'wildcard is not counted');
+
+    final skipped = wordErrors('šel jsem [???] domů', 'šel jsem domů');
+    expect(skipped.errors, 0);
+
+    final twoExtra = wordErrors('šel jsem [???] domů', 'šel jsem moc rychle domů');
+    expect(twoExtra.errors, 1, reason: 'wildcard covers only one word');
+  });
+
+  test('standalone digits are spelled out per language', () {
+    expect(wordErrors('rozměr osm a deset', 'rozměr 8 a 10', language: 'cs')
+        .errors, 0);
+    expect(wordErrors('number ten', 'number 10', language: 'en').errors, 0);
+    expect(wordErrors('rok 2026', 'rok 2026', language: 'cs').errors, 0,
+        reason: 'large numbers stay digits');
+  });
 }

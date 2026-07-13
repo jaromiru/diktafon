@@ -37,14 +37,18 @@ Optional environment:
 | `DIKTAFON_LIBLLAMA` + `DIKTAFON_LLM_MODEL` + `DIKTAFON_LLM_TIER` | run §6.8 transcript cleanup and score its output |
 | `DIKTAFON_QUALITY_SOURCE=<variant>` | skip whisper; reuse raw transcripts from that variant's results file (cleanup-only runs) |
 | `DIKTAFON_QUALITY_NOTE` | provenance string stored in the results file (branch/commit) |
+| `DIKTAFON_QUALITY_RESCORE=1` | re-score cached clips from their stored hypothesis text (after scorer changes) instead of skipping them |
 
 `DIKTAFON_LLM_TIER` must name a catalog tier (`qwen3-1.7b`, `qwen3-4b`);
 the model file is symlinked under its canonical name for the provider.
 
 ## Scoring
 
-`wer.dart`: lowercase, strip punctuation (diacritics kept), word-level
+`wer.dart`: lowercase, strip punctuation (diacritics kept), standalone
+digits 0–20 spelled out per language ("10" ≍ "deset"), word-level
 Levenshtein with S/D/I attribution; WER = (S+D+I)/N over the pooled corpus
-(and per language). CER on the same normalized text. Hypotheses, raw
+(and per language). A literal `[???]` in a reference (a word the verifier
+could not discern) matches any one hypothesis word or none, free, and is
+excluded from N. CER on the same normalized text. Hypotheses, raw
 transcripts (with word timings) and references are stored in the JSON for
 inspection and for `DIKTAFON_QUALITY_SOURCE` reuse.

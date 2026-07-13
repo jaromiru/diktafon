@@ -42,6 +42,7 @@ class QualityConfig {
     required this.llmTier,
     required this.sourceVariant,
     required this.note,
+    this.rescore = false,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -71,6 +72,10 @@ class QualityConfig {
   /// Free-form provenance (branch/commit), stored in the results file.
   final String? note;
 
+  /// Re-score cached clips from their stored hypothesis text (scorer
+  /// changes) instead of skipping them.
+  final bool rescore;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -90,6 +95,7 @@ class QualityConfig {
       llmTier: env['DIKTAFON_LLM_TIER'] ?? LlmModel.qwen3_1_7b.tier,
       sourceVariant: env['DIKTAFON_QUALITY_SOURCE'],
       note: env['DIKTAFON_QUALITY_NOTE'],
+      rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
     );
   }
 
@@ -201,7 +207,14 @@ Future<void> runVariant(QualityConfig config) async {
 
     for (final clip in clips) {
       if (clipResults.containsKey(clip.name)) {
-        stdout.writeln('[bench] ${clip.name}: cached, skipping');
+        if (config.rescore) {
+          final entry = clipResults[clip.name] as Map<String, dynamic>;
+          score(entry, clip, entry['text'] as String);
+          stdout.writeln('[bench] ${clip.name}: rescored → WER '
+              '${((entry['wer'] as double) * 100).toStringAsFixed(1)}%');
+        } else {
+          stdout.writeln('[bench] ${clip.name}: cached, skipping');
+        }
         continue;
       }
       stdout.writeln('[bench] ${clip.name}: running…');
@@ -251,16 +264,7 @@ Future<void> runVariant(QualityConfig config) async {
       }
 
       final text = transcriptText(scored);
-      final words = wordErrors(clip.reference, text);
-      final chars = charErrors(clip.reference, text);
-      entry['reference'] = clip.reference;
-      entry['text'] = text;
-      entry['wer'] = words.rate;
-      entry['substitutions'] = words.substitutions;
-      entry['deletions'] = words.deletions;
-      entry['insertions'] = words.insertions;
-      entry['referenceWords'] = words.referenceLength;
-      entry['cer'] = chars.rate;
+      score(entry, clip, text);
 
       clipResults[clip.name] = entry;
       results['aggregate'] = aggregate(clipResults);
@@ -268,9 +272,12 @@ Future<void> runVariant(QualityConfig config) async {
       outFile.writeAsStringSync(
           const JsonEncoder.withIndent('  ').convert(results));
       stdout.writeln('[bench] ${clip.name}: WER '
-          '${(words.rate * 100).toStringAsFixed(1)}% '
-          '(${words.errors}/${words.referenceLength})');
+          '${((entry['wer'] as double) * 100).toStringAsFixed(1)}% '
+          '(${(entry['substitutions'] as int) + (entry['deletions'] as int) + (entry['insertions'] as int)}'
+          '/${entry['referenceWords']})');
     }
+
+    results['aggregate'] = aggregate(clipResults);
 
     results['completed'] = true;
     results['updatedAt'] = DateTime.now().toIso8601String();
@@ -287,6 +294,21 @@ Future<void> runVariant(QualityConfig config) async {
     await llama?.dispose();
     llmDir?.deleteSync(recursive: true);
   }
+}
+
+/// Scores [text] against the clip's reference into [entry] (in place —
+/// also used to re-score cached entries after scorer changes).
+void score(Map<String, dynamic> entry, Clip clip, String text) {
+  final words = wordErrors(clip.reference, text, language: clip.language);
+  final chars = charErrors(clip.reference, text, language: clip.language);
+  entry['reference'] = clip.reference;
+  entry['text'] = text;
+  entry['wer'] = words.rate;
+  entry['substitutions'] = words.substitutions;
+  entry['deletions'] = words.deletions;
+  entry['insertions'] = words.insertions;
+  entry['referenceWords'] = words.referenceLength;
+  entry['cer'] = chars.rate;
 }
 
 String transcriptText(Transcript t) => t.segments
