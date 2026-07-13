@@ -57,3 +57,5 @@ ios/Frameworks/
 .claude
 CLAUDE.md
 docs/
+
+quality_test/
