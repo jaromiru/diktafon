@@ -45,6 +45,7 @@ class QualityConfig {
     required this.note,
     this.rescore = false,
     this.highPassHz,
+    this.beamSize = 0,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -82,6 +83,9 @@ class QualityConfig {
   /// null = off.
   final double? highPassHz;
 
+  /// > 1 = beam-search decoding with this beam size (quality/beam branch).
+  final int beamSize;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -103,6 +107,7 @@ class QualityConfig {
       note: env['DIKTAFON_QUALITY_NOTE'],
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
       highPassHz: double.tryParse(env['DIKTAFON_QUALITY_HPF'] ?? ''),
+      beamSize: int.tryParse(env['DIKTAFON_QUALITY_BEAM'] ?? '') ?? 0,
     );
   }
 
@@ -115,6 +120,7 @@ class QualityConfig {
         'cleanupTier': cleanupEnabled ? llmTier : null,
         'sourceVariant': sourceVariant,
         if (highPassHz != null) 'highPassHz': highPassHz,
+        if (beamSize > 1) 'beamSize': beamSize,
       };
 }
 
@@ -256,6 +262,7 @@ Future<void> runVariant(QualityConfig config) async {
           languageCode: config.forceLanguage ? clip.language : null,
           cancelFlagAddress: cancelFlag.address,
           threads: benchThreads,
+          beamSize: config.beamSize,
         );
         entry['transcribeMs'] = watch.elapsedMilliseconds;
         entry['detectedLanguage'] = raw.languageCode;

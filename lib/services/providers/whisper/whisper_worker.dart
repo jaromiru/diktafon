@@ -63,12 +63,15 @@ class WhisperWorker {
 
   /// Transcribes the raw PCM file; [cancelFlagAddress] is a caller-owned
   /// native int32 polled by the engine (non-zero aborts).
+  /// [beamSize] > 1 selects beam-search decoding (slower, noise-robust);
+  /// the default is greedy.
   Future<Transcript> transcribe({
     required String modelPath,
     required String pcmPath,
     String? languageCode,
     required int cancelFlagAddress,
     required int threads,
+    int beamSize = 0,
   }) async {
     await _ensureSpawned();
     final id = _nextRequestId++;
@@ -81,6 +84,7 @@ class WhisperWorker {
       'lang': languageCode,
       'cancel': cancelFlagAddress,
       'threads': threads,
+      'beam': beamSize,
     });
     final response = await completer.future;
     final error = response['error'];
@@ -132,6 +136,7 @@ void _workerMain(List<Object> args) {
         context = _initContext(bindings!, modelPath);
         loadedModelPath = modelPath;
       }
+      bindings!.setBeamSize(context, request['beam'] as int? ?? 0);
       final transcript = _transcribeFile(
         bindings!,
         context,

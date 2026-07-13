@@ -34,6 +34,8 @@ class WhisperBindings {
             Pointer<Void> Function(Pointer<Utf8>)>('dk_whisper_init'),
         free = lib.lookupFunction<Void Function(Pointer<Void>),
             void Function(Pointer<Void>)>('dk_whisper_free'),
+        setBeamSize = lib.lookupFunction<Void Function(Pointer<Void>, Int32),
+            void Function(Pointer<Void>, int)>('dk_whisper_set_beam_size'),
         transcribe = lib.lookupFunction<
             Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Pointer<Utf8>,
                 Int32, Pointer<Int32>),
@@ -69,6 +71,10 @@ class WhisperBindings {
 
   final Pointer<Void> Function(Pointer<Utf8> modelPath) init;
   final void Function(Pointer<Void>) free;
+
+  /// > 1 = beam search with that beam size on subsequent transcribes;
+  /// otherwise greedy (the default).
+  final void Function(Pointer<Void>, int beamSize) setBeamSize;
   final int Function(Pointer<Void>, Pointer<Float> pcm, int nSamples,
       Pointer<Utf8> lang, int nThreads, Pointer<Int32> cancel) transcribe;
   final Pointer<Utf8> Function(Pointer<Void>) lang;
