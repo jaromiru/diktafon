@@ -234,6 +234,32 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les mémos sont seulement transcrits — pas d\'essentiel, d\'aperçu de cassette ni de titre suggéré.';
 
   @override
+  String get whisperSmallDesc =>
+      'Recommandé — meilleur équilibre taille/qualité.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Plus léger et rapide — moins précis, surtout sur les enregistrements bruyants.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Plus précis ; nécessite un appareil puissant (~2,5 Go de RAM pendant la transcription).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Recommandé — nettement plus précis, surtout dans le bruit (~2,5 Go de RAM pendant la transcription).';
+
+  @override
+  String get llmDefaultDesc => 'Recommandé — résumés multilingues compacts.';
+
+  @override
+  String get llm4bDesc =>
+      'Résumés et titres de meilleure qualité ; nécessite un appareil puissant (~3 Go de RAM pendant le résumé).';
+
+  @override
+  String get summariesOffValue => 'Pas de résumés · touchez pour configurer';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — installé, touchez pour gérer';
   }

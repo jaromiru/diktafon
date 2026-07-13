@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:diktafon/application/providers.dart';
 import 'package:diktafon/data/db/database.dart';
+import 'package:diktafon/l10n/gen/app_localizations_en.dart';
 import 'package:diktafon/l10n/l10n.dart';
 import 'package:diktafon/presentation/screens/settings_screen.dart';
 import 'package:diktafon/presentation/theme/theme.dart';
@@ -181,30 +182,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  group('tier copy (§6.6 nudge)', () {
+  group('tier copy (§6.6 nudge, localized)', () {
+    final l10n = AppLocalizationsEn();
+
     test('capable device: large-v3-turbo carries the recommendation', () {
       expect(
-        ModelPickerDialog.describe(WhisperModel.largeV3Turbo,
+        ModelPickerDialog.describe(l10n, WhisperModel.largeV3Turbo,
             largeCapable: true),
-        startsWith('Recommended'),
+        allOf(l10n.whisperLargeDescCapable, startsWith('Recommended')),
       );
       expect(
-        ModelPickerDialog.describe(WhisperModel.small, largeCapable: true),
-        isNot(startsWith('Recommended')),
+        ModelPickerDialog.describe(l10n, WhisperModel.small,
+            largeCapable: true),
+        allOf(l10n.whisperSmallDescCapable, isNot(startsWith('Recommended'))),
       );
     });
 
-    test('below the RAM gate the catalog copy stands', () {
-      for (final model in [WhisperModel.small, WhisperModel.largeV3Turbo]) {
-        expect(ModelPickerDialog.describe(model, largeCapable: false),
-            model.description);
-      }
-      expect(WhisperModel.small.description, startsWith('Recommended'));
+    test('below the RAM gate small keeps the recommendation', () {
+      expect(
+        ModelPickerDialog.describe(l10n, WhisperModel.small,
+            largeCapable: false),
+        allOf(l10n.whisperSmallDesc, startsWith('Recommended')),
+      );
+      expect(
+        ModelPickerDialog.describe(l10n, WhisperModel.largeV3Turbo,
+            largeCapable: false),
+        allOf(l10n.whisperLargeDesc, isNot(startsWith('Recommended'))),
+      );
     });
 
-    test('unrecognized tiers fall through to their catalog copy', () {
-      expect(ModelPickerDialog.describe(WhisperModel.tiny, largeCapable: true),
-          WhisperModel.tiny.description);
+    test('unlisted tiers fall through to their dev-only catalog copy', () {
+      expect(
+        ModelPickerDialog.describe(l10n, WhisperModel.tiny,
+            largeCapable: true),
+        WhisperModel.tiny.description,
+      );
+      expect(LlmModelPickerDialog.describe(l10n, LlmModel.qwen3_0_6b),
+          LlmModel.qwen3_0_6b.description);
+    });
+
+    test('LLM tiers are localized too', () {
+      expect(LlmModelPickerDialog.describe(l10n, LlmModel.qwen3_1_7b),
+          l10n.llmDefaultDesc);
+      expect(LlmModelPickerDialog.describe(l10n, LlmModel.qwen3_4b),
+          l10n.llm4bDesc);
     });
   });
 }

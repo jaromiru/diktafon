@@ -211,8 +211,9 @@ class SettingsScreen extends ConsumerWidget {
   String _llmRowValue(
       BuildContext context, WidgetRef ref, AppSettings settings) {
     // Summaries are switched off inside the picker (its first option);
-    // the row mirrors that choice instead of a model's install state.
-    if (!settings.summariesEnabled) return context.l10n.summariesOffOption;
+    // the row mirrors that choice instead of a model's install state —
+    // keeping the "tap to set up" affordance the other states carry.
+    if (!settings.summariesEnabled) return context.l10n.summariesOffValue;
     final model = LlmModel.byTier(settings.llmTier);
     return _modelRowValue(context, model,
         ref.watch(llmModelStatesProvider).value, model.sizeLabel);
@@ -327,17 +328,20 @@ class ModelPickerDialog extends ConsumerWidget {
   /// Device-aware tier copy (§6.6, revised with the §6.3a quality bench):
   /// where the RAM gate passes, large-v3-turbo is the recommended tier —
   /// the bench measured roughly half small's error rate, and the gap widens
-  /// on noisy recordings. Below the gate the catalog copy stands (small
-  /// recommended, large disabled with the RAM note).
-  static String describe(WhisperModel model, {required bool largeCapable}) {
-    if (!largeCapable) return model.description;
+  /// on noisy recordings. Below the gate small keeps the recommendation and
+  /// large carries the RAM note. Listed tiers read localized copy from the
+  /// ARBs; unlisted test tiers keep their dev-only catalog text.
+  static String describe(AppLocalizations l10n, WhisperModel model,
+      {required bool largeCapable}) {
     if (model.tier == WhisperModel.small.tier) {
-      return 'Lighter and faster — less accurate, '
-          'especially on noisy recordings.';
+      return largeCapable
+          ? l10n.whisperSmallDescCapable
+          : l10n.whisperSmallDesc;
     }
     if (model.tier == WhisperModel.largeV3Turbo.tier) {
-      return 'Recommended — much more accurate, especially in noise '
-          '(~2.5 GB RAM while transcribing).';
+      return largeCapable
+          ? l10n.whisperLargeDescCapable
+          : l10n.whisperLargeDesc;
     }
     return model.description;
   }
@@ -355,8 +359,8 @@ class ModelPickerDialog extends ConsumerWidget {
       selectedTier: settings.whisperTier,
       enabledOf: (model) => deviceCanRun(model as WhisperModel),
       disabledReason: context.l10n.needsRam(5),
-      descriptionOf: (model) =>
-          describe(model as WhisperModel, largeCapable: largeCapable),
+      descriptionOf: (model) => describe(context.l10n, model as WhisperModel,
+          largeCapable: largeCapable),
       installedBytes: manager.installedBytes(),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as WhisperModel),
@@ -392,6 +396,14 @@ class ModelPickerDialog extends ConsumerWidget {
 class LlmModelPickerDialog extends ConsumerWidget {
   const LlmModelPickerDialog({super.key});
 
+  /// Listed tiers read localized copy from the ARBs; unlisted test tiers
+  /// keep their dev-only catalog text.
+  static String describe(AppLocalizations l10n, LlmModel model) {
+    if (model.tier == LlmModel.qwen3_1_7b.tier) return l10n.llmDefaultDesc;
+    if (model.tier == LlmModel.qwen3_4b.tier) return l10n.llm4bDesc;
+    return model.description;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
@@ -405,6 +417,7 @@ class LlmModelPickerDialog extends ConsumerWidget {
       selectedTier: settings.summariesEnabled ? settings.llmTier : null,
       enabledOf: (model) => deviceHasRamGb((model as LlmModel).minRamGb),
       disabledReason: context.l10n.needsRam(LlmModel.qwen3_4b.minRamGb),
+      descriptionOf: (model) => describe(context.l10n, model as LlmModel),
       installedBytes: manager.installedBytes(),
       offLabel: context.l10n.summariesOffOption,
       offDescription: context.l10n.summariesOffDesc,

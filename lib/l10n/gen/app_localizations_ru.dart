@@ -239,6 +239,33 @@ class AppLocalizationsRu extends AppLocalizations {
       'Записи только расшифровываются — без сводок, обзоров кассет и предлагаемых названий.';
 
   @override
+  String get whisperSmallDesc =>
+      'Рекомендуется — лучший баланс размера и качества.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Легче и быстрее — менее точная, особенно на шумных записях.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Выше точность; нужно мощное устройство (~2,5 ГБ ОЗУ во время расшифровки).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Рекомендуется — заметно точнее, особенно в шуме (~2,5 ГБ ОЗУ во время расшифровки).';
+
+  @override
+  String get llmDefaultDesc =>
+      'Рекомендуется — компактные многоязычные сводки.';
+
+  @override
+  String get llm4bDesc =>
+      'Более качественные сводки и названия; нужно мощное устройство (~3 ГБ ОЗУ при создании сводки).';
+
+  @override
+  String get summariesOffValue => 'Без сводок · нажмите, чтобы настроить';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — установлено, нажмите для управления';
   }

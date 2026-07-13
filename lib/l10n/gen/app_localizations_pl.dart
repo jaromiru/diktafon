@@ -240,6 +240,32 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nagrania są tylko transkrybowane — bez streszczeń, przeglądów kaset i proponowanych tytułów.';
 
   @override
+  String get whisperSmallDesc =>
+      'Zalecany — najlepszy stosunek rozmiaru do jakości.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Mniejszy i szybszy — mniej dokładny, zwłaszcza przy hałaśliwych nagraniach.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Wyższa dokładność; wymaga wydajnego urządzenia (~2,5 GB RAM podczas transkrypcji).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Zalecany — znacznie dokładniejszy, zwłaszcza w hałasie (~2,5 GB RAM podczas transkrypcji).';
+
+  @override
+  String get llmDefaultDesc => 'Zalecany — zwięzłe wielojęzyczne podsumowania.';
+
+  @override
+  String get llm4bDesc =>
+      'Lepsze podsumowania i tytuły; wymaga wydajnego urządzenia (~3 GB RAM podczas podsumowywania).';
+
+  @override
+  String get summariesOffValue => 'Bez podsumowań · dotknij, aby skonfigurować';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — zainstalowano, dotknij, aby zarządzać';
   }

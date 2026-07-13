@@ -226,6 +226,29 @@ class AppLocalizationsKo extends AppLocalizations {
   String get summariesOffDesc => '메모를 텍스트로만 변환하고 요약, 카세트 개요, 제목 제안은 만들지 않습니다.';
 
   @override
+  String get whisperSmallDesc => '추천 — 크기와 품질의 균형이 가장 좋습니다.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      '더 가볍고 빠르지만 정확도가 낮습니다. 특히 시끄러운 녹음에서 그렇습니다.';
+
+  @override
+  String get whisperLargeDesc => '더 높은 정확도. 고성능 기기가 필요합니다(전사 중 약 2.5 GB RAM).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      '추천 — 훨씬 더 정확합니다. 특히 소음이 있을 때 그렇습니다(전사 중 약 2.5 GB RAM).';
+
+  @override
+  String get llmDefaultDesc => '추천 — 간결한 다국어 요약.';
+
+  @override
+  String get llm4bDesc => '더 높은 품질의 요약과 제목. 고성능 기기가 필요합니다(요약 중 약 3 GB RAM).';
+
+  @override
+  String get summariesOffValue => '요약 없음 · 눌러서 설정';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — 설치됨, 눌러서 관리';
   }

@@ -235,6 +235,32 @@ class AppLocalizationsCs extends AppLocalizations {
       'Záznamy se pouze přepisují — žádná shrnutí, přehledy ani navrhované názvy.';
 
   @override
+  String get whisperSmallDesc =>
+      'Doporučený — nejlepší poměr velikosti a kvality.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Menší a rychlejší — méně přesný, zvlášť u hlučných nahrávek.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Vyšší přesnost; vyžaduje výkonné zařízení (~2,5 GB RAM při přepisu).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Doporučený — výrazně přesnější, zvlášť v hluku (~2,5 GB RAM při přepisu).';
+
+  @override
+  String get llmDefaultDesc => 'Doporučený — kompaktní vícejazyčné souhrny.';
+
+  @override
+  String get llm4bDesc =>
+      'Kvalitnější souhrny a názvy; vyžaduje výkonné zařízení (~3 GB RAM při vytváření souhrnu).';
+
+  @override
+  String get summariesOffValue => 'Bez souhrnů · klepnutím nastavíte';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — nainstalováno, klepnutím spravujete';
   }

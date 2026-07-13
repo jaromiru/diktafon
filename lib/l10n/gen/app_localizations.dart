@@ -480,6 +480,48 @@ abstract class AppLocalizations {
   /// **'Memos are only transcribed — no gists, overviews or suggested titles.'**
   String get summariesOffDesc;
 
+  /// No description provided for @whisperSmallDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended — best size/quality balance.'**
+  String get whisperSmallDesc;
+
+  /// No description provided for @whisperSmallDescCapable.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighter and faster — less accurate, especially on noisy recordings.'**
+  String get whisperSmallDescCapable;
+
+  /// No description provided for @whisperLargeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher accuracy; needs a capable device (~2.5 GB RAM while transcribing).'**
+  String get whisperLargeDesc;
+
+  /// No description provided for @whisperLargeDescCapable.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended — much more accurate, especially in noise (~2.5 GB RAM while transcribing).'**
+  String get whisperLargeDescCapable;
+
+  /// No description provided for @llmDefaultDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended — compact multilingual summaries.'**
+  String get llmDefaultDesc;
+
+  /// No description provided for @llm4bDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher-quality summaries & titles; needs a capable device (~3 GB RAM while summarizing).'**
+  String get llm4bDesc;
+
+  /// No description provided for @summariesOffValue.
+  ///
+  /// In en, this message translates to:
+  /// **'No summaries · tap to set up'**
+  String get summariesOffValue;
+
   /// No description provided for @modelInstalled.
   ///
   /// In en, this message translates to:

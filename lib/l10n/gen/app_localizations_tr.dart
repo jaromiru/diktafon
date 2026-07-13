@@ -233,6 +233,31 @@ class AppLocalizationsTr extends AppLocalizations {
       'Notlar yalnızca yazıya dökülür — özet, kaset genel özeti ve başlık önerisi olmaz.';
 
   @override
+  String get whisperSmallDesc => 'Önerilen — en iyi boyut/kalite dengesi.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Daha hafif ve hızlı — özellikle gürültülü kayıtlarda daha az doğru.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Daha yüksek doğruluk; güçlü bir cihaz gerektirir (yazıya dökme sırasında ~2,5 GB RAM).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Önerilen — özellikle gürültüde çok daha doğru (yazıya dökme sırasında ~2,5 GB RAM).';
+
+  @override
+  String get llmDefaultDesc => 'Önerilen — derli toplu çok dilli özetler.';
+
+  @override
+  String get llm4bDesc =>
+      'Daha kaliteli özetler ve başlıklar; güçlü bir cihaz gerektirir (özetleme sırasında ~3 GB RAM).';
+
+  @override
+  String get summariesOffValue => 'Özet yok · kurmak için dokunun';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — yüklü, yönetmek için dokunun';
   }

@@ -136,11 +136,12 @@ void main() {
     expect(find.textContaining('Qwen3 1.7B'), findsOneWidget);
     expect(find.text('No summaries'), findsNothing);
 
-    // …and mirrors the picker's off choice once summaries are disabled.
+    // …and mirrors the picker's off choice once summaries are disabled,
+    // keeping the "tap to set up" affordance the other row states carry.
     await SettingsRepository(db).setSummariesEnabled(false);
     await tester.pump();
     await tester.pump();
-    expect(find.text('No summaries'), findsOneWidget);
+    expect(find.text('No summaries · tap to set up'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

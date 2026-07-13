@@ -233,6 +233,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Memos are only transcribed — no gists, overviews or suggested titles.';
 
   @override
+  String get whisperSmallDesc => 'Recommended — best size/quality balance.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Lighter and faster — less accurate, especially on noisy recordings.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Higher accuracy; needs a capable device (~2.5 GB RAM while transcribing).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Recommended — much more accurate, especially in noise (~2.5 GB RAM while transcribing).';
+
+  @override
+  String get llmDefaultDesc => 'Recommended — compact multilingual summaries.';
+
+  @override
+  String get llm4bDesc =>
+      'Higher-quality summaries & titles; needs a capable device (~3 GB RAM while summarizing).';
+
+  @override
+  String get summariesOffValue => 'No summaries · tap to set up';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — installed, tap to manage';
   }

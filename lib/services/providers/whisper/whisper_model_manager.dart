@@ -1,6 +1,8 @@
 /// The whisper model catalog (§6.6): tiers pinned from the git-lfs pointers
 /// at huggingface.co/ggerganov/whisper.cpp (2026-07-07). Download/verify
-/// mechanics live in the shared ModelManager.
+/// mechanics live in the shared ModelManager. The `description` fields are
+/// dev-only fallbacks — listed tiers show localized, device-aware copy from
+/// the ARBs (ModelPickerDialog.describe).
 library;
 
 import '../model_manager.dart';

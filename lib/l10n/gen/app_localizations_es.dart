@@ -235,6 +235,33 @@ class AppLocalizationsEs extends AppLocalizations {
       'Las notas solo se transcriben — sin esencia, resumen del casete ni título sugerido.';
 
   @override
+  String get whisperSmallDesc =>
+      'Recomendado — el mejor equilibrio entre tamaño y calidad.';
+
+  @override
+  String get whisperSmallDescCapable =>
+      'Más ligero y rápido — menos preciso, sobre todo con grabaciones ruidosas.';
+
+  @override
+  String get whisperLargeDesc =>
+      'Mayor precisión; requiere un dispositivo potente (~2,5 GB de RAM al transcribir).';
+
+  @override
+  String get whisperLargeDescCapable =>
+      'Recomendado — mucho más preciso, sobre todo con ruido (~2,5 GB de RAM al transcribir).';
+
+  @override
+  String get llmDefaultDesc =>
+      'Recomendado — resúmenes multilingües compactos.';
+
+  @override
+  String get llm4bDesc =>
+      'Resúmenes y títulos de más calidad; requiere un dispositivo potente (~3 GB de RAM al resumir).';
+
+  @override
+  String get summariesOffValue => 'Sin resúmenes · toca para configurar';
+
+  @override
   String modelInstalled(String label, String size) {
     return '$label · $size — instalado, toca para gestionar';
   }

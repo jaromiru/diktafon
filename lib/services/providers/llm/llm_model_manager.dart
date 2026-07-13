@@ -1,6 +1,8 @@
 /// The summarization model catalog (§6.6): small multilingual instruct LLMs
 /// in GGUF, pinned from the git-lfs pointers at huggingface.co/Qwen
 /// (2026-07-08). Download/verify mechanics live in the shared ModelManager.
+/// The `description` fields are dev-only fallbacks — listed tiers show
+/// localized copy from the ARBs (LlmModelPickerDialog.describe).
 ///
 /// Qwen3 was picked over the design-doc candidates (Qwen2.5-3B is
 /// research-licensed, Llama-3.2 has no official Czech/Polish support):

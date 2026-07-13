@@ -112,6 +112,13 @@
   "summaryModel": "Summary model",
   "summariesOffOption": "No summaries",
   "summariesOffDesc": "Memos are only transcribed — no gists, overviews or suggested titles.",
+  "whisperSmallDesc": "Recommended — best size/quality balance.",
+  "whisperSmallDescCapable": "Lighter and faster — less accurate, especially on noisy recordings.",
+  "whisperLargeDesc": "Higher accuracy; needs a capable device (~2.5 GB RAM while transcribing).",
+  "whisperLargeDescCapable": "Recommended — much more accurate, especially in noise (~2.5 GB RAM while transcribing).",
+  "llmDefaultDesc": "Recommended — compact multilingual summaries.",
+  "llm4bDesc": "Higher-quality summaries & titles; needs a capable device (~3 GB RAM while summarizing).",
+  "summariesOffValue": "No summaries · tap to set up",
   "modelInstalled": "{label} · {size} — installed, tap to manage",
   "@modelInstalled": {
     "placeholders": {
