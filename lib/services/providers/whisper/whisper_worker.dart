@@ -65,6 +65,8 @@ class WhisperWorker {
   /// native int32 polled by the engine (non-zero aborts).
   /// [beamSize] > 1 selects beam-search decoding (slower, noise-robust);
   /// the default is greedy.
+  /// native int32 polled by the engine (non-zero aborts). [vadModelPath]
+  /// (a Silero ggml file) gates inference to detected speech regions.
   Future<Transcript> transcribe({
     required String modelPath,
     required String pcmPath,
@@ -72,6 +74,7 @@ class WhisperWorker {
     required int cancelFlagAddress,
     required int threads,
     int beamSize = 0,
+    String? vadModelPath,
   }) async {
     await _ensureSpawned();
     final id = _nextRequestId++;
@@ -85,6 +88,7 @@ class WhisperWorker {
       'cancel': cancelFlagAddress,
       'threads': threads,
       'beam': beamSize,
+      'vad': vadModelPath,
     });
     final response = await completer.future;
     final error = response['error'];
@@ -137,6 +141,12 @@ void _workerMain(List<Object> args) {
         loadedModelPath = modelPath;
       }
       bindings!.setBeamSize(context, request['beam'] as int? ?? 0);
+      final vadC = ((request['vad'] as String?) ?? '').toNativeUtf8();
+      try {
+        bindings!.setVadModel(context, vadC);
+      } finally {
+        calloc.free(vadC);
+      }
       final transcript = _transcribeFile(
         bindings!,
         context,

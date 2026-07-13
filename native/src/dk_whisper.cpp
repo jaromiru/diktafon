@@ -13,6 +13,10 @@ struct dk_whisper {
     std::string lang;
     // > 1 = beam search with this beam size; otherwise greedy.
     int32_t beam_size = 0;
+    // Silero VAD model path; empty = VAD off.
+    std::string vad_model_path;
+    // Whether the last run used VAD (token times then need mapping).
+    bool vad_used = false;
 };
 
 namespace {
@@ -60,6 +64,8 @@ void dk_whisper_free(dk_whisper * dw) {
 
 void dk_whisper_set_beam_size(dk_whisper * dw, int32_t beam_size) {
     dw->beam_size = beam_size;
+void dk_whisper_set_vad_model(dk_whisper * dw, const char * model_path) {
+    dw->vad_model_path = model_path != nullptr ? model_path : "";
 }
 
 int32_t dk_whisper_transcribe(dk_whisper * dw,
@@ -73,6 +79,27 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
         beam ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY);
     if (beam) {
         wparams.beam_search.beam_size = dw->beam_size;
+    }
+
+    // Silero VAD (docs/features/noise-robust-transcription.md phase 1.1):
+    // only detected speech regions reach the whisper encoder — cuts
+    // hallucinations on noise-only stretches and skips silence. Defaults
+    // from whisper_vad_default_params (threshold 0.5, min speech 250 ms).
+    dw->vad_used = !dw->vad_model_path.empty();
+    if (dw->vad_used) {
+        wparams.vad            = true;
+        wparams.vad_model_path = dw->vad_model_path.c_str();
+        // Bench/dev-only tuning knobs (quality bench sweeps these; a
+        // production default would be baked in here once chosen).
+        if (const char * t = std::getenv("DK_WHISPER_VAD_THRESHOLD")) {
+            wparams.vad_params.threshold = static_cast<float>(atof(t));
+        }
+        if (const char * p = std::getenv("DK_WHISPER_VAD_PAD_MS")) {
+            wparams.vad_params.speech_pad_ms = atoi(p);
+        }
+        if (const char * s = std::getenv("DK_WHISPER_VAD_MIN_SILENCE_MS")) {
+            wparams.vad_params.min_silence_duration_ms = atoi(s);
+        }
     }
 
     wparams.print_realtime   = false;
@@ -129,12 +156,42 @@ const char * dk_whisper_token_text(dk_whisper * dw, int32_t i, int32_t j) {
     return whisper_full_get_token_text(dw->ctx, i, j);
 }
 
+namespace {
+
+// With VAD enabled, whisper.cpp maps only *segment* timestamps back to the
+// original timeline (state->vad_mapping_table, whisper.cpp:7983+); token
+// getters still return times on the VAD-collapsed stream. Interpolate each
+// token linearly from the segment's raw token span onto its mapped span —
+// exact within one speech region, and keeps word taps/highlight usable.
+int64_t dk_token_time_ms(dk_whisper * dw, int32_t i, int64_t t_raw) {
+    if (!dw->vad_used) {
+        return t_raw * 10;
+    }
+    const int32_t n = whisper_full_n_tokens(dw->ctx, i);
+    if (n <= 0) {
+        return whisper_full_get_segment_t0(dw->ctx, i) * 10;
+    }
+    const int64_t raw0 = whisper_full_get_token_data(dw->ctx, i, 0).t0;
+    const int64_t raw1 = whisper_full_get_token_data(dw->ctx, i, n - 1).t1;
+    const int64_t map0 = whisper_full_get_segment_t0(dw->ctx, i);
+    const int64_t map1 = whisper_full_get_segment_t1(dw->ctx, i);
+    if (raw1 <= raw0) {
+        return map0 * 10;
+    }
+    const int64_t clamped = t_raw < raw0 ? raw0 : (t_raw > raw1 ? raw1 : t_raw);
+    return (map0 + ((clamped - raw0) * (map1 - map0)) / (raw1 - raw0)) * 10;
+}
+
+} // namespace
+
 int64_t dk_whisper_token_t0_ms(dk_whisper * dw, int32_t i, int32_t j) {
-    return whisper_full_get_token_data(dw->ctx, i, j).t0 * 10;
+    return dk_token_time_ms(
+        dw, i, whisper_full_get_token_data(dw->ctx, i, j).t0);
 }
 
 int64_t dk_whisper_token_t1_ms(dk_whisper * dw, int32_t i, int32_t j) {
-    return whisper_full_get_token_data(dw->ctx, i, j).t1 * 10;
+    return dk_token_time_ms(
+        dw, i, whisper_full_get_token_data(dw->ctx, i, j).t1);
 }
 
 int32_t dk_whisper_token_is_text(dk_whisper * dw, int32_t i, int32_t j) {

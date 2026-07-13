@@ -36,6 +36,10 @@ class WhisperBindings {
             void Function(Pointer<Void>)>('dk_whisper_free'),
         setBeamSize = lib.lookupFunction<Void Function(Pointer<Void>, Int32),
             void Function(Pointer<Void>, int)>('dk_whisper_set_beam_size'),
+        setVadModel = lib.lookupFunction<
+            Void Function(Pointer<Void>, Pointer<Utf8>),
+            void Function(
+                Pointer<Void>, Pointer<Utf8>)>('dk_whisper_set_vad_model'),
         transcribe = lib.lookupFunction<
             Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Pointer<Utf8>,
                 Int32, Pointer<Int32>),
@@ -75,6 +79,9 @@ class WhisperBindings {
   /// > 1 = beam search with that beam size on subsequent transcribes;
   /// otherwise greedy (the default).
   final void Function(Pointer<Void>, int beamSize) setBeamSize;
+  /// Silero VAD ggml model for subsequent transcribes; empty string
+  /// disables VAD (the default).
+  final void Function(Pointer<Void>, Pointer<Utf8> modelPath) setVadModel;
   final int Function(Pointer<Void>, Pointer<Float> pcm, int nSamples,
       Pointer<Utf8> lang, int nThreads, Pointer<Int32> cancel) transcribe;
   final Pointer<Utf8> Function(Pointer<Void>) lang;

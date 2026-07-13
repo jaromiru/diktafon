@@ -32,6 +32,13 @@ DK_EXPORT void dk_whisper_free(dk_whisper * dw);
  * ~2–3× slower and more robust on noisy audio
  * (docs/features/noise-robust-transcription.md §3.4/phase 2). */
 DK_EXPORT void dk_whisper_set_beam_size(dk_whisper * dw, int32_t beam_size);
+/* Silero VAD model (ggml) for subsequent transcribes; NULL or empty
+ * disables VAD (the default). With VAD on, only detected speech regions
+ * reach the encoder; segment AND token timestamps stay on the original
+ * timeline (tokens via segment-bounded interpolation in the shim —
+ * docs/features/noise-robust-transcription.md phase 1.1). */
+DK_EXPORT void dk_whisper_set_vad_model(dk_whisper * dw,
+                                        const char * model_path);
 
 /* Transcribes 16 kHz mono float32 PCM.
  * lang    ISO-639-1 code, or NULL to auto-detect (D8).

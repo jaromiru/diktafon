@@ -46,6 +46,7 @@ class QualityConfig {
     this.rescore = false,
     this.highPassHz,
     this.beamSize = 0,
+    this.vadModelPath,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -86,6 +87,10 @@ class QualityConfig {
   /// > 1 = beam-search decoding with this beam size (quality/beam branch).
   final int beamSize;
 
+  /// Silero VAD ggml model gating inference to detected speech regions
+  /// (quality/vad branch); null = off.
+  final String? vadModelPath;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -108,6 +113,7 @@ class QualityConfig {
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
       highPassHz: double.tryParse(env['DIKTAFON_QUALITY_HPF'] ?? ''),
       beamSize: int.tryParse(env['DIKTAFON_QUALITY_BEAM'] ?? '') ?? 0,
+      vadModelPath: env['DIKTAFON_QUALITY_VAD'],
     );
   }
 
@@ -121,6 +127,8 @@ class QualityConfig {
         'sourceVariant': sourceVariant,
         if (highPassHz != null) 'highPassHz': highPassHz,
         if (beamSize > 1) 'beamSize': beamSize,
+        if (vadModelPath != null)
+          'vad': File(vadModelPath!).uri.pathSegments.last,
       };
 }
 
@@ -263,6 +271,7 @@ Future<void> runVariant(QualityConfig config) async {
           cancelFlagAddress: cancelFlag.address,
           threads: benchThreads,
           beamSize: config.beamSize,
+          vadModelPath: config.vadModelPath,
         );
         entry['transcribeMs'] = watch.elapsedMilliseconds;
         entry['detectedLanguage'] = raw.languageCode;
