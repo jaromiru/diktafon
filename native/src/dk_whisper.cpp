@@ -72,6 +72,10 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
     wparams.translate        = false;
     wparams.no_context       = true; // memos are independent recordings
     wparams.token_timestamps = true; // word-level timing is the product (§4.1)
+    // Suppress non-speech tokens (♪, bracketed stage directions) during
+    // decoding: removes a class of noise-induced hallucination at zero cost
+    // (docs/features/noise-robust-transcription.md phase 1.2).
+    wparams.suppress_nst     = true;
     wparams.n_threads        = n_threads;
     wparams.language         = (lang != nullptr && lang[0] != '\0') ? lang : "auto";
     wparams.abort_callback   = dk_abort_cb;
