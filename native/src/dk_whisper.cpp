@@ -64,6 +64,8 @@ void dk_whisper_free(dk_whisper * dw) {
 
 void dk_whisper_set_beam_size(dk_whisper * dw, int32_t beam_size) {
     dw->beam_size = beam_size;
+}
+
 void dk_whisper_set_vad_model(dk_whisper * dw, const char * model_path) {
     dw->vad_model_path = model_path != nullptr ? model_path : "";
 }
