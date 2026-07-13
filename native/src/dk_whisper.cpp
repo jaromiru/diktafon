@@ -81,6 +81,17 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
     if (dw->vad_used) {
         wparams.vad            = true;
         wparams.vad_model_path = dw->vad_model_path.c_str();
+        // Bench/dev-only tuning knobs (quality bench sweeps these; a
+        // production default would be baked in here once chosen).
+        if (const char * t = std::getenv("DK_WHISPER_VAD_THRESHOLD")) {
+            wparams.vad_params.threshold = static_cast<float>(atof(t));
+        }
+        if (const char * p = std::getenv("DK_WHISPER_VAD_PAD_MS")) {
+            wparams.vad_params.speech_pad_ms = atoi(p);
+        }
+        if (const char * s = std::getenv("DK_WHISPER_VAD_MIN_SILENCE_MS")) {
+            wparams.vad_params.min_silence_duration_ms = atoi(s);
+        }
     }
 
     wparams.print_realtime   = false;
