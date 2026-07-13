@@ -11,6 +11,8 @@ struct dk_whisper {
     whisper_context * ctx = nullptr;
     // Language actually used for the last run (explicit or detected).
     std::string lang;
+    // > 1 = beam search with this beam size; otherwise greedy.
+    int32_t beam_size = 0;
 };
 
 namespace {
@@ -56,14 +58,22 @@ void dk_whisper_free(dk_whisper * dw) {
     delete dw;
 }
 
+void dk_whisper_set_beam_size(dk_whisper * dw, int32_t beam_size) {
+    dw->beam_size = beam_size;
+}
+
 int32_t dk_whisper_transcribe(dk_whisper * dw,
                               const float * pcm,
                               int32_t n_samples,
                               const char * lang,
                               int32_t n_threads,
                               const int32_t * cancel) {
-    whisper_full_params wparams =
-        whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    const bool beam = dw->beam_size > 1;
+    whisper_full_params wparams = whisper_full_default_params(
+        beam ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY);
+    if (beam) {
+        wparams.beam_search.beam_size = dw->beam_size;
+    }
 
     wparams.print_realtime   = false;
     wparams.print_progress   = false;

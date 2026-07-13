@@ -43,6 +43,7 @@ class QualityConfig {
     required this.sourceVariant,
     required this.note,
     this.rescore = false,
+    this.beamSize = 0,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -76,6 +77,9 @@ class QualityConfig {
   /// changes) instead of skipping them.
   final bool rescore;
 
+  /// > 1 = beam-search decoding with this beam size (quality/beam branch).
+  final int beamSize;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -96,6 +100,7 @@ class QualityConfig {
       sourceVariant: env['DIKTAFON_QUALITY_SOURCE'],
       note: env['DIKTAFON_QUALITY_NOTE'],
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
+      beamSize: int.tryParse(env['DIKTAFON_QUALITY_BEAM'] ?? '') ?? 0,
     );
   }
 
@@ -107,6 +112,7 @@ class QualityConfig {
         'forceLanguage': forceLanguage,
         'cleanupTier': cleanupEnabled ? llmTier : null,
         'sourceVariant': sourceVariant,
+        if (beamSize > 1) 'beamSize': beamSize,
       };
 }
 
@@ -245,6 +251,7 @@ Future<void> runVariant(QualityConfig config) async {
           languageCode: config.forceLanguage ? clip.language : null,
           cancelFlagAddress: cancelFlag.address,
           threads: benchThreads,
+          beamSize: config.beamSize,
         );
         entry['transcribeMs'] = watch.elapsedMilliseconds;
         entry['detectedLanguage'] = raw.languageCode;

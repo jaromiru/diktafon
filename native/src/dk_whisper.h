@@ -27,6 +27,12 @@ typedef struct dk_whisper dk_whisper;
 DK_EXPORT dk_whisper * dk_whisper_init(const char * model_path);
 DK_EXPORT void dk_whisper_free(dk_whisper * dw);
 
+/* Decoding strategy for subsequent transcribes: beam search with the given
+ * beam size when > 1, greedy otherwise (the default). Beam search is
+ * ~2–3× slower and more robust on noisy audio
+ * (docs/features/noise-robust-transcription.md §3.4/phase 2). */
+DK_EXPORT void dk_whisper_set_beam_size(dk_whisper * dw, int32_t beam_size);
+
 /* Transcribes 16 kHz mono float32 PCM.
  * lang    ISO-639-1 code, or NULL to auto-detect (D8).
  * cancel  optional flag; set *cancel to non-zero to abort mid-inference.
