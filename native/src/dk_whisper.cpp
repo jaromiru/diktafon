@@ -200,4 +200,26 @@ int32_t dk_whisper_token_is_text(dk_whisper * dw, int32_t i, int32_t j) {
         : 0;
 }
 
+// Confidence accessors (docs/features/noise-robust-transcription.md
+// phase 1.3): the engine already computes these; hallucinated segments on
+// noise show high no_speech_prob and low mean token probability.
+
+float dk_whisper_segment_no_speech_prob(dk_whisper * dw, int32_t i) {
+    return whisper_full_get_segment_no_speech_prob(dw->ctx, i);
+}
+
+float dk_whisper_segment_avg_token_p(dk_whisper * dw, int32_t i) {
+    const int32_t n = whisper_full_n_tokens(dw->ctx, i);
+    float sum = 0.0f;
+    int32_t text_tokens = 0;
+    for (int32_t j = 0; j < n; j++) {
+        if (dk_whisper_token_is_text(dw, i, j) == 0) {
+            continue;
+        }
+        sum += whisper_full_get_token_data(dw->ctx, i, j).p;
+        text_tokens++;
+    }
+    return text_tokens > 0 ? sum / text_tokens : 0.0f;
+}
+
 } // extern "C"

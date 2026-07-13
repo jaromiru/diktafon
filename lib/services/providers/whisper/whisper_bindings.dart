@@ -68,7 +68,15 @@ class WhisperBindings {
         tokenIsText = lib.lookupFunction<
             Int32 Function(Pointer<Void>, Int32, Int32),
             int Function(
-                Pointer<Void>, int, int)>('dk_whisper_token_is_text');
+                Pointer<Void>, int, int)>('dk_whisper_token_is_text'),
+        segmentNoSpeechProb = lib.lookupFunction<
+            Float Function(Pointer<Void>, Int32),
+            double Function(
+                Pointer<Void>, int)>('dk_whisper_segment_no_speech_prob'),
+        segmentAvgTokenP = lib.lookupFunction<
+            Float Function(Pointer<Void>, Int32),
+            double Function(
+                Pointer<Void>, int)>('dk_whisper_segment_avg_token_p');
 
   factory WhisperBindings.open(String libraryPath) =>
       WhisperBindings(DynamicLibrary.open(libraryPath));
@@ -93,6 +101,11 @@ class WhisperBindings {
   final int Function(Pointer<Void>, int, int) tokenT0Ms;
   final int Function(Pointer<Void>, int, int) tokenT1Ms;
   final int Function(Pointer<Void>, int, int) tokenIsText;
+
+  /// Decoder no-speech probability / mean text-token probability per
+  /// segment — the hallucination-filter signals (phase 1.3).
+  final double Function(Pointer<Void>, int) segmentNoSpeechProb;
+  final double Function(Pointer<Void>, int) segmentAvgTokenP;
 }
 
 /// Copies a NUL-terminated C string as raw bytes. Token text may hold a

@@ -66,6 +66,12 @@ DK_EXPORT int64_t      dk_whisper_token_t1_ms(dk_whisper * dw, int32_t i, int32_
 /* 1 for spoken-text tokens, 0 for specials ([_BEG_], timestamps, …). */
 DK_EXPORT int32_t      dk_whisper_token_is_text(dk_whisper * dw, int32_t i, int32_t j);
 
+/* Segment confidence: the decoder's no-speech probability and the mean
+ * probability of the segment's text tokens. Hallucinations on noise show
+ * high no_speech_prob + low avg_token_p. */
+DK_EXPORT float        dk_whisper_segment_no_speech_prob(dk_whisper * dw, int32_t i);
+DK_EXPORT float        dk_whisper_segment_avg_token_p(dk_whisper * dw, int32_t i);
+
 #ifdef __cplusplus
 }
 #endif

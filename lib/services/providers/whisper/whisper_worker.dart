@@ -40,6 +40,11 @@ class WhisperWorker {
   int _nextRequestId = 0;
   Future<void>? _spawning;
 
+  /// Per-segment decoder confidence of the last [transcribe] result,
+  /// parallel to its `Transcript.segments` — input for
+  /// [filterByConfidence] (phase 1.3).
+  List<SegmentConfidence> lastSegmentConfidence = const [];
+
   Future<void> _ensureSpawned() {
     return _spawning ??= () async {
       final replies = ReceivePort();
@@ -64,9 +69,8 @@ class WhisperWorker {
   /// Transcribes the raw PCM file; [cancelFlagAddress] is a caller-owned
   /// native int32 polled by the engine (non-zero aborts).
   /// [beamSize] > 1 selects beam-search decoding (slower, noise-robust);
-  /// the default is greedy.
-  /// native int32 polled by the engine (non-zero aborts). [vadModelPath]
-  /// (a Silero ggml file) gates inference to detected speech regions.
+  /// [vadModelPath] (a Silero ggml file) gates inference to detected
+  /// speech regions.
   Future<Transcript> transcribe({
     required String modelPath,
     required String pcmPath,
@@ -93,6 +97,11 @@ class WhisperWorker {
     final response = await completer.future;
     final error = response['error'];
     if (error != null) throw WhisperWorkerException(error as String);
+    lastSegmentConfidence = [
+      for (final pair in (response['confidence'] as List? ?? const []))
+        SegmentConfidence(
+            (pair as List)[0] as double, pair[1] as double),
+    ];
     return Transcript.fromJson(
         (response['transcript'] as Map).cast<String, dynamic>());
   }
@@ -147,6 +156,7 @@ void _workerMain(List<Object> args) {
       } finally {
         calloc.free(vadC);
       }
+      final confidence = <SegmentConfidence>[];
       final transcript = _transcribeFile(
         bindings!,
         context,
@@ -154,8 +164,15 @@ void _workerMain(List<Object> args) {
         languageCode: request['lang'] as String?,
         cancelFlagAddress: request['cancel'] as int,
         threads: request['threads'] as int,
+        confidenceOut: confidence,
       );
-      replyTo.send({'id': id, 'transcript': transcript.toJson()});
+      replyTo.send({
+        'id': id,
+        'transcript': transcript.toJson(),
+        'confidence': [
+          for (final c in confidence) [c.noSpeechProb, c.avgTokenP],
+        ],
+      });
     } catch (e) {
       replyTo.send({'id': id, 'error': e.toString()});
     }
@@ -182,6 +199,7 @@ Transcript _transcribeFile(
   required String? languageCode,
   required int cancelFlagAddress,
   required int threads,
+  List<SegmentConfidence>? confidenceOut,
 }) {
   final bytes = File(pcmPath).readAsBytesSync();
   final pcm = bytes.buffer.asFloat32List(0, bytes.lengthInBytes ~/ 4);
@@ -210,6 +228,7 @@ Transcript _transcribeFile(
     return assembleTranscript(
       bindings.lang(context).toDartString(),
       _readSegments(bindings, context),
+      confidenceOut: confidenceOut,
     );
   } finally {
     calloc.free(pcmC);
@@ -235,6 +254,8 @@ List<RawSegment> _readSegments(WhisperBindings bindings, Pointer<Void> ctx) {
       bindings.segmentT0Ms(ctx, i),
       bindings.segmentT1Ms(ctx, i),
       tokens,
+      noSpeechProb: bindings.segmentNoSpeechProb(ctx, i),
+      avgTokenP: bindings.segmentAvgTokenP(ctx, i),
     ));
   }
   return segments;

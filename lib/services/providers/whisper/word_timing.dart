@@ -24,14 +24,54 @@ class RawToken {
 }
 
 class RawSegment {
-  const RawSegment(this.t0Ms, this.t1Ms, this.tokens);
+  const RawSegment(this.t0Ms, this.t1Ms, this.tokens,
+      {this.noSpeechProb = 0, this.avgTokenP = 1});
 
   final int t0Ms;
   final int t1Ms;
   final List<RawToken> tokens;
+
+  /// Decoder confidence (noise-robust-transcription.md phase 1.3):
+  /// hallucinations on noise show high [noSpeechProb] + low [avgTokenP].
+  final double noSpeechProb;
+  final double avgTokenP;
 }
 
-Transcript assembleTranscript(String languageCode, List<RawSegment> raw) {
+/// Confidence of one *kept* transcript segment — parallel to
+/// `Transcript.segments` when collected via [assembleTranscript]'s
+/// `confidenceOut`.
+class SegmentConfidence {
+  const SegmentConfidence(this.noSpeechProb, this.avgTokenP);
+
+  final double noSpeechProb;
+  final double avgTokenP;
+}
+
+/// Drops segments the decoder itself doesn't believe in — the literature's
+/// practical hallucination filter (§3.3): high no-speech probability *and*
+/// low mean token probability. Conservative defaults from the phase-0
+/// bench, where genuine speech never hit both conditions at once.
+Transcript filterByConfidence(
+  Transcript t,
+  List<SegmentConfidence> confidence, {
+  double noSpeechThreshold = 0.6,
+  double avgPThreshold = 0.4,
+}) {
+  final kept = <Segment>[];
+  for (var i = 0; i < t.segments.length; i++) {
+    final c = i < confidence.length
+        ? confidence[i]
+        : const SegmentConfidence(0, 1);
+    if (c.noSpeechProb > noSpeechThreshold && c.avgTokenP < avgPThreshold) {
+      continue;
+    }
+    kept.add(t.segments[i]);
+  }
+  return Transcript(languageCode: t.languageCode, segments: kept);
+}
+
+Transcript assembleTranscript(String languageCode, List<RawSegment> raw,
+    {List<SegmentConfidence>? confidenceOut}) {
   const space = 0x20;
   final segments = <Segment>[];
   for (final rawSegment in raw) {
@@ -71,6 +111,8 @@ Transcript assembleTranscript(String languageCode, List<RawSegment> raw) {
       endMs: max(0, rawSegment.t1Ms),
       words: words,
     ));
+    confidenceOut?.add(
+        SegmentConfidence(rawSegment.noSpeechProb, rawSegment.avgTokenP));
   }
   return Transcript(languageCode: languageCode, segments: segments);
 }
