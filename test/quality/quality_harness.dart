@@ -20,6 +20,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:diktafon/domain/models.dart';
+import 'package:diktafon/services/audio/pcm_highpass.dart';
 import 'package:diktafon/services/providers/llm/llm_model_manager.dart';
 import 'package:diktafon/services/providers/llm/llm_summarization_provider.dart';
 import 'package:diktafon/services/providers/llm/llama_worker.dart';
@@ -43,6 +44,7 @@ class QualityConfig {
     required this.sourceVariant,
     required this.note,
     this.rescore = false,
+    this.highPassHz,
   });
 
   /// Names the run; results land in `<outDir>/<variant>.json`.
@@ -76,6 +78,10 @@ class QualityConfig {
   /// changes) instead of skipping them.
   final bool rescore;
 
+  /// Cutoff of the Dart transcription-path high-pass (quality/hpf branch);
+  /// null = off.
+  final double? highPassHz;
+
   bool get cleanupEnabled => llamaLib != null && llmModel != null;
 
   static QualityConfig? fromEnv(Map<String, String> env) {
@@ -96,6 +102,7 @@ class QualityConfig {
       sourceVariant: env['DIKTAFON_QUALITY_SOURCE'],
       note: env['DIKTAFON_QUALITY_NOTE'],
       rescore: env['DIKTAFON_QUALITY_RESCORE'] == '1',
+      highPassHz: double.tryParse(env['DIKTAFON_QUALITY_HPF'] ?? ''),
     );
   }
 
@@ -107,6 +114,7 @@ class QualityConfig {
         'forceLanguage': forceLanguage,
         'cleanupTier': cleanupEnabled ? llmTier : null,
         'sourceVariant': sourceVariant,
+        if (highPassHz != null) 'highPassHz': highPassHz,
       };
 }
 
@@ -236,6 +244,9 @@ Future<void> runVariant(QualityConfig config) async {
             '${clip.name}.f32';
         final decodeWatch = Stopwatch()..start();
         await decodeToF32(clip.audioPath, pcmPath, config.ffmpegFilter);
+        if (config.highPassHz != null) {
+          await highPassPcmFile(pcmPath, cutoffHz: config.highPassHz!);
+        }
         entry['decodeMs'] = decodeWatch.elapsedMilliseconds;
 
         final watch = Stopwatch()..start();

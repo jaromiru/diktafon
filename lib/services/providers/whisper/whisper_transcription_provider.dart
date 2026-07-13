@@ -11,6 +11,7 @@ import 'package:ffi/ffi.dart';
 
 import '../../../domain/models.dart';
 import '../../audio/pcm_decoder.dart';
+import '../../audio/pcm_highpass.dart';
 import '../transcription_provider.dart';
 import 'whisper_model_manager.dart';
 import 'whisper_worker.dart';
@@ -21,12 +22,18 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
     required this._decoder,
     required this._worker,
     required String tier,
+    this._highPassHz = 80,
   }) : _model = WhisperModel.byTier(tier);
 
   final WhisperModelManager _models;
   final PcmDecoder _decoder;
   final WhisperWorker _worker;
   final WhisperModel _model;
+
+  /// Cutoff of the transcription-path high-pass (null disables it): trims
+  /// wind/handling rumble below the speech band; the stored file is
+  /// untouched (noise-robust-transcription.md phase 1.4).
+  final double? _highPassHz;
 
   /// Leave headroom for the UI/OS; whisper gains little beyond 8 threads.
   static final int _threads =
@@ -64,6 +71,9 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
     try {
       final pcmPath = '${tmpDir.path}/audio.f32';
       await _decoder.decodeToF32(audio.filePath, pcmPath);
+      if (_highPassHz != null) {
+        await highPassPcmFile(pcmPath, cutoffHz: _highPassHz);
+      }
       if (cancel?.isCancelled ?? false) throw const TranscriptionCancelled();
 
       try {
