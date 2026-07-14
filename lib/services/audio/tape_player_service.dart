@@ -83,7 +83,9 @@ class TapePlayerService {
         from: from,
         to: index,
         playing: _player.playing,
-        seeking: _seekInFlight,
+        // An index change while an armed pre-play position lands is that
+        // seek arriving, never the tape rolling forward.
+        seeking: _seekInFlight || _pendingIdleSeek != null,
         loading: _loading,
       )) {
         _playChime();
@@ -185,10 +187,14 @@ class TapePlayerService {
       );
     }
     // A seek before the first playback only re-arms the initial position
-    // (see _seekTo) — the inactive player still reports 0:00, so answer
-    // from the pending position until playback actually starts.
+    // (see _seekTo) — the inactive player still reports 0:00, and the
+    // activation the first play() kicks off broadcasts stale/zero positions
+    // (just_audio's loading event carries the idle position, the platform's
+    // fresh entry starts at its own 0:00) until the armed position lands.
+    // Answer from the pending position the whole way; _settlePendingIdleSeek
+    // retires it once the live position has caught up.
     final pending = _pendingIdleSeek;
-    if (pending != null && _player.processingState == ProcessingState.idle) {
+    if (pending != null) {
       final index = pending.memoIndex.clamp(0, _tape.memoCount - 1);
       return TapePlaybackState(
         globalMs: _tape.toGlobalMs(index, pending.localMs),
@@ -214,7 +220,30 @@ class TapePlayerService {
   }
 
   void _emit() {
+    _settlePendingIdleSeek();
     if (!_stateController.isClosed) _stateController.add(state);
+  }
+
+  /// How far the live position may sit from an armed [_pendingIdleSeek] and
+  /// still count as that seek having landed — a little over one position tick.
+  static const _idleSeekLandedToleranceMs = 500;
+
+  /// Retires [_pendingIdleSeek] once the activated player has caught up with
+  /// it: same memo, position within a tick of the armed target. Latching
+  /// matters — playback rolls on from the target, so the pending answer is
+  /// only valid until the live position first matches it.
+  void _settlePendingIdleSeek() {
+    final pending = _pendingIdleSeek;
+    if (pending == null) return;
+    final processingState = _player.processingState;
+    if (processingState == ProcessingState.completed) {
+      _pendingIdleSeek = null;
+      return;
+    }
+    if (processingState != ProcessingState.ready) return;
+    if ((_player.currentIndex ?? 0) != pending.memoIndex) return;
+    final deltaMs = _player.position.inMilliseconds - pending.localMs;
+    if (deltaMs.abs() <= _idleSeekLandedToleranceMs) _pendingIdleSeek = null;
   }
 
   /// Loads are serialized: the memos stream can re-flow the tape while a
@@ -381,6 +410,10 @@ class TapePlayerService {
       await _setSources(position);
       return;
     }
+    // Any seek the active player takes over supersedes a still-armed
+    // pre-play position — left armed, the display gate in [state] would
+    // keep answering from the stale target.
+    _pendingIdleSeek = null;
     final localPosition = Duration(milliseconds: position.localMs);
     if (position.memoIndex == (_player.currentIndex ?? 0)) {
       await _player.seek(localPosition);

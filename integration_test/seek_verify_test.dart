@@ -168,8 +168,25 @@ void main() {
       expect(s.globalMs, closeTo(3000, 900),
           reason: 'the pre-play seek target is reflected while paused');
 
+      // The activation the play press kicks off (idle → loading → ready +
+      // deferred initial seek) used to broadcast stale/zero positions — the
+      // cursor wiggled to 0:00 / the memo start before jumping back to the
+      // target (2026-07-14). Sample throughout: the playhead must never fall
+      // behind the pre-play target.
+      final preplayMs = s.globalMs;
       await tester.tap(_key(DeckGlyph.play));
-      await _wait(tester, 1500);
+      var minSeenMs = 1 << 30;
+      final activationEnd =
+          DateTime.now().add(const Duration(milliseconds: 1500));
+      while (DateTime.now().isBefore(activationEnd)) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final sampledMs = player.state.globalMs;
+        if (sampledMs < minSeenMs) minSeenMs = sampledMs;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(minSeenMs, greaterThanOrEqualTo(preplayMs - 500),
+          reason: 'the playhead must not wiggle back toward 0:00 while the '
+              'play-press activation lands the pre-play seek');
       s = player.state;
       expect(s.playing, isTrue);
       expect(s.globalMs, greaterThan(3200),
