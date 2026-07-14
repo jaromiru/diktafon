@@ -98,10 +98,25 @@ class JobQueue {
     await cancelJobsFor(cassetteId);
     for (final memo in await _memos.memosOf(cassetteId)) {
       await cancelJobsFor(memo.id);
-      await _memos.resetEnrichment(memo.id);
-      await _insertJob(JobType.transcribe, memo.id);
+      // Atomic pair: a kill between the wipe and the enqueue would strand
+      // the memo at `stored` with no job and no §14 retry affordance.
+      await _db.transaction(() async {
+        await _memos.resetEnrichment(memo.id);
+        await _insertJob(JobType.transcribe, memo.id);
+      });
     }
     unawaited(drain());
+  }
+
+  /// Cancels queued *and in-flight* work for a cassette about to be deleted
+  /// (§14): every memo's jobs plus the cassette-level summary jobs. Without
+  /// this an in-flight transcription keeps burning CPU for minutes after the
+  /// delete, then retries its decode against the removed audio file.
+  Future<void> cancelCassetteJobs(String cassetteId) async {
+    for (final memo in await _memos.memosOf(cassetteId)) {
+      await cancelJobsFor(memo.id);
+    }
+    await cancelJobsFor(cassetteId);
   }
 
   /// Cancels pending *and in-flight* work for a deleted memo (§14).
@@ -135,6 +150,11 @@ class JobQueue {
     if (!_recoveredOrphans) {
       _recoveredOrphans = true;
       await _recoverOrphans();
+      await _reconcileStrandedMemos();
+      // Done rows written by pre-pruning builds are pure archaeology —
+      // completed jobs are deleted outright now (see _run), so sweep the
+      // legacy ones too instead of scanning them on every drain forever.
+      await (_db.delete(_db.jobs)..where((j) => j.status.equals('done'))).go();
     }
     while (true) {
       // Enrichment waits for a provisioned model (§14) — and summarization
@@ -184,7 +204,10 @@ class JobQueue {
         case JobType.recomputeCassetteSummary:
           await _updateCassetteSummary(job.targetId);
       }
-      await _setJob(job.id, 'done');
+      // Completed jobs are deleted, not archived: nothing reads them back,
+      // and years of use would otherwise leave thousands of dead rows under
+      // every drain query (the jobs table has no index on status).
+      await (_db.delete(_db.jobs)..where((j) => j.id.equals(job.id))).go();
     } on TranscriptionCancelled {
       // Memo deleted while transcribing — the job is moot, not failed.
       await (_db.delete(_db.jobs)..where((j) => j.id.equals(job.id))).go();
@@ -201,10 +224,25 @@ class JobQueue {
           await _memos.updateStatus(job.targetId, MemoStatus.failed);
         }
       } else {
+        // The requeued job may park behind a closed drain gate (model
+        // deleted, tier switched to a not-yet-downloaded one) — reset the
+        // memo to its honest waiting status so the "transcribing…" shimmer
+        // never outlives the stage that showed it; the rerun re-asserts it.
+        if (type.targetsMemo) await _resetToWaiting(job.targetId);
         // Brief backoff so transient failures don't hot-loop (§6.5).
         await Future<void>.delayed(_retryDelayUnit * attempts);
       }
     }
+  }
+
+  /// Puts a memo back to the waiting status its enrichment stage starts
+  /// from — `stored` before a transcript exists, `transcribed` after.
+  Future<void> _resetToWaiting(String memoId) async {
+    final row = await _memoRow(memoId);
+    if (row == null) return; // deleted meanwhile (§14)
+    await _memos.updateStatus(
+        memoId,
+        row.transcript == null ? MemoStatus.stored : MemoStatus.transcribed);
   }
 
   /// A job stays 'running' in the DB for the length of its stage — if the
@@ -230,13 +268,39 @@ class JobQueue {
       if (permanent) {
         await _memos.updateStatus(job.targetId, MemoStatus.failed);
       } else {
-        final row = await _memoRow(job.targetId);
-        if (row == null) continue; // deleted meanwhile (§14)
-        await _memos.updateStatus(
-            job.targetId,
-            row.transcript == null
-                ? MemoStatus.stored
-                : MemoStatus.transcribed);
+        await _resetToWaiting(job.targetId);
+      }
+    }
+  }
+
+  /// The other way an enrichment chain breaks (§6.5): a memo stranded in a
+  /// waiting/in-flight status with *no* job at all — the process died
+  /// between the memo insert and its enqueue (record stop, import), or
+  /// between a wipe and its re-enqueue (pre-transaction retranscribe).
+  /// Nothing would ever pick it up: it renders as "queued for
+  /// transcription" forever and, not being `failed`, offers no retry.
+  /// Re-enter the pipeline at the right stage, like [retryEnrichment].
+  Future<void> _reconcileStrandedMemos() async {
+    final live = await (_db.select(_db.jobs)
+          ..where((j) => j.status.isIn(['queued', 'running'])))
+        .get();
+    final covered = {for (final job in live) job.targetId};
+    final rows = await (_db.select(_db.memos)
+          ..where((m) => m.status.isIn([
+                MemoStatus.stored.name,
+                MemoStatus.transcribing.name,
+                MemoStatus.transcribed.name,
+                MemoStatus.summarizing.name,
+              ])))
+        .get();
+    for (final row in rows) {
+      if (covered.contains(row.id)) continue;
+      if (row.transcript == null) {
+        await _memos.updateStatus(row.id, MemoStatus.stored);
+        await _insertJob(JobType.transcribe, row.id);
+      } else {
+        await _memos.updateStatus(row.id, MemoStatus.transcribed);
+        await _insertJob(JobType.summarizeMemo, row.id);
       }
     }
   }

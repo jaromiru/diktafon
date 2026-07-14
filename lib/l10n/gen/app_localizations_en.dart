@@ -144,6 +144,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Microphone permission is required to record.';
 
   @override
+  String get recordingFailed =>
+      'Couldn\'t start recording — the microphone may be in use.';
+
+  @override
+  String get playbackError =>
+      'Playback failed — the audio file may be missing or damaged.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Audio for $count memos is missing on this device.',
+      one: 'Audio for 1 memo is missing on this device.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'DELETE MEMO?';
 
   @override

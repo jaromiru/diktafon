@@ -7,6 +7,22 @@ import 'package:uuid/uuid.dart';
 import '../../data/files/audio_file_store.dart';
 import '../../domain/models.dart';
 
+/// The real duration of an audio file in ms, via a throwaway player; null
+/// when probing fails (unfinalized/corrupt file). Shared by the recorder
+/// (tape offsets, §4.2) and the importer (manifests with a missing or zero
+/// duration).
+Future<int?> probeAudioDurationMs(String path) async {
+  final probe = AudioPlayer();
+  try {
+    final duration = await probe.setFilePath(path);
+    return duration?.inMilliseconds;
+  } catch (_) {
+    return null;
+  } finally {
+    await probe.dispose();
+  }
+}
+
 /// A finished capture, ready to be persisted as a memo.
 class RecordingResult {
   const RecordingResult({
@@ -43,6 +59,12 @@ class RecorderService {
   Stream<Amplitude> amplitudeStream(
           {Duration interval = const Duration(milliseconds: 120)}) =>
       _recorder.onAmplitudeChanged(interval);
+
+  /// Fires when the platform recorder stops — including stops the app never
+  /// asked for (phone call, Siri, another app claiming the mic). The
+  /// controller reconciles: a live UI over a dead capture finalizes.
+  Stream<void> get captureStops =>
+      _recorder.onStateChanged().where((s) => s == RecordState.stop);
 
   /// Asks the OS for the mic permission when it's missing (the plugin shows
   /// the prompt); false → denied, or silenced after repeated denials.
@@ -82,7 +104,15 @@ class RecorderService {
       throw StateError('not recording');
     }
     stopwatch.stop();
-    final recordedPath = await _recorder.stop() ?? path;
+    String recordedPath;
+    try {
+      recordedPath = await _recorder.stop() ?? path;
+    } catch (_) {
+      // Plugin failure mid-stop (interruption, backend error): the capture
+      // file may still be playable — keep the memo rather than lose it;
+      // the duration probe below falls back to wall clock.
+      recordedPath = path;
+    }
     _activeMemoId = null;
     _activePath = null;
     _startedAt = null;
@@ -91,7 +121,8 @@ class RecorderService {
     // Prefer the file's real duration (drives tape offsets, §4.2); fall back
     // to wall-clock elapsed if probing fails.
     final durationMs =
-        await _probeDurationMs(recordedPath) ?? stopwatch.elapsedMilliseconds;
+        await probeAudioDurationMs(recordedPath) ??
+            stopwatch.elapsedMilliseconds;
     return RecordingResult(
       memoId: memoId,
       filePath: recordedPath,
@@ -108,18 +139,6 @@ class RecorderService {
     _stopwatch = null;
     await _recorder.stop();
     if (path != null) await _files.deleteMemoFile(path);
-  }
-
-  static Future<int?> _probeDurationMs(String path) async {
-    final probe = AudioPlayer();
-    try {
-      final duration = await probe.setFilePath(path);
-      return duration?.inMilliseconds;
-    } catch (_) {
-      return null;
-    } finally {
-      await probe.dispose();
-    }
   }
 
   Memo toMemo(RecordingResult result, String cassetteId) => Memo(

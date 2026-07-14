@@ -12,6 +12,7 @@ library;
 
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:ffi/ffi.dart';
@@ -86,7 +87,10 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
       final pcmPath = '${tmpDir.path}/audio.f32';
       await _decoder.decodeToF32(audio.filePath, pcmPath);
       if (!_isLarge && _highPassHz != null) {
-        await highPassPcmFile(pcmPath, cutoffHz: _highPassHz);
+        // Whole-file read + a ~57 M-sample loop per hour of audio — never
+        // in the UI isolate (it froze frames for seconds on phones).
+        final cutoffHz = _highPassHz;
+        await Isolate.run(() => highPassPcmFile(pcmPath, cutoffHz: cutoffHz));
       }
       if (cancel?.isCancelled ?? false) throw const TranscriptionCancelled();
 

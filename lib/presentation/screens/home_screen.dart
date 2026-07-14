@@ -257,6 +257,10 @@ Future<bool> confirmDeleteCassette(
       ) ??
       false;
   if (confirmed) {
+    // §14: stop queued and in-flight enrichment first — an in-flight
+    // transcription would burn CPU for minutes and retry against the
+    // deleted audio.
+    await ref.read(jobQueueProvider).cancelCassetteJobs(cassetteId);
     await ref.read(cassetteRepositoryProvider).delete(cassetteId);
     await ref.read(audioFileStoreProvider).deleteCassetteDir(cassetteId);
   }

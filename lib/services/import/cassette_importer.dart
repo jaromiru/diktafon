@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
 import 'package:uuid/uuid.dart';
@@ -57,6 +58,7 @@ class CassetteImporter {
     required this._files,
     required this._enqueueTranscription,
     required this._retryEnrichment,
+    this._probeDurationMs,
   });
 
   final CassetteRepository _cassettes;
@@ -68,6 +70,11 @@ class CassetteImporter {
   final Future<void> Function(String memoId) _enqueueTranscription;
   final Future<void> Function(String memoId) _retryEnrichment;
 
+  /// Duration probe for manifests that lack one (hand-edited archives) —
+  /// a zero-length memo with audio would be an invisible, unplayable
+  /// sliver on the timeline. Null (tests) → the manifest value stands.
+  final Future<int?> Function(String path)? _probeDurationMs;
+
   final _uuid = const Uuid();
 
   /// Extracts [zip] to a temp folder and imports every cassette found.
@@ -76,7 +83,11 @@ class CassetteImporter {
   Future<ImportResult> importArchive(File zip) async {
     final staging = await Directory.systemTemp.createTemp('diktafon_import_');
     try {
-      await extractFileToDisk(zip.path, staging.path);
+      // Extraction is seconds of CPU+IO for a big archive — off the UI
+      // isolate, or the import dialog freezes for its duration.
+      final zipPath = zip.path;
+      final stagingPath = staging.path;
+      await Isolate.run(() => extractFileToDisk(zipPath, stagingPath));
       return await importDirectory(staging);
     } finally {
       await staging.delete(recursive: true);
@@ -166,12 +177,17 @@ class CassetteImporter {
         // state the app already tolerates after a metadata-only OS restore.
         if (audio != null) await audio.copy(path);
 
+        var durationMs = (m['durationMs'] as num?)?.toInt() ?? 0;
+        if (durationMs <= 0 && audio != null) {
+          durationMs = await _probeDurationMs?.call(path) ?? durationMs;
+        }
+
         final gist = m['summary'] as String?;
         await _memos.insert(Memo(
           id: memoId,
           cassetteId: cassette.id,
           filePath: path,
-          durationMs: (m['durationMs'] as num?)?.toInt() ?? 0,
+          durationMs: durationMs,
           createdAt: _date(m['createdAt']) ?? DateTime.now(),
           status: transcript == null
               ? MemoStatus.stored

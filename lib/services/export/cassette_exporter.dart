@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
 import 'package:intl/intl.dart';
@@ -59,8 +60,13 @@ class CassetteExporter {
         await exportCassette(
             cassette: item.cassette, memos: item.memos, target: staging);
       }
-      await ZipFileEncoder().zipDirectory(staging,
-          filename: outputPath, level: ZipFileEncoder.store);
+      // Zipping a multi-hundred-MB library is seconds of pure CPU — off
+      // the UI isolate, or the export screen freezes for its duration.
+      final stagingPath = staging.path;
+      await Isolate.run(() => ZipFileEncoder().zipDirectory(
+          Directory(stagingPath),
+          filename: outputPath,
+          level: ZipFileEncoder.store));
       return File(outputPath);
     } finally {
       await staging.delete(recursive: true);

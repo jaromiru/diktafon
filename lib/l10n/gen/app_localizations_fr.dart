@@ -146,6 +146,25 @@ class AppLocalizationsFr extends AppLocalizations {
       'L\'accès au micro est nécessaire pour enregistrer.';
 
   @override
+  String get recordingFailed =>
+      'Impossible de démarrer l\'enregistrement — le micro est peut-être utilisé.';
+
+  @override
+  String get playbackError =>
+      'Échec de la lecture — le fichier audio est peut-être manquant ou endommagé.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'L’audio de $count mémos est introuvable sur cet appareil.',
+      one: 'L’audio de $count mémo est introuvable sur cet appareil.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'SUPPRIMER LE MÉMO ?';
 
   @override

@@ -150,6 +150,27 @@ class AppLocalizationsPl extends AppLocalizations {
       'Do nagrywania potrzebny jest dostęp do mikrofonu.';
 
   @override
+  String get recordingFailed =>
+      'Nie udało się rozpocząć nagrywania — mikrofon może być zajęty.';
+
+  @override
+  String get playbackError =>
+      'Odtwarzanie nie powiodło się — plik audio może być uszkodzony lub go brakuje.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Na tym urządzeniu brakuje dźwięku $count nagrania.',
+      many: 'Na tym urządzeniu brakuje dźwięku $count nagrań.',
+      few: 'Na tym urządzeniu brakuje dźwięku $count nagrań.',
+      one: 'Na tym urządzeniu brakuje dźwięku 1 nagrania.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'USUNĄĆ NAGRANIE?';
 
   @override

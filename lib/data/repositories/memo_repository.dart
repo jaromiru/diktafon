@@ -89,6 +89,14 @@ class MemoRepository {
   Future<void> delete(String id) =>
       (_db.delete(_db.memos)..where((m) => m.id.equals(id))).go();
 
+  /// Every memo id — the launch sweep uses it to tell live audio files
+  /// from orphans (§7.1).
+  Future<Set<String>> allIds() async {
+    final id = _db.memos.id;
+    final rows = await (_db.selectOnly(_db.memos)..addColumns([id])).get();
+    return {for (final row in rows) row.read(id)!};
+  }
+
   /// Heals stale absolute audio paths (§7.1): iOS moves the app's data
   /// container on every update/reinstall — the audio files migrate with it,
   /// but paths recorded by an older install keep pointing into the dead

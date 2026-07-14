@@ -100,6 +100,46 @@ void main() {
     return zipPath;
   }
 
+  test('a zero-duration memo with audio gets probed (hand-edited manifest) '
+      '— never an invisible sliver on the timeline', () async {
+    final dir = Directory('${work.path}/export')..createSync();
+    Directory('${dir.path}/audio').createSync();
+    File('${dir.path}/audio/clip.m4a').writeAsBytesSync([1, 2, 3, 4]);
+    File('${dir.path}/cassette.json').writeAsStringSync(jsonEncode({
+      'formatVersion': 1,
+      'label': 'Probe me',
+      'createdAt': '2026-07-01T09:00:00.000',
+      'updatedAt': '2026-07-01T09:00:00.000',
+      'memos': [
+        {
+          'id': 'x',
+          'createdAt': '2026-07-01T09:00:00.000',
+          'durationMs': 0,
+          'audio': 'audio/clip.m4a',
+        },
+      ],
+    }));
+
+    final probed = <String>[];
+    final probingImporter = CassetteImporter(
+      cassettes: cassettes,
+      memos: memos,
+      files: AudioFileStore(Directory('${work.path}/store')),
+      enqueueTranscription: (id) async => transcriptionQueue.add(id),
+      retryEnrichment: (id) async => enrichmentQueue.add(id),
+      probeDurationMs: (path) async {
+        probed.add(path);
+        return 4321;
+      },
+    );
+    final result = await probingImporter.importDirectory(dir);
+
+    expect(result.memos, 1);
+    expect(probed, hasLength(1));
+    final row = (await db.select(db.memos).get()).single;
+    expect(row.durationMs, 4321);
+  });
+
   test('zip round trip: rows, audio, enrichment and timestamps survive',
       () async {
     final audio = makeAudio('src.m4a');

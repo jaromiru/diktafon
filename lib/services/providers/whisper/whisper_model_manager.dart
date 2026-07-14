@@ -98,5 +98,6 @@ class WhisperModelManager extends ModelManager<WhisperModel> {
     super.dir, {
     super.httpClientFactory,
     super.catalog = WhisperModel.all,
+    super.stallTimeout,
   });
 }

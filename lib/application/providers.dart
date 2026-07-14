@@ -118,6 +118,7 @@ final cassetteImporterProvider = Provider<CassetteImporter>((ref) {
     files: ref.watch(audioFileStoreProvider),
     enqueueTranscription: jobs.enqueueTranscription,
     retryEnrichment: jobs.retryEnrichment,
+    probeDurationMs: probeAudioDurationMs,
   );
 });
 
@@ -189,3 +190,8 @@ final playbackProvider = StreamProvider<TapePlaybackState>((ref) {
   final player = ref.watch(tapePlayerProvider);
   return player.stateStream;
 });
+
+/// Player trouble surfaced to the open cassette screen (§14): a dead
+/// source mid-tape, memos with no audio after a metadata-only restore.
+final playerIssuesProvider = StreamProvider<(TapePlayerIssue, int)>(
+    (ref) => ref.watch(tapePlayerProvider).issues);

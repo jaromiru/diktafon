@@ -50,6 +50,11 @@ bool isNaturalAdvance({
 }) =>
     playing && !seeking && !loading && from != null && to == from + 1;
 
+/// Trouble the deck can't fix silently (§14): a dead audio source mid-tape,
+/// or memos whose files are gone entirely (metadata-only OS restore,
+/// transcript-only import, a capture killed before its moov atom).
+enum TapePlayerIssue { playbackError, missingAudio }
+
 /// Continuous playback (§6.4, D5): the tape is a concatenation of the memos'
 /// files in chronological order — gapless auto-advance, one global position.
 /// All seeks/scrubs/±15 s translate through Tape.locate (§4.2).
@@ -61,6 +66,15 @@ class TapePlayerService {
           maxPeriod: const Duration(milliseconds: 200),
         )
         .listen((_) => _emit());
+    // The only error surface every backend shares: a source that fails to
+    // load/play (file missing or truncated) errors here. Pause so the
+    // transport doesn't keep looking alive over dead air, and tell the UI.
+    _eventsSub = _player.playbackEventStream
+        .listen((_) {}, onError: (Object e, StackTrace st) {
+      unawaited(_player.pause().then<void>((_) {}, onError: (_) {}));
+      _reportIssue(TapePlayerIssue.playbackError);
+      _emit();
+    });
     _playingSub = _player.playingStream.listen((_) => _emit());
     _indexSub = _player.currentIndexStream.listen((index) {
       final from = _lastIndex;
@@ -84,6 +98,29 @@ class TapePlayerService {
 
   final AudioPlayer _player = AudioPlayer();
   final _stateController = StreamController<TapePlaybackState>.broadcast();
+  final _issueController =
+      StreamController<(TapePlayerIssue, int)>.broadcast();
+
+  /// Issues with their affected-memo count (0 = unknown); the cassette
+  /// screen turns these into snackbars. Debounced: backends can error
+  /// several times for one dead source.
+  Stream<(TapePlayerIssue, int)> get issues => _issueController.stream;
+
+  DateTime _lastIssueAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Cassettes already notified about missing audio this session — the
+  /// tape reloads on every memo add/delete, and one notice is plenty.
+  final Set<String> _missingAudioNotified = {};
+
+  void _reportIssue(TapePlayerIssue issue, {int count = 0}) {
+    final now = DateTime.now();
+    if (issue == TapePlayerIssue.playbackError &&
+        now.difference(_lastIssueAt) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastIssueAt = now;
+    if (!_issueController.isClosed) _issueController.add((issue, count));
+  }
 
   /// D5: a short cue as the tape rolls into the next memo, overlaid on a
   /// second player so the main tape stays gapless. Off → fully seamless.
@@ -114,6 +151,7 @@ class TapePlayerService {
   late final StreamSubscription<void> _playingSub;
   late final StreamSubscription<void> _indexSub;
   late final StreamSubscription<void> _stateSub;
+  late final StreamSubscription<void> _eventsSub;
 
   Tape _tape = Tape(const []);
   Tape get tape => _tape;
@@ -179,13 +217,25 @@ class TapePlayerService {
     if (!_stateController.isClosed) _stateController.add(state);
   }
 
+  /// Loads are serialized: the memos stream can re-flow the tape while a
+  /// previous load's awaits are still in flight (delete confirm landing as
+  /// a recording finalizes), and interleaved loads would leave _tape,
+  /// _pendingIdleSeek and the stashed positions describing different tapes.
+  Future<void> _loadChain = Future.value();
+
   /// (Re)loads the tape. Reloading the *same* cassette (memo add/delete
   /// re-flows the tape, §4.2) keeps the playhead at its global position.
   /// Loading a *different* cassette stashes the old cassette's position and
   /// resumes at the new one's own remembered spot (or the top) — never at
   /// the previous tape's position. A null [cassetteId] is treated as a
   /// same-tape reload.
-  Future<void> load(Tape tape, {String? cassetteId}) async {
+  Future<void> load(Tape tape, {String? cassetteId}) {
+    final next = _loadChain.then((_) => _load(tape, cassetteId));
+    _loadChain = next.then<void>((_) {}, onError: (_) {});
+    return next;
+  }
+
+  Future<void> _load(Tape tape, String? cassetteId) async {
     final sameCassette = cassetteId == null || cassetteId == _cassetteId;
     // Auto-resume only survives a same-tape re-flow; a switched-to cassette
     // waits for its own play press.
@@ -208,6 +258,15 @@ class TapePlayerService {
         _emit();
         return;
       }
+      // Memos whose audio is gone (metadata-only OS restore, transcript-only
+      // import, §7.1/§8) would otherwise surface only as a dead stop
+      // mid-playback — say so up front, once per cassette per session.
+      final missing = tape.memos
+          .where((memo) => !File(memo.filePath).existsSync())
+          .length;
+      if (missing > 0 && _missingAudioNotified.add(_cassetteId ?? '')) {
+        _reportIssue(TapePlayerIssue.missingAudio, count: missing);
+      }
       TapePosition? position;
       if (previousGlobalMs > 0 && previousGlobalMs < tape.totalDurationMs) {
         position = tape.locate(previousGlobalMs);
@@ -217,7 +276,7 @@ class TapePlayerService {
       // the same display seam pre-play seeks use (see [state]) so a
       // restored/preserved position shows before the first play press.
       if (position != null && !wasPlaying) _pendingIdleSeek = position;
-      if (wasPlaying) _player.play();
+      if (wasPlaying) _play();
     } finally {
       _lastIndex = _player.currentIndex;
       _loading = false;
@@ -235,8 +294,14 @@ class TapePlayerService {
           state.globalMs >= _tape.totalDurationMs) {
         await seekGlobal(0);
       }
-      _player.play();
+      _play();
     }
+  }
+
+  /// Fire-and-forget play whose failure (dead source) must not become an
+  /// unhandled zone error — the playbackEventStream listener reports it.
+  void _play() {
+    unawaited(_player.play().then<void>((_) {}, onError: (_) {}));
   }
 
   /// The tape's files handed to the player without preloading; [position]
@@ -350,7 +415,7 @@ class TapePlayerService {
       // A newer scrub target supersedes this one; the loop handles it.
       if (_seekTargetMs == null) await _player.seek(localPosition);
     }
-    if (wasPlaying && needsLocalSeek) _player.play();
+    if (wasPlaying && needsLocalSeek) _play();
   }
 
   /// Tape-deck rewind / fast-forward: ±15 s on the global timeline, crossing
@@ -365,7 +430,9 @@ class TapePlayerService {
     await _playingSub.cancel();
     await _indexSub.cancel();
     await _stateSub.cancel();
+    await _eventsSub.cancel();
     await _stateController.close();
+    await _issueController.close();
     await _chimePlayer?.dispose();
     await _player.dispose();
   }

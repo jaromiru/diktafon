@@ -146,6 +146,25 @@ class AppLocalizationsDe extends AppLocalizations {
       'Zum Aufnehmen wird der Mikrofonzugriff benötigt.';
 
   @override
+  String get recordingFailed =>
+      'Aufnahme konnte nicht gestartet werden — das Mikrofon ist möglicherweise belegt.';
+
+  @override
+  String get playbackError =>
+      'Wiedergabe fehlgeschlagen — die Audiodatei fehlt möglicherweise oder ist beschädigt.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Für $count Memos fehlen auf diesem Gerät die Audiodateien.',
+      one: 'Für 1 Memo fehlt auf diesem Gerät die Audiodatei.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'MEMO LÖSCHEN?';
 
   @override

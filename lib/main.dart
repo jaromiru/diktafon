@@ -59,11 +59,32 @@ Future<void> main() async {
         .rebaseAudioPaths(fileStore.rootPath);
   } catch (_) {}
 
+  // Launch hygiene, off the critical path: audio files no memo references
+  // (a capture killed before its stop() ever inserted a row, §7.1) and
+  // stale temp dirs stranded by a mid-job kill (decoded PCM, import/export
+  // staging). Both age-gated — a job may legitimately be starting up.
+  unawaited(() async {
+    try {
+      final cutoff = DateTime.now().subtract(const Duration(hours: 1));
+      final ids = await container.read(memoRepositoryProvider).allIds();
+      await fileStore.sweepOrphans(ids.contains, cutoff: cutoff);
+      await _sweepStaleTempDirs(cutoff);
+    } catch (_) {}
+  }());
+
   // Model downloads mirror into the notification area while they run.
   _attachDownloadNotifications(whisperModels, llmModels);
 
-  // Resume any jobs persisted before the last shutdown (§6.5 durability).
-  Future<void>.microtask(() => container.read(jobQueueProvider).drain());
+  // Resume any jobs persisted before the last shutdown (§6.5 durability) —
+  // once settings have actually loaded: the providers fall back to default
+  // tiers until the settings stream's first emission, and a job resolved in
+  // that cold-start window would silently transcribe with the wrong model.
+  Future<void>.microtask(() async {
+    try {
+      await container.read(settingsProvider.future);
+    } catch (_) {}
+    await container.read(jobQueueProvider).drain();
+  });
 
   // A force-close mid-download left a `.part` behind — put it back on the
   // wire without waiting for a tap (§6.6; user-paused `.paused` stashes stay
@@ -111,15 +132,40 @@ Future<void> _attachDownloadNotifications(
 /// bundle assets — copy the asset out once (chime → app-support, Silero VAD
 /// → the backup-excluded models dir). Null (asset missing) → the feature
 /// quietly stays off rather than failing startup.
+///
+/// Write-then-rename plus a byte-length check: a process kill mid-write
+/// (first launch is exactly when the OS is busiest) must not leave a
+/// truncated copy that every later launch trusts — a short VAD model fails
+/// natively on every small-tier transcription.
 Future<String?> _materializeAsset(String assetKey, String dir) async {
   try {
     final file = File('$dir/${assetKey.split('/').last}');
-    if (!await file.exists()) {
-      final data = await rootBundle.load(assetKey);
-      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    final data = await rootBundle.load(assetKey);
+    if (await file.exists() && await file.length() == data.lengthInBytes) {
+      return file.path;
     }
+    final tmp = File('${file.path}.tmp');
+    await tmp.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    await tmp.rename(file.path);
     return file.path;
   } catch (_) {
     return null;
+  }
+}
+
+/// Deletes stale `dk_pcm_*` / `diktafon_import_*` / `diktafon_export_*`
+/// temp entries a killed process left behind. Age-gated by [cutoff]: /tmp
+/// is shared on desktop and another instance may be mid-job.
+Future<void> _sweepStaleTempDirs(DateTime cutoff) async {
+  const prefixes = ['dk_pcm_', 'diktafon_import_', 'diktafon_export_'];
+  await for (final entry in Directory.systemTemp.list()) {
+    final name = entry.uri.pathSegments.lastWhere((s) => s.isNotEmpty);
+    if (!prefixes.any(name.startsWith)) continue;
+    try {
+      if (entry.statSync().modified.isAfter(cutoff)) continue;
+      entry.deleteSync(recursive: true);
+    } catch (_) {
+      // Best-effort hygiene.
+    }
   }
 }

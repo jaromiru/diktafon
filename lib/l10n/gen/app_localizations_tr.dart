@@ -144,6 +144,25 @@ class AppLocalizationsTr extends AppLocalizations {
   String get micPermissionNeeded => 'Kayıt için mikrofon izni gerekli.';
 
   @override
+  String get recordingFailed =>
+      'Kayıt başlatılamadı — mikrofon kullanımda olabilir.';
+
+  @override
+  String get playbackError =>
+      'Oynatma başarısız oldu — ses dosyası eksik veya bozuk olabilir.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Bu cihazda $count notun sesi eksik.',
+      one: 'Bu cihazda 1 notun sesi eksik.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'NOT SİLİNSİN Mİ?';
 
   @override

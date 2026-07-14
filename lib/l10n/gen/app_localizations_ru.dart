@@ -149,6 +149,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String get micPermissionNeeded => 'Для записи нужен доступ к микрофону.';
 
   @override
+  String get recordingFailed =>
+      'Не удалось начать запись — возможно, микрофон занят.';
+
+  @override
+  String get playbackError =>
+      'Не удалось воспроизвести запись — аудиофайл отсутствует или повреждён.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'На этом устройстве отсутствует аудио $count записи.',
+      many: 'На этом устройстве отсутствует аудио $count записей.',
+      few: 'На этом устройстве отсутствует аудио $count записей.',
+      one: 'На этом устройстве отсутствует аудио $count записи.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'УДАЛИТЬ ЗАПИСЬ?';
 
   @override

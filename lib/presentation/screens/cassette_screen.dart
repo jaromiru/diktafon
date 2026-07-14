@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,13 +34,15 @@ class CassetteScreen extends ConsumerStatefulWidget {
   ConsumerState<CassetteScreen> createState() => _CassetteScreenState();
 }
 
-class _CassetteScreenState extends ConsumerState<CassetteScreen> {
+class _CassetteScreenState extends ConsumerState<CassetteScreen>
+    with WidgetsBindingObserver {
   String _loadedTapeSignature = '';
   bool _summaryExpanded = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Keep the player in sync with the tape: initial load + re-flow on
     // memo add/delete (§4.2) while preserving the global position.
     ref.listenManual(
@@ -47,6 +50,40 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
       (_, tape) => _loadTape(tape),
       fireImmediately: true,
     );
+    // Player trouble → snackbar (§14): dead source, audio missing after a
+    // metadata-only restore.
+    ref.listenManual(playerIssuesProvider, (_, next) {
+      final issue = next.value;
+      if (issue == null || !mounted) return;
+      final (type, count) = issue;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(switch (type) {
+          TapePlayerIssue.playbackError => context.l10n.playbackError,
+          TapePlayerIssue.missingAudio => context.l10n.missingAudio(count),
+        }),
+      ));
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    // Backgrounded Android delivers *silence* to the mic (no foreground
+    // service — D13 still open) while the elapsed ticker keeps counting:
+    // finalize the memo instead of recording dead air. iOS records on
+    // (audio background mode); desktop never pauses the activity.
+    if (lifecycle == AppLifecycleState.paused &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        ref
+            .read(recordingControllerProvider)
+            .isRecordingIn(widget.cassetteId)) {
+      unawaited(ref.read(recordingControllerProvider.notifier).stop());
+    }
   }
 
   Future<void> _loadTape(Tape tape) async {
@@ -63,10 +100,14 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
   @override
   void deactivate() {
     // M1 has no lock-screen controls yet: leaving the cassette stops the
-    // session. An in-flight recording is finalized, never lost (§14).
+    // session. An in-flight recording is finalized, never lost (§14) — and
+    // a start still waiting on the permission prompt is abandoned, so a
+    // late grant can't begin a headless capture.
+    final notifier = ref.read(recordingControllerProvider.notifier);
+    notifier.abortStartIn(widget.cassetteId);
     final recording = ref.read(recordingControllerProvider);
     if (recording.isRecordingIn(widget.cassetteId)) {
-      unawaited(ref.read(recordingControllerProvider.notifier).stop());
+      unawaited(notifier.stop());
     }
     unawaited(ref.read(tapePlayerProvider).pause());
     super.deactivate();
@@ -381,19 +422,27 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen> {
   /// the OS prompt when it's missing) — the bubble appears only after a
   /// denial, with a road back for the "don't ask again" case.
   Future<void> _startRecording() async {
-    final ok = await ref
+    final outcome = await ref
         .read(recordingControllerProvider.notifier)
         .start(widget.cassetteId);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.l10n.micPermissionNeeded),
-        action: !Platform.isAndroid
-            ? null
-            : SnackBarAction(
-                label: context.l10n.openSystemSettings,
-                onPressed: openAppSystemSettings,
-              ),
-      ));
+    if (!mounted) return;
+    switch (outcome) {
+      case RecordStartOutcome.started || RecordStartOutcome.ignored:
+        break;
+      case RecordStartOutcome.denied:
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.micPermissionNeeded),
+          action: !Platform.isAndroid
+              ? null
+              : SnackBarAction(
+                  label: context.l10n.openSystemSettings,
+                  onPressed: openAppSystemSettings,
+                ),
+        ));
+      case RecordStartOutcome.failed:
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.recordingFailed),
+        ));
     }
   }
 

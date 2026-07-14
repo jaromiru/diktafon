@@ -36,4 +36,33 @@ class AudioFileStore {
     final dir = Directory('${_root.path}/$cassetteId');
     if (await dir.exists()) await dir.delete(recursive: true);
   }
+
+  /// Removes audio files no memo row references (§7.1): a process killed
+  /// mid-recording leaves an unfinalized capture behind — no moov atom, no
+  /// DB row, invisible, unplayable, and holding space forever. Runs once at
+  /// launch. Files touched after [cutoff] are spared: a capture that just
+  /// started has no row *yet*, and a mid-copy import file gets its row
+  /// moments later.
+  Future<int> sweepOrphans(
+    bool Function(String memoId) isReferenced, {
+    required DateTime cutoff,
+  }) async {
+    if (!await _root.exists()) return 0;
+    var removed = 0;
+    await for (final entry in _root.list(recursive: true)) {
+      if (entry is! File) continue;
+      final name = entry.uri.pathSegments.last;
+      final dot = name.lastIndexOf('.');
+      final stem = dot > 0 ? name.substring(0, dot) : name;
+      if (isReferenced(stem)) continue;
+      try {
+        if (!entry.lastModifiedSync().isBefore(cutoff)) continue;
+        entry.deleteSync();
+        removed++;
+      } catch (_) {
+        // Best-effort hygiene — a locked/vanished file is not a problem.
+      }
+    }
+    return removed;
+  }
 }

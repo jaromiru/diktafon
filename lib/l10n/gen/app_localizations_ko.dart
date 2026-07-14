@@ -140,6 +140,22 @@ class AppLocalizationsKo extends AppLocalizations {
   String get micPermissionNeeded => '녹음하려면 마이크 권한이 필요합니다.';
 
   @override
+  String get recordingFailed => '녹음을 시작할 수 없습니다. 마이크가 사용 중일 수 있습니다.';
+
+  @override
+  String get playbackError => '재생에 실패했습니다. 오디오 파일이 없거나 손상되었을 수 있습니다.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '이 기기에 메모 $count개의 오디오가 없습니다.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => '메모를 삭제할까요?';
 
   @override

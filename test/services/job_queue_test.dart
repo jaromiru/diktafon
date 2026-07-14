@@ -98,6 +98,9 @@ class FakeSummarizationProvider implements SummarizationProvider {
   String? lastPreviousSummary;
   List<MemoDigest>? lastDigests;
 
+  /// Lets a test act (close a gate, flip settings) mid-"inference".
+  Completer<void>? gate;
+
   @override
   String get id => 'fake/llm';
 
@@ -112,6 +115,7 @@ class FakeSummarizationProvider implements SummarizationProvider {
       {required String languageCode}) async {
     memoCalls++;
     lastLanguageCode = languageCode;
+    if (gate != null) await gate!.future;
     if (memoFailuresBeforeSuccess > 0) {
       memoFailuresBeforeSuccess--;
       throw StateError('flaky llm');
@@ -228,7 +232,7 @@ void main() {
           reason: 'M3: the full enrichment now runs through to ready (§4.3)');
       expect((await memoRow('m1')).transcript, contains('světe'));
       expect((await memoRow('m1')).detectedLang, 'cs');
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('D8: no override → per-memo auto-detect; nothing adopted globally',
@@ -286,8 +290,8 @@ void main() {
           reason: 'empty transcript completes enrichment; summary skipped '
               '(§6.7/§14)');
       expect(llm.memoCalls, 0);
-      expect((await jobs()).single.type, JobType.transcribe.name,
-          reason: 'no summarize job for a silent memo');
+      expect(await jobs(), isEmpty,
+          reason: 'no summarize job for a silent memo; done rows are pruned');
     });
 
     test('transient failures retry with attempts; success on 3rd try',
@@ -374,7 +378,7 @@ void main() {
       await queue.drain();
       expect((await memoRow('m1')).status, 'ready');
       expect(engine.calls, 1);
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('an interrupted summarization resumes at the summarize stage',
@@ -421,14 +425,14 @@ void main() {
       await fresh.drain();
 
       expect(llm.cassetteCalls, 2, reason: 'the rebuild ran again');
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('an orphan whose memo was deleted is requeued and drains as a '
         'no-op', () async {
       await seedOrphan('job-gone', JobType.transcribe, 'gone');
       await queue.drain();
-      expect((await jobs()).single.status, 'done');
+      expect(await jobs(), isEmpty);
       expect(engine.calls, 0);
     });
 
@@ -448,6 +452,143 @@ void main() {
       await queue.drain();
       expect((await jobs()).single.status, 'running',
           reason: 'no second sweep within the same process');
+    });
+  });
+
+  group('§6.5 self-heal: transient failures, stranded memos, dead rows', () {
+    test('a transient failure resets the shimmer: the memo waits as '
+        '"stored", not "transcribing", while its job parks behind a '
+        'closed gate', () async {
+      engine.failuresBeforeSuccess = 99;
+      engine.gate = Completer<void>();
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      final draining = queue.drain();
+      // Let the attempt start, then close the gate (model deleted / tier
+      // switched) before it fails — the requeued job now parks.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      engine.status = ModelStatus.notInstalled;
+      engine.gate!.complete();
+      await draining;
+
+      expect((await jobs()).single.status, 'queued');
+      expect((await memoRow('m1')).status, 'stored',
+          reason: 'the failed attempt must not leave a stale shimmer');
+
+      engine.failuresBeforeSuccess = 0;
+      engine.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+    });
+
+    test('a transient summarize failure resets the memo to transcribed',
+        () async {
+      llm.memoFailuresBeforeSuccess = 99;
+      llm.gate = Completer<void>();
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      // One failed attempt, then the summaries switch turns off mid-drain.
+      final draining = queue.drain();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await settings.setSummariesEnabled(false);
+      llm.gate!.complete();
+      await draining;
+
+      expect((await jobs()).single.status, 'queued');
+      expect((await memoRow('m1')).status, 'transcribed',
+          reason: 'not stuck "summarizing…" while the job parks');
+    });
+
+    test('a stranded stored memo with no job is re-enqueued at launch '
+        '(kill between insert and enqueue)', () async {
+      await seedMemo('m1'); // no job — the enqueue never happened
+      await queue.drain();
+
+      expect(engine.calls, 1);
+      expect((await memoRow('m1')).status, 'ready');
+    });
+
+    test('a stranded transcribing memo resets and requeues', () async {
+      await seedMemo('m1');
+      await memos.updateStatus('m1', MemoStatus.transcribing);
+      engine.status = ModelStatus.notInstalled;
+      await queue.drain();
+
+      expect((await memoRow('m1')).status, 'stored');
+      expect((await jobs()).single.type, JobType.transcribe.name);
+    });
+
+    test('a stranded transcribed memo re-enters at the summarize stage',
+        () async {
+      await seedMemo('m1');
+      await memos.setTranscript(
+          'm1', longTranscript('cs', const ['ahoj']), MemoStatus.summarizing);
+      llm.status = ModelStatus.notInstalled;
+      await queue.drain();
+
+      expect((await memoRow('m1')).status, 'transcribed');
+      expect((await jobs()).single.type, JobType.summarizeMemo.name);
+
+      llm.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+      expect(engine.calls, 0, reason: 'the transcript is never redone');
+    });
+
+    test('memos with live jobs, and terminal memos, are left alone',
+        () async {
+      engine.status = ModelStatus.notInstalled;
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1'); // covered by its queued job
+      await seedMemo('m2');
+      await memos.updateStatus('m2', MemoStatus.failed); // terminal (§14)
+      await queue.drain();
+
+      expect((await jobs()).single.targetId, 'm1',
+          reason: 'no duplicate for m1, nothing for failed m2');
+      expect((await memoRow('m2')).status, 'failed');
+    });
+
+    test('reconciliation runs once per queue instance', () async {
+      await queue.drain(); // consumes the once-guard
+      await seedMemo('m1'); // stranded after the sweep
+      engine.status = ModelStatus.notInstalled;
+      await queue.drain();
+      expect(await jobs(), isEmpty,
+          reason: 'no second sweep within the same process');
+    });
+
+    test('legacy done rows are pruned at the first drain', () async {
+      await db.into(db.jobs).insert(JobRow(
+            id: 'job-old',
+            type: JobType.transcribe.name,
+            targetId: 'gone',
+            status: 'done',
+            attempts: 1,
+            createdAt: 1,
+          ));
+      await queue.drain();
+      expect(await jobs(), isEmpty);
+    });
+
+    test('cancelCassetteJobs clears memo-level and cassette-level jobs '
+        '(cassette delete, §14)', () async {
+      engine.status = ModelStatus.notInstalled;
+      llm.status = ModelStatus.notInstalled;
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await seedTranscribed('m2', jobCreatedAt: 2);
+      await db.into(db.jobs).insert(JobRow(
+            id: 'job-c1-update',
+            type: JobType.updateCassetteSummary.name,
+            targetId: 'c1',
+            status: 'queued',
+            attempts: 0,
+            createdAt: 3,
+          ));
+      await queue.drain(); // everything parks behind the closed gates
+
+      await queue.cancelCassetteJobs('c1');
+      expect(await jobs(), isEmpty);
     });
   });
 
@@ -475,7 +616,7 @@ void main() {
       expect(memo.status, 'ready');
       expect(memo.memoSummary, 'gist');
       expect(memo.rawTranscript, isNull, reason: 'nothing is rewritten');
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('a cleanup row whose memo vanished (or never transcribed) is a no-op',
@@ -485,7 +626,7 @@ void main() {
       await seedLegacyCleanupJob('m2');
       await queue.drain();
 
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
       expect((await memoRow('m2')).memoSummary, isNull);
     });
 
@@ -498,12 +639,9 @@ void main() {
       await queue.drain();
 
       final handed = await jobs();
-      expect(
-          handed
-              .where((j) => j.type == JobType.cleanupTranscript.name)
-              .map((j) => j.status),
-          everyElement('done'),
-          reason: 'the passthrough needs no model');
+      expect(handed.where((j) => j.type == JobType.cleanupTranscript.name),
+          isEmpty,
+          reason: 'the passthrough needs no model and completes (pruned)');
       expect(
           handed.where((j) => j.type == JobType.summarizeMemo.name).length, 1,
           reason: 'the gist job parks on the missing model instead');
@@ -534,7 +672,7 @@ void main() {
       expect(cassette.titleIsUserSet, isFalse,
           reason: 'suggestion must not lock the label (D10)');
       expect(llm.lastPreviousSummary, isNull);
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('summarize jobs wait while the LLM is missing; transcription flows',
@@ -779,7 +917,7 @@ void main() {
       expect((await cassetteRow()).summary,
           'overview[better gist | better gist]',
           reason: 'the overview is rebuilt from the fresh gists');
-      expect((await jobs()).map((j) => j.status), everyElement('done'));
+      expect(await jobs(), isEmpty, reason: 'completed jobs are pruned');
     });
 
     test('retranscribe keeps the old overview until the new gists land, and '

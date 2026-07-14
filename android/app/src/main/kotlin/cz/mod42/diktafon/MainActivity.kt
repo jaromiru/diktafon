@@ -130,11 +130,17 @@ class MainActivity : FlutterActivity() {
         }.start()
     }
 
-    /** Decodes the first audio track to mono float PCM, resampled to 16 kHz. */
+    /**
+     * Decodes the first audio track to mono float PCM, resampled to 16 kHz.
+     *
+     * Fully streaming: each decoder buffer is downmixed, resampled and
+     * written straight to the output file. Accumulating the recording in
+     * memory (let alone as boxed Floats) costs hundreds of MB per hour of
+     * audio and OOM-kills the app on long memos — whisper's own buffer on
+     * the Dart side is unavoidable, this one never was.
+     */
     private fun decodeToF32(inputPath: String, outputPath: String) {
         val extractor = MediaExtractor()
-        val mono = ArrayList<Float>(1 shl 20)
-        var sampleRate = 16000
         try {
             extractor.setDataSource(inputPath)
             var track = -1
@@ -154,50 +160,62 @@ class MainActivity : FlutterActivity() {
             codec.configure(format, null, null, 0)
             codec.start()
             try {
-                sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                 var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                 var pcmEncoding = AudioFormat.ENCODING_PCM_16BIT
+                // The resampler locks onto the rate of the first output
+                // buffer (any INFO_OUTPUT_FORMAT_CHANGED arrives before it).
+                var resampler: StreamingResampleTo16k? = null
 
-                val info = MediaCodec.BufferInfo()
-                var inputDone = false
-                var outputDone = false
-                while (!outputDone) {
-                    if (!inputDone) {
-                        val inIndex = codec.dequeueInputBuffer(10_000)
-                        if (inIndex >= 0) {
-                            val buffer = codec.getInputBuffer(inIndex)!!
-                            val size = extractor.readSampleData(buffer, 0)
-                            if (size < 0) {
-                                codec.queueInputBuffer(
-                                    inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                                inputDone = true
-                            } else {
-                                codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
-                                extractor.advance()
+                BufferedOutputStream(FileOutputStream(outputPath), 1 shl 16).use { out ->
+                    val writer = F32Writer(out)
+                    val info = MediaCodec.BufferInfo()
+                    var inputDone = false
+                    var outputDone = false
+                    while (!outputDone) {
+                        if (!inputDone) {
+                            val inIndex = codec.dequeueInputBuffer(10_000)
+                            if (inIndex >= 0) {
+                                val buffer = codec.getInputBuffer(inIndex)!!
+                                val size = extractor.readSampleData(buffer, 0)
+                                if (size < 0) {
+                                    codec.queueInputBuffer(
+                                        inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                    inputDone = true
+                                } else {
+                                    codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
+                                    extractor.advance()
+                                }
+                            }
+                        }
+                        when (val outIndex = codec.dequeueOutputBuffer(info, 10_000)) {
+                            MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                                val outFormat = codec.outputFormat
+                                sampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                                channels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                                if (outFormat.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
+                                    pcmEncoding = outFormat.getInteger(MediaFormat.KEY_PCM_ENCODING)
+                                }
+                            }
+                            MediaCodec.INFO_TRY_AGAIN_LATER -> {}
+                            else -> if (outIndex >= 0) {
+                                if (resampler == null) {
+                                    resampler = StreamingResampleTo16k(sampleRate)
+                                }
+                                val buffer = codec.getOutputBuffer(outIndex)!!
+                                buffer.position(info.offset)
+                                buffer.limit(info.offset + info.size)
+                                forEachMonoSample(buffer, pcmEncoding, channels) { sample ->
+                                    resampler!!.add(sample, writer::write)
+                                }
+                                codec.releaseOutputBuffer(outIndex, false)
+                                if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                                    outputDone = true
+                                }
                             }
                         }
                     }
-                    when (val outIndex = codec.dequeueOutputBuffer(info, 10_000)) {
-                        MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                            val out = codec.outputFormat
-                            sampleRate = out.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-                            channels = out.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-                            if (out.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
-                                pcmEncoding = out.getInteger(MediaFormat.KEY_PCM_ENCODING)
-                            }
-                        }
-                        MediaCodec.INFO_TRY_AGAIN_LATER -> {}
-                        else -> if (outIndex >= 0) {
-                            val buffer = codec.getOutputBuffer(outIndex)!!
-                            buffer.position(info.offset)
-                            buffer.limit(info.offset + info.size)
-                            appendMono(buffer, pcmEncoding, channels, mono)
-                            codec.releaseOutputBuffer(outIndex, false)
-                            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                                outputDone = true
-                            }
-                        }
-                    }
+                    resampler?.flush(writer::write)
                 }
             } finally {
                 codec.stop()
@@ -206,28 +224,20 @@ class MainActivity : FlutterActivity() {
         } finally {
             extractor.release()
         }
-
-        val resampled = resampleTo16k(mono, sampleRate)
-        val bytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
-        BufferedOutputStream(FileOutputStream(outputPath), 1 shl 16).use { out ->
-            for (sample in resampled) {
-                bytes.clear()
-                bytes.putFloat(sample)
-                out.write(bytes.array())
-            }
-        }
     }
 
-    /** Downmixes one decoder output buffer to mono floats. */
-    private fun appendMono(
-        buffer: ByteBuffer, pcmEncoding: Int, channels: Int, sink: ArrayList<Float>) {
+    /** Downmixes one decoder output buffer to mono floats, sample by sample. */
+    private inline fun forEachMonoSample(
+        buffer: ByteBuffer, pcmEncoding: Int, channels: Int, emit: (Float) -> Unit) {
         buffer.order(ByteOrder.nativeOrder())
         if (pcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
             val floats = buffer.asFloatBuffer()
             val frame = FloatArray(channels)
             while (floats.remaining() >= channels) {
                 floats.get(frame)
-                sink.add(frame.average().toFloat())
+                var sum = 0f
+                for (s in frame) sum += s
+                emit(sum / channels)
             }
         } else {
             val shorts = buffer.asShortBuffer()
@@ -236,24 +246,72 @@ class MainActivity : FlutterActivity() {
                 shorts.get(frame)
                 var sum = 0f
                 for (s in frame) sum += s / 32768f
-                sink.add(sum / channels)
+                emit(sum / channels)
             }
         }
     }
 
-    /** Linear resample; memos are recorded at 16 kHz so this is usually a no-op. */
-    private fun resampleTo16k(input: ArrayList<Float>, sourceRate: Int): FloatArray {
-        if (sourceRate == 16000 || input.isEmpty()) return input.toFloatArray()
-        val outLength = (input.size.toLong() * 16000 / sourceRate).toInt()
-        val out = FloatArray(outLength)
-        val step = sourceRate.toDouble() / 16000.0
-        for (i in 0 until outLength) {
-            val pos = i * step
-            val base = pos.toInt().coerceAtMost(input.size - 1)
-            val next = (base + 1).coerceAtMost(input.size - 1)
-            val frac = (pos - base).toFloat()
-            out[i] = input[base] * (1 - frac) + input[next] * frac
+    /** Little-endian f32 sink over a buffered stream. */
+    private class F32Writer(private val out: BufferedOutputStream) {
+        private val bytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
+
+        fun write(sample: Float) {
+            bytes.clear()
+            bytes.putFloat(sample)
+            out.write(bytes.array())
         }
-        return out
+    }
+
+    /**
+     * Chunkless linear resample to 16 kHz: an output sample at fractional
+     * source position `i * sourceRate/16000` is emitted as soon as both
+     * neighbouring source samples have been seen — only the last two are
+     * kept. Memos are recorded at 16 kHz, so this usually degenerates to
+     * pass-through.
+     */
+    private class StreamingResampleTo16k(private val sourceRate: Int) {
+        private val step = sourceRate.toDouble() / 16000.0
+        private var nextOut = 0L // next output sample index
+        private var seen = 0L // source samples consumed so far
+        private var s0 = 0f // source[seen - 2]
+        private var s1 = 0f // source[seen - 1]
+
+        fun add(sample: Float, emit: (Float) -> Unit) {
+            if (sourceRate == 16000) {
+                emit(sample)
+                return
+            }
+            s0 = s1
+            s1 = sample
+            seen++
+            // Emit eagerly: every output whose interpolation pair
+            // (base, base+1) is now complete has base == seen-2.
+            while (true) {
+                val pos = nextOut * step
+                val base = pos.toLong()
+                if (base + 1 >= seen) break // needs a future sample
+                val frac = (pos - base).toFloat()
+                emit(s0 * (1 - frac) + s1 * frac)
+                nextOut++
+            }
+        }
+
+        /** The tail: outputs whose `base+1` never arrived clamp to the last
+         *  sample, matching a whole-file resample's edge handling. */
+        fun flush(emit: (Float) -> Unit) {
+            if (sourceRate == 16000 || seen == 0L) return
+            val total = seen * 16000 / sourceRate
+            while (nextOut < total) {
+                val pos = nextOut * step
+                val base = pos.toLong()
+                if (base >= seen - 1) {
+                    emit(s1)
+                } else {
+                    val frac = (pos - base).toFloat()
+                    emit(s0 * (1 - frac) + s1 * frac)
+                }
+                nextOut++
+            }
+        }
     }
 }

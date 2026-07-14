@@ -147,6 +147,25 @@ class AppLocalizationsCs extends AppLocalizations {
       'K nahrávání je potřeba přístup k mikrofonu.';
 
   @override
+  String get recordingFailed =>
+      'Nahrávání se nepodařilo spustit — mikrofon může být používán jinou aplikací.';
+
+  @override
+  String get playbackError =>
+      'Přehrávání selhalo — zvukový soubor záznamu možná chybí nebo je poškozený.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'U $count záznamů chybí na tomto zařízení zvuk.',
+      one: 'U 1 záznamu chybí na tomto zařízení zvuk.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => 'SMAZAT ZÁZNAM?';
 
   @override

@@ -146,6 +146,25 @@ class AppLocalizationsEs extends AppLocalizations {
       'Para grabar se necesita permiso del micrófono.';
 
   @override
+  String get recordingFailed =>
+      'No se pudo iniciar la grabación: puede que el micrófono esté en uso.';
+
+  @override
+  String get playbackError =>
+      'Error de reproducción: puede que falte el archivo de audio o esté dañado.';
+
+  @override
+  String missingAudio(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Falta el audio de $count notas en este dispositivo.',
+      one: 'Falta el audio de 1 nota en este dispositivo.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get deleteMemoTitle => '¿ELIMINAR NOTA?';
 
   @override

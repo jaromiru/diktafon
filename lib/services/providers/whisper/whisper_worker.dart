@@ -222,13 +222,12 @@ bool _detectSpeech(
   required String pcmPath,
   required int threads,
 }) {
-  final bytes = File(pcmPath).readAsBytesSync();
-  final pcm = bytes.buffer.asFloat32List(0, bytes.lengthInBytes ~/ 4);
-  final pcmC = calloc<Float>(max(pcm.length, 1));
+  final sampleCount = _pcmSampleCount(pcmPath);
+  final pcmC = calloc<Float>(max(sampleCount, 1));
   final pathC = vadModelPath.toNativeUtf8();
   try {
-    pcmC.asTypedList(max(pcm.length, 1)).setRange(0, pcm.length, pcm);
-    final ret = bindings.vadHasSpeech(pathC, pcmC, pcm.length, threads);
+    _readPcmInto(pcmPath, pcmC, sampleCount);
+    final ret = bindings.vadHasSpeech(pathC, pcmC, sampleCount, threads);
     if (ret < 0) {
       throw WhisperWorkerException('VAD failed on $vadModelPath');
     }
@@ -236,6 +235,27 @@ bool _detectSpeech(
   } finally {
     calloc.free(pcmC);
     calloc.free(pathC);
+  }
+}
+
+int _pcmSampleCount(String pcmPath) => File(pcmPath).lengthSync() ~/ 4;
+
+/// Reads the f32 file straight into the native buffer. `readAsBytesSync`
+/// plus a copy would transiently hold the PCM in RAM *twice* (~460 MB/hour
+/// of audio next to whisper's own working set) — stream it instead.
+void _readPcmInto(String pcmPath, Pointer<Float> pcmC, int sampleCount) {
+  final view = pcmC.asTypedList(max(sampleCount, 1)).buffer.asUint8List();
+  final file = File(pcmPath).openSync();
+  try {
+    var offset = 0;
+    final end = sampleCount * 4;
+    while (offset < end) {
+      final read = file.readIntoSync(view, offset, end);
+      if (read <= 0) break; // truncated meanwhile — the rest stays zeroed
+      offset += read;
+    }
+  } finally {
+    file.closeSync();
   }
 }
 
@@ -261,17 +281,17 @@ Transcript _transcribeFile(
   required int threads,
   List<SegmentConfidence>? confidenceOut,
 }) {
-  final bytes = File(pcmPath).readAsBytesSync();
-  final pcm = bytes.buffer.asFloat32List(0, bytes.lengthInBytes ~/ 4);
+  final pcmSamples = _pcmSampleCount(pcmPath);
 
-  // whisper.cpp rejects sub-second inputs; pad short memos with silence.
+  // whisper.cpp rejects sub-second inputs; pad short memos with silence
+  // (calloc zero-fills, so the padding is free).
   const sampleRate = 16000;
-  final sampleCount = max(pcm.length, sampleRate * 3 ~/ 2);
+  final sampleCount = max(pcmSamples, sampleRate * 3 ~/ 2);
 
   final pcmC = calloc<Float>(sampleCount);
   final langC = languageCode?.toNativeUtf8() ?? nullptr;
   try {
-    pcmC.asTypedList(sampleCount).setRange(0, pcm.length, pcm);
+    _readPcmInto(pcmPath, pcmC, pcmSamples);
     final ret = bindings.transcribe(
       context,
       pcmC,

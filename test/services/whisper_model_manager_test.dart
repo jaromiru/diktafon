@@ -300,6 +300,27 @@ void main() {
     expect(fractions.last, 1.0);
   });
 
+  test('a stalled body stream times out transiently: the partial is kept '
+      'and a later attempt resumes', () async {
+    final model = spec(server);
+    final manager = WhisperModelManager(dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+        stallTimeout: const Duration(milliseconds: 200));
+    stallResponses = true;
+
+    await expectLater(
+        manager.download(model), throwsA(isA<TimeoutException>()));
+    expect(manager.statusOf(model), ModelStatus.paused,
+        reason: 'the partial survives for a resume');
+
+    stallResponses = false;
+    serveRanges = true;
+    await manager.download(model);
+    expect(manager.statusOf(model), ModelStatus.ready);
+    expect(manager.fileOf(model).readAsBytesSync(), payload);
+  });
+
   test('a server without Range support restarts the download cleanly',
       () async {
     final model = spec(server);

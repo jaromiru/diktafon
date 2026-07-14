@@ -73,10 +73,15 @@ class ModelManager<M extends ModelSpec> {
     this._dir, {
     HttpClient Function()? httpClientFactory,
     required this.catalog,
+    this._stallTimeout = const Duration(seconds: 30),
   }) : _httpClientFactory = httpClientFactory ?? HttpClient.new;
 
   final Directory _dir;
   final HttpClient Function() _httpClientFactory;
+
+  /// Max body-stream inactivity before the download is failed transiently
+  /// (partial kept, resumable) — see the timeout in [_download].
+  final Duration _stallTimeout;
 
   /// The tiers this install knows about; tests swap in local specs.
   final List<M> catalog;
@@ -269,7 +274,13 @@ class ModelManager<M extends ModelSpec> {
       final sink =
           part.openWrite(mode: resumed ? FileMode.append : FileMode.write);
       try {
-        await for (final chunk in response) {
+        // A WiFi→cellular handover or a silent carrier drop (no FIN) can
+        // freeze the body stream forever with no error — the progress bar
+        // would sit at N % until a manual pause/resume. An inactivity
+        // timeout turns the stall into a transient failure: the partial
+        // stays on disk and the next attempt resumes it.
+        final body = response.timeout(_stallTimeout);
+        await for (final chunk in body) {
           if (_cancelRequested.contains(model.tier)) {
             throw const ModelDownloadCancelled();
           }

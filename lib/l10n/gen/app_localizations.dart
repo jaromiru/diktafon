@@ -324,6 +324,24 @@ abstract class AppLocalizations {
   /// **'Microphone permission is required to record.'**
   String get micPermissionNeeded;
 
+  /// No description provided for @recordingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start recording — the microphone may be in use.'**
+  String get recordingFailed;
+
+  /// No description provided for @playbackError.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback failed — the audio file may be missing or damaged.'**
+  String get playbackError;
+
+  /// No description provided for @missingAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Audio for 1 memo is missing on this device.} other{Audio for {count} memos is missing on this device.}}'**
+  String missingAudio(int count);
+
   /// No description provided for @deleteMemoTitle.
   ///
   /// In en, this message translates to:
