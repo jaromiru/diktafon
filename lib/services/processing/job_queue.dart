@@ -61,6 +61,7 @@ class JobQueue {
   final Map<String, CancelToken> _active = {};
 
   Future<void>? _draining;
+  bool _recoveredOrphans = false;
   static const _maxAttempts = 5;
 
   /// Enqueued on record-stop (D7).
@@ -131,6 +132,10 @@ class JobQueue {
       _drainLoop().whenComplete(() => _draining = null);
 
   Future<void> _drainLoop() async {
+    if (!_recoveredOrphans) {
+      _recoveredOrphans = true;
+      await _recoverOrphans();
+    }
     while (true) {
       // Enrichment waits for a provisioned model (§14) — and summarization
       // additionally for the summaries switch (the model picker's "No
@@ -198,6 +203,40 @@ class JobQueue {
       } else {
         // Brief backoff so transient failures don't hot-loop (§6.5).
         await Future<void>.delayed(_retryDelayUnit * attempts);
+      }
+    }
+  }
+
+  /// A job stays 'running' in the DB for the length of its stage — if the
+  /// process dies meanwhile (Android freely kills backgrounded apps, and
+  /// transcription is minutes of heavy CPU with no foreground service), the
+  /// row is orphaned: the drain only picks 'queued', so the job would never
+  /// run again and its memo would show "transcribing…" forever. Once per
+  /// process, before the first drain, every 'running' row is therefore a
+  /// leftover of a dead run (ML concurrency is 1 and this instance hasn't
+  /// started anything yet): requeue it and put its memo back to the honest
+  /// waiting status — the stage re-asserts the in-flight one when it reruns.
+  /// The interrupted run already counted its attempt, so an input that kills
+  /// the engine natively exhausts [_maxAttempts] across launches instead of
+  /// crash-looping the app forever.
+  Future<void> _recoverOrphans() async {
+    final orphans = await (_db.select(_db.jobs)
+          ..where((j) => j.status.equals('running')))
+        .get();
+    for (final job in orphans) {
+      final permanent = job.attempts >= _maxAttempts;
+      await _setJob(job.id, permanent ? 'failed' : 'queued');
+      if (!JobType.values.byName(job.type).targetsMemo) continue;
+      if (permanent) {
+        await _memos.updateStatus(job.targetId, MemoStatus.failed);
+      } else {
+        final row = await _memoRow(job.targetId);
+        if (row == null) continue; // deleted meanwhile (§14)
+        await _memos.updateStatus(
+            job.targetId,
+            row.transcript == null
+                ? MemoStatus.stored
+                : MemoStatus.transcribed);
       }
     }
   }

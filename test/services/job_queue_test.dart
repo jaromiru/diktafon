@@ -342,6 +342,115 @@ void main() {
     });
   });
 
+  group('§6.5 orphan recovery (process killed mid-run)', () {
+    /// A job exactly as a dead process leaves it: 'running', with the
+    /// interrupted run's attempt already counted.
+    Future<void> seedOrphan(String id, JobType type, String targetId,
+            {int attempts = 1}) =>
+        db.into(db.jobs).insert(JobRow(
+              id: id,
+              type: type.name,
+              targetId: targetId,
+              status: 'running',
+              attempts: attempts,
+              createdAt: 100,
+            ));
+
+    test('an interrupted transcription is requeued; the memo reads as '
+        'queued — not stuck "transcribing" — until the rerun', () async {
+      await seedMemo('m1');
+      await memos.updateStatus('m1', MemoStatus.transcribing);
+      await seedOrphan('job-m1', JobType.transcribe, 'm1');
+
+      // Gate the engine so the requeued job parks: this is what the user
+      // sees right after relaunch, before the rerun gets to finish.
+      engine.status = ModelStatus.notInstalled;
+      await queue.drain();
+      expect((await jobs()).single.status, 'queued');
+      expect((await memoRow('m1')).status, 'stored',
+          reason: 'the stale "transcribing…" shimmer is reset');
+
+      engine.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+      expect(engine.calls, 1);
+      expect((await jobs()).map((j) => j.status), everyElement('done'));
+    });
+
+    test('an interrupted summarization resumes at the summarize stage',
+        () async {
+      await seedMemo('m1');
+      await memos.setTranscript(
+          'm1', longTranscript('cs', const ['ahoj']), MemoStatus.summarizing);
+      await seedOrphan('job-m1', JobType.summarizeMemo, 'm1');
+
+      llm.status = ModelStatus.notInstalled;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'transcribed',
+          reason: 'waiting on the LLM — not stuck "summarizing…"');
+
+      llm.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'ready');
+      expect((await memoRow('m1')).memoSummary, 'gist');
+      expect(engine.calls, 0, reason: 'the transcript is never redone');
+    });
+
+    test('attempts survive recovery: a job that kept killing the process '
+        'fails permanently instead of crash-looping every launch', () async {
+      await seedMemo('m1');
+      await memos.updateStatus('m1', MemoStatus.transcribing);
+      await seedOrphan('job-m1', JobType.transcribe, 'm1', attempts: 5);
+
+      await queue.drain();
+      expect((await jobs()).single.status, 'failed');
+      expect((await memoRow('m1')).status, 'failed',
+          reason: 'the §14 retry affordance is offered');
+      expect(engine.calls, 0);
+    });
+
+    test('an interrupted cassette update is requeued and reruns', () async {
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      await queue.drain();
+      expect(llm.cassetteCalls, 1);
+
+      await seedOrphan('job-c1', JobType.updateCassetteSummary, 'c1');
+      final fresh = JobQueue(
+          db, memos, cassettes, settings, () => engine, () => llm,
+          retryDelayUnit: Duration.zero);
+      await fresh.drain();
+
+      expect(llm.cassetteCalls, 2, reason: 'the rebuild ran again');
+      expect((await jobs()).map((j) => j.status), everyElement('done'));
+    });
+
+    test('an orphan whose memo was deleted is requeued and drains as a '
+        'no-op', () async {
+      await seedOrphan('job-gone', JobType.transcribe, 'gone');
+      await queue.drain();
+      expect((await jobs()).single.status, 'done');
+      expect(engine.calls, 0);
+    });
+
+    test('recovery runs once per queue instance', () async {
+      await seedMemo('m1');
+      await memos.updateStatus('m1', MemoStatus.transcribing);
+      await seedOrphan('job-m1', JobType.transcribe, 'm1');
+
+      engine.status = ModelStatus.notInstalled;
+      await queue.drain();
+      expect((await memoRow('m1')).status, 'stored');
+
+      // A later in-process drain must not touch a job this instance is
+      // legitimately running — simulate by hand-marking it running again.
+      await db.customStatement(
+          "UPDATE jobs SET status = 'running' WHERE id = 'job-m1'");
+      await queue.drain();
+      expect((await jobs()).single.status, 'running',
+          reason: 'no second sweep within the same process');
+    });
+  });
+
   group('§6.8 legacy cleanup rows (feature retired 2026-07-13)', () {
     /// A `cleanupTranscript` row as persisted by a pre-removal build.
     Future<void> seedLegacyCleanupJob(String memoId) =>
