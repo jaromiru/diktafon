@@ -1,6 +1,6 @@
 # Diktafon — Privacy Policy
 
-_Effective date: 10 July 2026_
+_Effective date: 14 July 2026_
 
 Diktafon ("the app") is a voice-memo app developed by Jaromír Janisch
 ("the developer"). This policy explains what data the app handles and what
@@ -43,8 +43,6 @@ Nothing is ever uploaded.
 - **Internet** — model downloads from Hugging Face only.
 - **Notifications** (`POST_NOTIFICATIONS`) — model-download progress;
   requested on Android 13+.
-- **Foreground service, microphone** — allows a recording in progress to
-  continue while the screen is off.
 
 ## Backups and export
 

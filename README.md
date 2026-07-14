@@ -48,12 +48,12 @@ recordings.
   no network required.
 - **Tap-to-seek transcripts** — tap any word in a transcript and the tape
   jumps right there.
-- **Summaries that keep up** — a 1–2 sentence gist of each memo, a rolling
+- **Summaries that keep up** — a one-sentence gist of each longer memo, a
   summary of the whole cassette, and suggested titles for unnamed ones.
 - **Noise-aware transcription** — voice-activity detection keeps background
-  noise and silence out of the transcriber (no invented sentences on a windy
-  pause), and a rumble filter helps outdoor recordings. The original audio
-  is never altered.
+  noise and silence from turning into invented sentences (no phantom words
+  on a windy pause), and the default model adds a rumble filter that helps
+  outdoor recordings. The original audio is never altered.
 - **The tape illusion** — gapless playback with a colour-coded segment bar;
   memo boundaries are marked by a soft chime (optional). Scrub, seek, and
   skip across the whole tape as if it were one recording.
