@@ -86,20 +86,23 @@ String truncateTokens(String text, int budget) {
   return text;
 }
 
-/// The 1–2 sentence "what the speaker meant to say" gist (§6.7).
+/// The one-sentence "what the speaker meant to say" gist (§6.7) — only
+/// requested for transcripts past the length gate, so it must compress,
+/// never restate.
 LlmPrompt memoSummaryPrompt(Transcript t, {required String languageCode}) {
   final text = truncateTokens(t.plainText, transcriptTokenBudget);
   return LlmPrompt(
     _system,
     'Voice memo transcript:\n$text\n\n'
     'Write a summary in ${languageName(languageCode)} of what the speaker '
-    'meant to say: 1–2 short sentences, at most 30 words. '
+    'meant to say: one short sentence, at most 20 words. '
     'Only output the summary.\n/no_think',
-    maxTokens: 160,
+    maxTokens: 96,
   );
 }
 
-/// Folds new memo digests into the rolling cassette overview (§6.7).
+/// Folds memo digests — gists, or short transcripts verbatim for gistless
+/// memos (§6.7) — into the cassette overview.
 LlmPrompt cassetteSummaryPrompt({
   required String? previousSummary,
   required List<MemoDigest> newMemos,
@@ -123,13 +126,21 @@ LlmPrompt cassetteSummaryPrompt({
 }
 
 /// The auto-suggested cassette title (D10) — derived from the overview.
+/// Asks the model to *distill the topic* rather than compress the text:
+/// memos about groceries to buy should yield "Shopping list", not a
+/// shortened recap. Wording probed on Qwen3-1.7B (2026-07-14): "name the
+/// core topic" comes back echoed verbatim as the title, and giving several
+/// examples bleeds them into unrelated tapes — one concrete example plus
+/// "say what the memos are about" behaved best.
 LlmPrompt titlePrompt(String cassetteSummary, {required String languageCode}) {
   return LlmPrompt(
     _system,
     'Overview of a collection of voice memos:\n'
     '${truncateTokens(cassetteSummary, digestsTokenBudget)}\n\n'
     'Suggest a topic title in ${languageName(languageCode)}: 1–4 words, '
-    'like a folder name. Only output the title.\n/no_think',
+    'like a folder name. Say what the memos are about rather than '
+    'repeating their words — memos about groceries to buy could be '
+    'titled "Shopping list". Only output the title.\n/no_think',
     maxTokens: 24,
   );
 }

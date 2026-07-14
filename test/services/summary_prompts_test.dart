@@ -23,6 +23,8 @@ void main() {
           languageCode: 'cs');
       expect(prompt.user, contains('koupit mléko a chleba'));
       expect(prompt.user, contains('Czech'));
+      expect(prompt.user, contains('one short sentence'),
+          reason: 'gists are single-sentence (§6.7 revised 2026-07-14)');
       expect(prompt.user, contains('/no_think'),
           reason: 'Qwen3 soft switch — no thinking tokens on-device');
       expect(prompt.maxTokens, greaterThan(0));
@@ -64,10 +66,13 @@ void main() {
       expect(folding.user, contains('Newly added'));
     });
 
-    test('title prompt asks for 1–4 words from the overview', () {
+    test('title prompt asks for the topic in 1–4 words, not a recap', () {
       final prompt = titlePrompt('nákupy na víkend', languageCode: 'cs');
       expect(prompt.user, contains('nákupy na víkend'));
       expect(prompt.user, contains('1–4 words'));
+      expect(prompt.user, contains('what the memos are about'),
+          reason: 'the title distills the topic ("Shopping list"), it does '
+              'not compress the overview');
     });
   });
 

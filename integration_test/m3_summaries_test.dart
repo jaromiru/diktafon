@@ -57,16 +57,22 @@ Future<void> _settle(WidgetTester tester, {int frames = 10}) async {
 }
 
 /// A Czech shopping-and-errands memo, worded so a 0.6B model has real
-/// content to compress (100 ms word grid, §4.2 timings stay sane).
+/// content to compress — and long enough (> 350 chars) to clear the §6.7
+/// gist gate (50 ms word grid keeps 71 words inside the 4 s tone).
 Transcript _czechTranscript() {
   const text = 'takže nákup na víkend koupit mléko chleba máslo a vajíčka '
       'nezapomenout na granule pro psa a taky zavolat mámě '
-      'jestli přijede v sobotu na oběd';
+      'jestli přijede v sobotu na oběd '
+      'potom vyzvednout vyčištěné kalhoty v čistírně vedle pošty '
+      'a stavit se v lékárně pro kapky proti alergii '
+      'v neděli ráno zajít do pekárny pro čerstvé rohlíky '
+      'a odpoledne umýt auto zalít kytky na balkóně '
+      'a večer si napsat seznam věcí co vzít příští týden na chatu';
   final words = text.split(' ');
   return Transcript(languageCode: 'cs', segments: [
-    Segment(startMs: 0, endMs: words.length * 100, words: [
+    Segment(startMs: 0, endMs: words.length * 50, words: [
       for (final (i, w) in words.indexed)
-        Word(text: w, startMs: i * 100, endMs: i * 100 + 90),
+        Word(text: w, startMs: i * 50, endMs: i * 50 + 45),
     ]),
   ]);
 }

@@ -11,6 +11,30 @@ import 'package:diktafon/services/providers/transcription_provider.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Plain text well past [gistTranscriptThreshold] — long enough to earn a
+/// gist (§6.7 revised); the [lead] words come first so tests can keep
+/// asserting on them.
+Transcript longTranscript(String lang, List<String> lead) {
+  final words = [...lead, for (var i = 0; i < 60; i++) 'slovo$i'];
+  return Transcript(languageCode: lang, segments: [
+    Segment(startMs: 0, endMs: words.length * 100, words: [
+      for (final (i, w) in words.indexed)
+        Word(text: w, startMs: i * 100, endMs: i * 100 + 90),
+    ]),
+  ]);
+}
+
+/// A transcript under the §6.7 gate — its text is its own summary.
+Transcript shortTranscript(String lang, String text) {
+  final words = text.split(' ');
+  return Transcript(languageCode: lang, segments: [
+    Segment(startMs: 0, endMs: words.length * 100, words: [
+      for (final (i, w) in words.indexed)
+        Word(text: w, startMs: i * 100, endMs: i * 100 + 90),
+    ]),
+  ]);
+}
+
 class FakeTranscriptionProvider implements TranscriptionProvider {
   FakeTranscriptionProvider({
     this.status = ModelStatus.ready,
@@ -55,13 +79,9 @@ class FakeTranscriptionProvider implements TranscriptionProvider {
       failuresBeforeSuccess--;
       throw StateError('flaky engine');
     }
-    return result ??
-        Transcript(languageCode: 'cs', segments: [
-          Segment(startMs: 0, endMs: 900, words: const [
-            Word(text: 'ahoj', startMs: 0, endMs: 400),
-            Word(text: 'světe', startMs: 450, endMs: 900),
-          ]),
-        ]);
+    // Long by default: most tests exercise the full gist pipeline; the
+    // §6.7-gate group overrides [result] with short transcripts.
+    return result ?? longTranscript('cs', const ['ahoj', 'světe']);
   }
 }
 
@@ -179,14 +199,7 @@ void main() {
   Future<void> seedTranscribed(String id, {required int jobCreatedAt}) async {
     await seedMemo(id);
     await memos.setTranscript(
-        id,
-        Transcript(languageCode: 'cs', segments: [
-          Segment(startMs: 0, endMs: 900, words: [
-            Word(text: 'memo', startMs: 0, endMs: 400),
-            Word(text: id, startMs: 450, endMs: 900),
-          ]),
-        ]),
-        MemoStatus.transcribed);
+        id, longTranscript('cs', ['memo', id]), MemoStatus.transcribed);
     await db.into(db.jobs).insert(JobRow(
           id: 'job-$id',
           type: JobType.summarizeMemo.name,
@@ -239,11 +252,7 @@ void main() {
       await queue.drain();
       expect(llm.lastLanguageCode, 'cs');
 
-      engine.result = Transcript(languageCode: 'de', segments: [
-        Segment(startMs: 0, endMs: 900, words: const [
-          Word(text: 'hallo', startMs: 0, endMs: 400),
-        ]),
-      ]);
+      engine.result = longTranscript('de', const ['hallo']);
       await seedMemo('m2');
       await queue.enqueueTranscription('m2');
       await queue.drain();
@@ -348,13 +357,7 @@ void main() {
     test('a persisted cleanup job passes the memo through to the gist',
         () async {
       await seedMemo('m1');
-      await memos.setTranscript(
-          'm1',
-          Transcript(languageCode: 'cs', segments: [
-            Segment(startMs: 0, endMs: 900, words: const [
-              Word(text: 'ahoj', startMs: 0, endMs: 400),
-            ]),
-          ]),
+      await memos.setTranscript('m1', longTranscript('cs', const ['ahoj']),
           MemoStatus.transcribed);
       await seedLegacyCleanupJob('m1');
       await queue.drain();
@@ -380,13 +383,7 @@ void main() {
     test('legacy rows drain even while the LLM is missing', () async {
       llm.status = ModelStatus.notInstalled;
       await seedMemo('m1');
-      await memos.setTranscript(
-          'm1',
-          Transcript(languageCode: 'cs', segments: [
-            Segment(startMs: 0, endMs: 900, words: const [
-              Word(text: 'ahoj', startMs: 0, endMs: 400),
-            ]),
-          ]),
+      await memos.setTranscript('m1', longTranscript('cs', const ['ahoj']),
           MemoStatus.transcribed);
       await seedLegacyCleanupJob('m1');
       await queue.drain();
@@ -540,8 +537,9 @@ void main() {
       final memo = await memoRow('m1');
       expect(memo.status, 'ready');
       expect(memo.memoSummary, isNull);
-      expect(llm.cassetteCalls, 0,
-          reason: 'nothing to fold into the cassette summary');
+      expect(llm.cassetteCalls, 1,
+          reason: 'the gistless memo still contributes its transcript');
+      expect(llm.lastDigests!.single.memoSummary, startsWith('ahoj světe'));
     });
 
     test('transient summarize failures retry; transcript is never redone',
@@ -657,12 +655,7 @@ void main() {
       expect((await memoRow('m1')).memoSummary, 'gist');
 
       // "A better model was installed": the engine now hears more.
-      engine.result = Transcript(languageCode: 'cs', segments: [
-        Segment(startMs: 0, endMs: 900, words: const [
-          Word(text: 'lepší', startMs: 0, endMs: 400),
-          Word(text: 'přepis', startMs: 450, endMs: 900),
-        ]),
-      ]);
+      engine.result = longTranscript('cs', const ['lepší', 'přepis']);
       llm.memoResult = 'better gist';
       await queue.retranscribeCassette('c1');
       await queue.drain();
@@ -770,6 +763,176 @@ void main() {
       expect(queued, hasLength(1),
           reason: 'the rebuild reads the tape at run time, so the queued '
               'update already covers the deletion — nothing new to add');
+    });
+  });
+
+  group('§6.7 revised: the $gistTranscriptThreshold-char gist gate', () {
+    test('a short transcript completes without the LLM; the overview reads '
+        'the transcript directly', () async {
+      engine.result = shortTranscript('cs', 'koupit mléko a chleba');
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      final memo = await memoRow('m1');
+      expect(memo.status, 'ready');
+      expect(memo.memoSummary, isNull, reason: 'no gist under the gate');
+      expect(llm.memoCalls, 0, reason: 'the gist LLM pass is skipped');
+      expect(llm.cassetteCalls, 1);
+      expect(llm.lastDigests!.single.memoSummary, 'koupit mléko a chleba');
+      expect((await cassetteRow()).summary,
+          'overview[koupit mléko a chleba]');
+      expect((await cassetteRow()).label, 'Suggested Title',
+          reason: 'a transcript-only overview still suggests a title (D10)');
+    });
+
+    test('the gate is strict: at the threshold no gist, one char past it '
+        'a gist', () async {
+      engine.result = shortTranscript('cs', 'a' * gistTranscriptThreshold);
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await memoRow('m1')).memoSummary, isNull);
+      expect(llm.memoCalls, 0);
+
+      engine.result =
+          shortTranscript('cs', 'a' * (gistTranscriptThreshold + 1));
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+      expect((await memoRow('m2')).memoSummary, 'gist');
+      expect(llm.memoCalls, 1);
+    });
+
+    test('a short memo never waits on the LLM — only its overview job parks',
+        () async {
+      llm.status = ModelStatus.notInstalled;
+      engine.result = shortTranscript('cs', 'zavolat mámě');
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      expect((await memoRow('m1')).status, 'ready',
+          reason: 'the memo is fully enriched without the LLM');
+      final parked = (await jobs()).where((j) => j.status == 'queued');
+      expect(parked.single.type, JobType.updateCassetteSummary.name);
+
+      llm.status = ModelStatus.ready;
+      await queue.drain();
+      expect((await cassetteRow()).summary, 'overview[zavolat mámě]');
+    });
+
+    test('mixed tape: gists and short transcripts feed the overview in '
+        'tape order', () async {
+      await seedMemo('m1'); // long default → gist
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      engine.result = shortTranscript('cs', 'zavolat mámě');
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+
+      expect(llm.lastDigests!.map((d) => d.memoSummary),
+          ['gist', 'zavolat mámě']);
+      expect((await cassetteRow()).summary,
+          'overview[gist | zavolat mámě]');
+    });
+
+    test('a multi-segment short transcript is flattened to one digest line',
+        () async {
+      engine.result = Transcript(languageCode: 'cs', segments: [
+        Segment(startMs: 0, endMs: 400, words: const [
+          Word(text: 'první', startMs: 0, endMs: 400),
+        ]),
+        Segment(startMs: 500, endMs: 900, words: const [
+          Word(text: 'druhá', startMs: 500, endMs: 900),
+        ]),
+      ]);
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+
+      expect(llm.lastDigests!.single.memoSummary, 'první druhá',
+          reason: 'newlines would break the prompt\'s bullet list');
+    });
+
+    test('retryEnrichment on a short-transcript memo completes without '
+        'the LLM', () async {
+      await seedMemo('m1');
+      await memos.setTranscript(
+          'm1', shortTranscript('cs', 'krátká poznámka'), MemoStatus.failed);
+      await queue.retryEnrichment('m1');
+      await queue.drain();
+
+      expect((await memoRow('m1')).status, 'ready');
+      expect((await memoRow('m1')).memoSummary, isNull);
+      expect(llm.memoCalls, 0);
+      expect((await cassetteRow()).summary, 'overview[krátká poznámka]');
+    });
+
+    test('deleting a gistless short memo schedules the overview rebuild',
+        () async {
+      engine.result = shortTranscript('cs', 'první poznámka');
+      final m1 = await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      engine.result = shortTranscript('cs', 'druhá poznámka');
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+
+      final deleted = Memo(
+        id: m1.id,
+        cassetteId: m1.cassetteId,
+        filePath: m1.filePath,
+        durationMs: m1.durationMs,
+        createdAt: m1.createdAt,
+        status: MemoStatus.ready,
+        transcript: shortTranscript('cs', 'první poznámka'),
+      );
+      await queue.cancelJobsFor('m1');
+      await memos.delete('m1');
+      await queue.onMemoDeleted(deleted);
+      await queue.drain();
+
+      expect(llm.lastDigests!.map((d) => d.memoSummary), ['druhá poznámka'],
+          reason: 'the deleted memo\'s transcript left the overview');
+    });
+
+    test('deleting the last short memo clears the cassette summary',
+        () async {
+      engine.result = shortTranscript('cs', 'jediná poznámka');
+      final m1 = await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await cassetteRow()).summary, isNotNull);
+
+      final deleted = Memo(
+        id: m1.id,
+        cassetteId: m1.cassetteId,
+        filePath: m1.filePath,
+        durationMs: m1.durationMs,
+        createdAt: m1.createdAt,
+        status: MemoStatus.ready,
+        transcript: shortTranscript('cs', 'jediná poznámka'),
+      );
+      await queue.cancelJobsFor('m1');
+      await memos.delete('m1');
+      await queue.onMemoDeleted(deleted);
+      await queue.drain();
+
+      expect((await cassetteRow()).summary, isNull);
+    });
+
+    test('deleting a memo that contributed nothing is a no-op', () async {
+      final m1 = await seedMemo('m1'); // stored — never transcribed
+      await memos.delete('m1');
+      await queue.onMemoDeleted(m1);
+      await queue.drain();
+
+      expect(await jobs(), isEmpty);
+      expect(llm.cassetteCalls, 0);
     });
   });
 }

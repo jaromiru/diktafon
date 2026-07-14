@@ -13,7 +13,7 @@ import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
 
 /// The §6.5 job types. The cassette overview is always rebuilt from *all*
-/// memo gists (§6.7 revised 2026-07-08), so `recomputeCassetteSummary` and
+/// memo digests (§6.7 revised 2026-07-08), so `recomputeCassetteSummary` and
 /// `updateCassetteSummary` run the same code — it stays, like
 /// `cleanupTranscript` (the retired §6.8 LLM cleanup stage, now routed
 /// straight to the gist), only so job rows persisted by older builds keep
@@ -28,6 +28,12 @@ enum JobType {
   bool get targetsMemo =>
       this == transcribe || this == cleanupTranscript || this == summarizeMemo;
 }
+
+/// §6.7 (revised 2026-07-14): only transcripts *longer* than this many chars
+/// get a memo gist — anything shorter is its own summary, so the LLM pass
+/// would only restate it (and burn battery). The cassette overview reads the
+/// transcript directly for gistless memos.
+const int gistTranscriptThreshold = 350;
 
 /// Durable background pipeline (§6.5): jobs persist in the DB so they survive
 /// restarts; ML concurrency is 1 to bound CPU/thermals/battery.
@@ -106,11 +112,13 @@ class JobQueue {
         .go();
   }
 
-  /// Call after a memo's row is gone: if its gist was part of the cassette
-  /// summary, schedule the rebuild (§14 "cassette summary is scheduled to
-  /// update").
+  /// Call after a memo's row is gone: if its gist — or, for gistless memos,
+  /// its transcript (§6.7) — was part of the cassette summary, schedule the
+  /// rebuild (§14 "cassette summary is scheduled to update").
   Future<void> onMemoDeleted(Memo memo) async {
-    if (memo.memoSummary == null) return;
+    final contributed =
+        memo.memoSummary != null || !(memo.transcript?.isEmpty ?? true);
+    if (!contributed) return;
     await _enqueueCassetteUpdate(memo.cassetteId);
     unawaited(drain());
   }
@@ -213,6 +221,12 @@ class JobQueue {
         // Empty/near-silent memo: kept playable, summary skipped (§14, §6.7)
         // — nothing left to enrich.
         await _memos.setTranscript(memoId, transcript, MemoStatus.ready);
+      } else if (!_wantsGist(transcript)) {
+        // Short transcript (§6.7): it is its own summary — the memo is done
+        // without ever touching the LLM; only the overview job (which reads
+        // the transcript directly) waits on the summarization gate.
+        await _memos.setTranscript(memoId, transcript, MemoStatus.ready);
+        await _enqueueCassetteUpdate(row.cassetteId);
       } else {
         await _memos.setTranscript(memoId, transcript, MemoStatus.transcribed);
         // The gist job waits in the queue while its model is missing or
@@ -247,6 +261,14 @@ class JobQueue {
       await _memos.setMemoSummary(memoId, null, MemoStatus.ready);
       return;
     }
+    if (!_wantsGist(transcript)) {
+      // Short transcript (§6.7) — reachable via retryEnrichment or a job
+      // persisted by an older build: complete without the LLM; the overview
+      // reads the transcript directly.
+      await _memos.setMemoSummary(memoId, null, MemoStatus.ready);
+      await _enqueueCassetteUpdate(row.cassetteId);
+      return;
+    }
     await _memos.updateStatus(memoId, MemoStatus.summarizing);
 
     final language = await _languageFor(row.detectedLang);
@@ -256,17 +278,22 @@ class JobQueue {
 
     // An empty gist (model produced nothing usable) is recorded as "no
     // summary", not a failure — the memo is still fully enriched (§6.7).
+    // The overview updates either way: gistless memos contribute their
+    // transcript.
     await _memos.setMemoSummary(
         memoId, summary.isEmpty ? null : summary, MemoStatus.ready);
-    if (summary.isNotEmpty) {
-      await _enqueueCassetteUpdate(row.cassetteId);
-    }
+    await _enqueueCassetteUpdate(row.cassetteId);
   }
 
-  /// Rebuilds the overview from *all* memo gists, in tape order (§6.7
-  /// revised): always faithful to the tape's current content — additions
-  /// and deletions alike — at the cost of re-reading every digest (bounded
-  /// by the prompt's char budget).
+  /// §6.7: short transcripts are their own summary — no gist.
+  bool _wantsGist(Transcript t) =>
+      t.plainText.length > gistTranscriptThreshold;
+
+  /// Rebuilds the overview from *all* memo digests, in tape order (§6.7
+  /// revised): the gist where one exists, the (short) transcript itself
+  /// where none does. Always faithful to the tape's current content —
+  /// additions and deletions alike — at the cost of re-reading every
+  /// digest (bounded by the prompt's char budget).
   Future<void> _updateCassetteSummary(String cassetteId) async {
     final cassette = await (_db.select(_db.cassettes)
           ..where((c) => c.id.equals(cassetteId)))
@@ -275,26 +302,33 @@ class JobQueue {
 
     final rows = await (_db.select(_db.memos)
           ..where((m) =>
-              m.cassetteId.equals(cassetteId) & m.memoSummary.isNotNull())
+              m.cassetteId.equals(cassetteId) &
+              (m.memoSummary.isNotNull() | m.transcript.isNotNull()))
           ..orderBy([
             (m) => OrderingTerm.asc(m.createdAt),
             (m) => OrderingTerm.asc(m.id),
           ]))
         .get();
-    if (rows.isEmpty) {
-      // The last summarized memo was deleted — the overview no longer
+    final contributing = <(MemoRow, String)>[
+      for (final row in rows)
+        if (row.memoSummary ?? _transcriptText(row.transcript)
+            case final text?)
+          (row, text), // silent memos yield null and drop out
+    ];
+    if (contributing.isEmpty) {
+      // The last contributing memo was deleted — the overview no longer
       // describes anything; the (possibly user-set) label stays.
       await _cassettes.setSummary(cassetteId, null);
       return;
     }
 
-    final language = await _languageFor(rows.first.detectedLang);
+    final language = await _languageFor(contributing.first.$1.detectedLang);
     final summary = (await _summarization().updateCassetteSummary(
       previousSummary: null,
       newMemos: [
-        for (final row in rows)
+        for (final (row, text) in contributing)
           MemoDigest(
-            memoSummary: row.memoSummary!,
+            memoSummary: text,
             createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
           ),
       ],
@@ -315,6 +349,16 @@ class JobQueue {
         await _cassettes.setSuggestedLabel(cassetteId, title.trim());
       }
     }
+  }
+
+  /// The digest text of a gistless memo (§6.7): its short transcript,
+  /// flattened to one line; null when the memo is silent.
+  String? _transcriptText(String? transcriptJson) {
+    if (transcriptJson == null) return null;
+    final transcript = Transcript.fromJson(
+        (jsonDecode(transcriptJson) as Map).cast<String, dynamic>());
+    if (transcript.isEmpty) return null;
+    return transcript.plainText.replaceAll('\n', ' ');
   }
 
   /// D8: languages are per memo — an explicit Settings override wins (for

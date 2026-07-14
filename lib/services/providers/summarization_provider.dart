@@ -7,7 +7,8 @@ import 'dart:async';
 import '../../domain/models.dart';
 import 'transcription_provider.dart' show ModelStatus, ProgressSink;
 
-/// What the cassette-summary job needs to know about a newly added memo.
+/// One memo's contribution to the cassette summary: its gist, or — for
+/// short memos that never get one (§6.7) — the transcript text itself.
 class MemoDigest {
   const MemoDigest({required this.memoSummary, required this.createdAt});
   final String memoSummary;
@@ -21,7 +22,8 @@ abstract interface class SummarizationProvider {
   Future<ModelStatus> modelStatus();
   Future<void> ensureModel({ProgressSink? onProgress});
 
-  /// The 1–2 sentence "what the user meant to say" gist (§6.7).
+  /// The one-sentence "what the user meant to say" gist (§6.7) — only
+  /// called for transcripts past the length gate.
   Future<String> summarizeMemo(Transcript t, {required String languageCode});
 
   /// Incrementally folds new memos into the running summary (§6.7).

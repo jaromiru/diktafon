@@ -73,7 +73,9 @@ class Memo {
   final String? detectedLang;
   final Transcript? transcript;
 
-  /// The 1–2 sentence "what the user meant to say" gist (§4.1).
+  /// The one-sentence "what the user meant to say" gist (§4.1). Null while
+  /// pending — and permanently for short transcripts, which are their own
+  /// summary (§6.7).
   final String? memoSummary;
 }
 
