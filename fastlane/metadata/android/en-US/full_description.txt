@@ -1,0 +1,27 @@
+Diktafon is a voice recorder built around one idea: capturing a thought and finding it again later should feel effortless.
+
+Your memos live on cassettes — one tape per topic, like "shopping", "kitchen renovation" or "book ideas". Each cassette plays as one continuous tape of your recordings, in order, just like the real thing.
+
+<b>SIMPLE TO USE</b>
+Controls you already know, inspired by real tape recorders. Open a cassette, press record, talk — no naming, no forms, no network needed. Rewind to find it again.
+
+<b>MODERN</b>
+Automatic transcriptions and summaries: every memo is transcribed, every cassette summarised and titled. Tap any word in a transcript and the tape jumps right there.
+
+<b>COMPLETELY PRIVATE</b>
+Everything is computed on your device. No accounts, no cloud, no ads, no analytics — your voice never leaves your phone. The only network use is a one-time download of the on-device models (Wi-Fi recommended; about 2 GB for the default models, up to 3 GB for the largest — or just 0.2 GB if you skip summaries).
+
+<b>SPEAKS YOUR LANGUAGE</b>
+Ten languages: English, Czech, French, German, Korean, Polish, Portuguese, Russian, Spanish and Turkish — in recordings, summaries and the app itself. The spoken language is detected for each memo, so one tape can freely mix languages.
+
+<b>FREE &amp; OPEN SOURCE</b>
+No cost, no ads, no lock-in. MIT-licensed — read the code, build it yourself, make it yours: https://github.com/jaromiru/diktafon
+
+<b>AND THE LITTLE THINGS</b>
+• Gapless playback with a colour-coded tape bar and an optional soft chime between memos.
+• Export any cassette — or all of them — as a single archive with the audio and readable text inside; import only adds, never overwrites.
+• Light &amp; dark themes, cassette colours, per-memo copy and delete.
+
+A note on quality: transcription and summaries come from small models running entirely on your phone. Their quality is being actively worked on and will improve in future updates.
+
+Diktafon works best on 64-bit phones with 4 GB of RAM or more.
