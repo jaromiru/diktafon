@@ -85,6 +85,10 @@ flutter:
 
   assets:
     - assets/audio/chime.wav
+    # The app icon's pixel art (§5.2) — home-grid cassette tiles. Copied from
+    # tool/icon/tape.png by tool/icon/generate_icons.py; edit the source, not
+    # this copy.
+    - assets/images/tape.png
     # Silero VAD v5.1.2 (ggml, MIT, huggingface.co/ggml-org/whisper-vad,
     # sha256 29940d98d42b91fbd05ce489f3ecf7c72f0a42f027e4875919a28fb4c04ea2cf)
     # — bundled rather than downloaded: 0.85 MB buys hallucination-free

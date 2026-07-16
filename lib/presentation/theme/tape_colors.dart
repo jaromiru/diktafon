@@ -15,9 +15,6 @@ class TapeColors extends ThemeExtension<TapeColors> {
     required this.rec,
     required this.highlight,
     required this.ok,
-    required this.shell,
-    required this.window,
-    required this.reel,
     required this.hues,
   });
 
@@ -35,11 +32,6 @@ class TapeColors extends ThemeExtension<TapeColors> {
   final Color highlight;
   final Color ok;
 
-  /// Cassette drawing (home grid): shell plastic, window, reel tape.
-  final Color shell;
-  final Color window;
-  final Color reel;
-
   /// The six timeline hues: ochre, teal, indigo, rust, moss, plum (§10.2).
   final List<Color> hues;
 
@@ -53,9 +45,6 @@ class TapeColors extends ThemeExtension<TapeColors> {
     rec: Color(0xFFC93A2B),
     highlight: Color(0xFFF3E5BE),
     ok: Color(0xFF3E7D4E),
-    shell: Color(0xFFE6E2D5),
-    window: Color(0xFFCBC6B6),
-    reel: Color(0xFF4A4238),
     hues: [
       Color(0xFFCE9930),
       Color(0xFF2F9C8D),
@@ -76,9 +65,6 @@ class TapeColors extends ThemeExtension<TapeColors> {
     rec: Color(0xFFE25743),
     highlight: Color(0xFF453A20),
     ok: Color(0xFF7FB08A),
-    shell: Color(0xFF242220),
-    window: Color(0xFF100F0C),
-    reel: Color(0xFF3E3831),
     hues: [
       Color(0xFFDFAF4C),
       Color(0xFF4FB5A6),

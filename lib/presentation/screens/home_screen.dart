@@ -59,7 +59,8 @@ class HomeScreen extends ConsumerWidget {
                   // 260 keeps phones at 2-up while tablets get generous
                   // cards instead of many small ones (§5.7).
                   maxCrossAxisExtent: 260,
-                  childAspectRatio: 157 / 92,
+                  // The pixel-art sprite's own proportions (§5.2, r10).
+                  childAspectRatio: 94 / 59,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),

@@ -14,6 +14,7 @@ Outputs (run from the repo root: `python3 tool/icon/generate_icons.py`):
   android/.../values/ic_launcher_background.xml   background color
   ios/Runner/Assets.xcassets/AppIcon.appiconset/  all sizes in Contents.json
   linux/runner/resources/icon.png                 GTK window icon (256)
+  assets/images/tape.png                          home-grid sprite (copy)
   media/icon.png                                  README icon (transparent)
   docs/store/icon-512.png                         Play Store listing icon
 """
@@ -126,6 +127,9 @@ def main() -> None:
          os.path.join(ROOT, 'media', 'icon.png'))
     save(scaled(legacy, 512),
          os.path.join(ROOT, 'docs', 'store', 'icon-512.png'), opaque=True)
+    # Home-grid cassette sprite (§5.2): the app bundles the pixel art itself
+    # and palette-swaps it at runtime — keep the asset copy in sync.
+    save(src, os.path.join(ROOT, 'assets', 'images', 'tape.png'))
 
 
 if __name__ == '__main__':

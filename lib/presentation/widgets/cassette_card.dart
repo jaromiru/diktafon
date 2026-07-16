@@ -1,15 +1,19 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../data/repositories/cassette_repository.dart';
 import '../../domain/palette.dart';
 import '../../l10n/l10n.dart';
-import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
+import 'pixel_tape.dart';
 
-/// A cassette drawn as a physical tape (§5.2), replicating the approved
-/// mockup SVG (viewBox 157×92): shell, screws, label with accent stripe,
-/// window with two reels — the left reel grows with recorded time.
+/// A cassette tile (§5.2, mockups r10): the app icon's pixel art scaled
+/// nearest-neighbour, palette-swapped to the tape's accent, the name printed
+/// on the cream label band and "N memos · last record" on the colour strip.
+/// The label inks are fixed — the tile is a physical object and doesn't
+/// follow the theme.
 class CassetteCard extends StatelessWidget {
   const CassetteCard({
     super.key,
@@ -27,6 +31,10 @@ class CassetteCard extends StatelessWidget {
     final cassette = overview.cassette;
     final label = cassette.label;
     final l10n = context.l10n;
+    // The accent arrives with the name (D10): warm grey until then.
+    final hue = cassette.titleIsUserSet || label != null
+        ? cassetteHueIndex(cassette.colorSeed)
+        : null;
     return Semantics(
       button: true,
       label: l10n.cardSemantics(label ?? l10n.untitledCassette,
@@ -35,23 +43,85 @@ class CassetteCard extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: AspectRatio(
-          aspectRatio: 157 / 92,
-          child: CustomPaint(
-            painter: _CassettePainter(
-              colors: context.tape,
-              name: label,
-              meta: _metaLine(context),
-              untitled: l10n.untitledCassette,
-              stripeHue: cassette.titleIsUserSet || label != null
-                  ? cassetteHueIndex(cassette.colorSeed)
-                  : null,
-              fullness: _fullness(),
-            ),
-          ),
+          aspectRatio: tapeSpriteWidth / tapeSpriteHeight,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final h = constraints.maxHeight;
+            // The mockup's type scale: 14 px Jersey 10 name / 7 px mono meta
+            // on a 157 px tile (the 2-up portrait-phone width).
+            final scale = w / 157.0;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _TapeSprite(
+                  hue: hue,
+                  windingWidth: tapeWindingWidth(_fullness()),
+                ),
+                _print(
+                  tapeNameBand,
+                  w,
+                  h,
+                  label != null
+                      ? Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: TextScaler.noScaling,
+                          style: TextStyle(
+                              fontFamily: displayFont,
+                              fontFamilyFallback: fontFallback,
+                              fontSize: 14 * scale,
+                              height: 1,
+                              color: tapeNameInk),
+                        )
+                      : Text(
+                          l10n.untitledCassette,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: TextScaler.noScaling,
+                          style: TextStyle(
+                              fontFamily: bodyFont,
+                              fontFamilyFallback: fontFallback,
+                              fontSize: 8 * scale,
+                              height: 1,
+                              fontStyle: FontStyle.italic,
+                              color: tapePlaceholderInk),
+                        ),
+                ),
+                _print(
+                  tapeMetaStrip,
+                  w,
+                  h,
+                  Text(
+                    _metaLine(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    softWrap: false,
+                    textScaler: TextScaler.noScaling,
+                    style: TextStyle(
+                        fontFamily: bodyFont,
+                        fontFamilyFallback: fontFallback,
+                        fontSize: 7 * scale,
+                        height: 1,
+                        color: tapeNameInk),
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
+
+  /// Centers [text] on a sprite-space band (fractions of the tile).
+  Widget _print(Rect band, double w, double h, Widget text) => Positioned(
+        left: band.left * w,
+        top: band.top * h,
+        width: band.width * w,
+        height: band.height * h,
+        child: Center(child: text),
+      );
 
   String _metaLine(BuildContext context) {
     final l10n = context.l10n;
@@ -65,8 +135,8 @@ class CassetteCard extends StatelessWidget {
         memoPart, relativeDate(context, overview.cassette.updatedAt));
   }
 
-  /// 0..1 → left reel radius; a glanceable fullness cue (§5.2). Saturates
-  /// at one hour of tape.
+  /// 0..1 → wound-tape block width; a glanceable fullness cue (§5.2).
+  /// Saturates at one hour of tape.
   double _fullness() =>
       (overview.totalDurationMs / Duration.millisecondsPerHour).clamp(0.0, 1.0);
 }
@@ -87,168 +157,50 @@ String relativeDate(BuildContext context, DateTime t) {
   return DateFormat('d MMM yyyy', locale).format(t);
 }
 
-class _CassettePainter extends CustomPainter {
-  _CassettePainter({
-    required this.colors,
-    required this.name,
-    required this.meta,
-    required this.untitled,
-    required this.stripeHue,
-    required this.fullness,
-  });
+/// Resolves the composed sprite variant and paints it with no smoothing —
+/// pixels enlarge, nothing else (§5.2).
+class _TapeSprite extends StatefulWidget {
+  const _TapeSprite({required this.hue, required this.windingWidth});
 
-  final TapeColors colors;
-  final String? name;
-  final String meta;
-
-  /// Localized placeholder painted when [name] is null.
-  final String untitled;
-
-  /// Null → placeholder cassette (stripe in line color, italic name).
-  final int? stripeHue;
-  final double fullness;
+  final int? hue;
+  final int windingWidth;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width / 157.0;
-    canvas.scale(s, s);
+  State<_TapeSprite> createState() => _TapeSpriteState();
+}
 
-    final fill = Paint()..style = PaintingStyle.fill;
-    final stroke = Paint()..style = PaintingStyle.stroke;
+class _TapeSpriteState extends State<_TapeSprite> {
+  ui.Image? _image;
 
-    // Shell.
-    fill.color = colors.shell;
-    stroke
-      ..color = colors.ink
-      ..strokeWidth = 2;
-    final shell = const Rect.fromLTWH(1.5, 1.5, 154, 89);
-    canvas.drawRect(shell, fill);
-    canvas.drawRect(shell, stroke);
-
-    // Screws.
-    stroke
-      ..color = colors.ink2
-      ..strokeWidth = 1;
-    for (final c in const [
-      Offset(8, 8),
-      Offset(149, 8),
-      Offset(8, 84),
-      Offset(149, 84),
-    ]) {
-      canvas.drawCircle(c, 1.8, stroke);
-    }
-
-    // Label card + accent stripe.
-    fill.color = colors.surface;
-    stroke
-      ..color = colors.ink
-      ..strokeWidth = 1.2;
-    const label = Rect.fromLTWH(14, 9, 129, 42);
-    canvas.drawRect(label, fill);
-    canvas.drawRect(label, stroke);
-    fill.color = stripeHue == null ? colors.line : colors.hues[stripeHue!];
-    canvas.drawRect(const Rect.fromLTWH(15, 10, 127, 7), fill);
-
-    // Name + meta.
-    if (name != null) {
-      _text(canvas, name!, 36,
-          style: TextStyle(
-              fontFamily: displayFont,
-              fontFamilyFallback: fontFallback,
-              fontSize: 15,
-              color: colors.ink));
-    } else {
-      _text(canvas, untitled, 33,
-          style: TextStyle(
-              fontFamily: bodyFont,
-              fontFamilyFallback: fontFallback,
-              fontSize: 8,
-              fontStyle: FontStyle.italic,
-              color: colors.ink2));
-    }
-    _text(canvas, meta, 47,
-        style: TextStyle(
-            fontFamily: bodyFont,
-            fontFamilyFallback: fontFallback,
-            fontSize: 7,
-            color: colors.ink2));
-
-    // Window with reels.
-    fill.color = colors.window;
-    stroke
-      ..color = colors.ink
-      ..strokeWidth = 1.2;
-    final window = RRect.fromRectAndRadius(
-        const Rect.fromLTWH(40, 57, 77, 22), const Radius.circular(11));
-    canvas.drawRRect(window, fill);
-    canvas.drawRRect(window, stroke);
-
-    // Reels: the left one grows with recorded time (§5.2).
-    final leftR = 7.5 + 3.5 * fullness;
-    fill.color = colors.reel;
-    canvas.drawCircle(const Offset(59, 68), leftR, fill);
-    canvas.drawCircle(const Offset(98, 68), 7.5, fill);
-
-    // Hubs + teeth.
-    fill.color = colors.paper;
-    stroke
-      ..color = colors.ink
-      ..strokeWidth = 1.2;
-    for (final c in const [Offset(59, 68), Offset(98, 68)]) {
-      canvas.drawCircle(c, 6.5, fill);
-      canvas.drawCircle(c, 6.5, stroke);
-    }
-    stroke.strokeWidth = 2;
-    for (final c in const [Offset(59, 68), Offset(98, 68)]) {
-      _dashedCircle(canvas, c, 4, stroke);
-    }
-
-    // Base trapezoid + holes.
-    stroke
-      ..color = colors.ink2
-      ..strokeWidth = 1;
-    final trap = Path()
-      ..moveTo(46, 90)
-      ..lineTo(55, 79)
-      ..lineTo(102, 79)
-      ..lineTo(111, 90);
-    canvas.drawPath(trap, stroke);
-    canvas.drawCircle(const Offset(66, 86), 1.7, stroke);
-    canvas.drawCircle(const Offset(91, 86), 1.7, stroke);
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
   }
 
-  void _text(Canvas canvas, String text, double baselineY,
-      {required TextStyle style}) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: 123);
-    // SVG text y is the baseline; TextPainter positions by top.
-    final base = painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
-    painter.paint(
-        canvas, Offset(78.5 - painter.width / 2, baselineY - base));
+  @override
+  void didUpdateWidget(_TapeSprite old) {
+    super.didUpdateWidget(old);
+    if (old.hue != widget.hue || old.windingWidth != widget.windingWidth) {
+      _resolve();
+    }
   }
 
-  void _dashedCircle(Canvas canvas, Offset center, double r, Paint paint) {
-    const dash = 2.0, gap = 3.0;
-    final path = Path()..addOval(Rect.fromCircle(center: center, radius: r));
-    for (final metric in path.computeMetrics()) {
-      var d = 0.0;
-      while (d < metric.length) {
-        canvas.drawPath(metric.extractPath(d, d + dash), paint);
-        d += dash + gap;
+  void _resolve() {
+    final hue = widget.hue;
+    final windingWidth = widget.windingWidth;
+    tapeSpriteImage(hue: hue, windingWidth: windingWidth).then((image) {
+      // A stale resolve (variant changed while composing) must not win.
+      if (mounted && hue == widget.hue && windingWidth == widget.windingWidth) {
+        setState(() => _image = image);
       }
-    }
+    });
   }
 
   @override
-  bool shouldRepaint(_CassettePainter old) =>
-      old.colors != colors ||
-      old.name != name ||
-      old.meta != meta ||
-      old.untitled != untitled ||
-      old.stripeHue != stripeHue ||
-      old.fullness != fullness;
+  Widget build(BuildContext context) => RawImage(
+        image: _image,
+        fit: BoxFit.fill,
+        filterQuality: FilterQuality.none,
+      );
 }
