@@ -9,11 +9,12 @@ import '../../l10n/l10n.dart';
 import '../theme/theme.dart';
 import 'pixel_tape.dart';
 
-/// A cassette tile (§5.2, mockups r10): the app icon's pixel art scaled
+/// A cassette tile (§5.2, mockups r10/r11): the app icon's pixel art scaled
 /// nearest-neighbour, palette-swapped to the tape's accent, the name printed
 /// on the cream label band and "N memos · last record" on the colour strip.
 /// The label inks are fixed — the tile is a physical object and doesn't
-/// follow the theme.
+/// follow the theme — only the shell ink lifts one step in dark theme so
+/// the silhouette reads on dark paper (r11).
 class CassetteCard extends StatelessWidget {
   const CassetteCard({
     super.key,
@@ -56,6 +57,7 @@ class CassetteCard extends StatelessWidget {
                 _TapeSprite(
                   hue: hue,
                   windingWidth: tapeWindingWidth(_fullness()),
+                  dark: Theme.of(context).brightness == Brightness.dark,
                 ),
                 _print(
                   tapeNameBand,
@@ -160,10 +162,12 @@ String relativeDate(BuildContext context, DateTime t) {
 /// Resolves the composed sprite variant and paints it with no smoothing —
 /// pixels enlarge, nothing else (§5.2).
 class _TapeSprite extends StatefulWidget {
-  const _TapeSprite({required this.hue, required this.windingWidth});
+  const _TapeSprite(
+      {required this.hue, required this.windingWidth, required this.dark});
 
   final int? hue;
   final int windingWidth;
+  final bool dark;
 
   @override
   State<_TapeSprite> createState() => _TapeSpriteState();
@@ -181,7 +185,9 @@ class _TapeSpriteState extends State<_TapeSprite> {
   @override
   void didUpdateWidget(_TapeSprite old) {
     super.didUpdateWidget(old);
-    if (old.hue != widget.hue || old.windingWidth != widget.windingWidth) {
+    if (old.hue != widget.hue ||
+        old.windingWidth != widget.windingWidth ||
+        old.dark != widget.dark) {
       _resolve();
     }
   }
@@ -189,9 +195,14 @@ class _TapeSpriteState extends State<_TapeSprite> {
   void _resolve() {
     final hue = widget.hue;
     final windingWidth = widget.windingWidth;
-    tapeSpriteImage(hue: hue, windingWidth: windingWidth).then((image) {
+    final dark = widget.dark;
+    tapeSpriteImage(hue: hue, windingWidth: windingWidth, dark: dark)
+        .then((image) {
       // A stale resolve (variant changed while composing) must not win.
-      if (mounted && hue == widget.hue && windingWidth == widget.windingWidth) {
+      if (mounted &&
+          hue == widget.hue &&
+          windingWidth == widget.windingWidth &&
+          dark == widget.dark) {
         setState(() => _image = image);
       }
     });

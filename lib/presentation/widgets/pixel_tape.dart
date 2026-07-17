@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 
 import '../theme/tape_colors.dart';
 
-/// The home-grid cassette sprite (§5.2, mockups r10): the app icon's pixel
-/// art (`assets/images/tape.png`, 94×59), palette-swapped and re-wound per
-/// cassette. One sprite serves both themes — the cassette is a physical
-/// object; its inks don't follow the theme. Scaling is the card's job and
+/// The home-grid cassette sprite (§5.2, mockups r10/r11): the app icon's
+/// pixel art (`assets/images/tape.png`, 94×59), palette-swapped and re-wound
+/// per cassette. One sprite serves both themes — the cassette is a physical
+/// object; its inks don't follow the theme — with a single deliberate
+/// exception: in dark theme the shell ink lifts one step (r11), because the
+/// true shell all but vanishes on dark paper. Scaling is the card's job and
 /// must be nearest-neighbour only.
 
 const int tapeSpriteWidth = 94;
@@ -33,6 +35,14 @@ const int _warmGrey = 0xFF8D8579;
 /// The wound tape.
 const int _brown = 0xFF44230A;
 
+/// The shell/outline ink, and its lifted dark-theme tone (mockups r11): on
+/// dark paper `#131210` the true shell sits at 1.14:1 — invisible — so dark
+/// theme swaps it to `#3A342E` (1.52:1), the same tape under warmer light.
+/// Window holes and the wound tape stay dark, so depth survives; the printed
+/// label inks stay fixed.
+const int _shell = 0xFF231E20;
+const int _shellLifted = 0xFF3A342E;
+
 /// Winding space in the window: the base sprite's 11-px spool + 10-px
 /// transparent gap (rows 22–32, cols 37–57) that the wound-tape block grows
 /// into.
@@ -49,13 +59,15 @@ int tapeWindingWidth(double fullness) {
 }
 
 /// Pure pixel composition (RGBA, 94×59): every lavender pixel becomes
-/// [accent] (warm grey when null — no colour assigned yet), and the winding
+/// [accent] (warm grey when null — no colour assigned yet), the winding
 /// space is refilled with a [windingWidth]-px block anchored at the left
-/// spool, transparent past it.
+/// spool, transparent past it, and [dark] lifts the shell ink one step
+/// (r11).
 Uint8List composeTapePixels(
   Uint8List base, {
   Color? accent,
   required int windingWidth,
+  bool dark = false,
 }) {
   final argb = accent?.toARGB32() ?? _warmGrey;
   final ar = (argb >> 16) & 0xff, ag = (argb >> 8) & 0xff, ab = argb & 0xff;
@@ -65,6 +77,12 @@ Uint8List composeTapePixels(
   const br = (_brown >> 16) & 0xff,
       bg = (_brown >> 8) & 0xff,
       bb = _brown & 0xff;
+  const sr = (_shell >> 16) & 0xff,
+      sg = (_shell >> 8) & 0xff,
+      sb = _shell & 0xff;
+  const tr = (_shellLifted >> 16) & 0xff,
+      tg = (_shellLifted >> 8) & 0xff,
+      tb = _shellLifted & 0xff;
 
   final out = Uint8List.fromList(base);
   for (var i = 0; i < out.length; i += 4) {
@@ -73,6 +91,14 @@ Uint8List composeTapePixels(
       out[i] = ar;
       out[i + 1] = ag;
       out[i + 2] = ab;
+    } else if (dark &&
+        out[i] == sr &&
+        out[i + 1] == sg &&
+        out[i + 2] == sb &&
+        out[i + 3] == 0xff) {
+      out[i] = tr;
+      out[i + 1] = tg;
+      out[i + 2] = tb;
     }
   }
   for (var y = _windingTop; y <= _windingBottom; y++) {
@@ -103,22 +129,26 @@ Future<Uint8List> _loadBasePixels() async {
 }
 
 /// Composed variants live for the process — at most 7 accents × 12 winding
-/// widths of a 94×59 image. Never disposed: cards share them freely.
+/// widths × 2 themes of a 94×59 image. Never disposed: cards share them
+/// freely.
 final _variants = <int, Future<ui.Image>>{};
 
 /// The composed sprite for [hue] (index into the light-theme tape hues;
 /// null → warm grey) at [windingWidth]. Accents always use the light-theme
-/// tokens — one sprite serves both themes (§5.2).
-Future<ui.Image> tapeSpriteImage({int? hue, required int windingWidth}) =>
-    _variants[(hue ?? -1) * 64 + windingWidth] ??=
-        _composeImage(hue, windingWidth);
+/// tokens — one sprite serves both themes (§5.2); [dark] only lifts the
+/// shell ink (r11).
+Future<ui.Image> tapeSpriteImage(
+        {int? hue, required int windingWidth, bool dark = false}) =>
+    _variants[((hue ?? -1) * 64 + windingWidth) * 2 + (dark ? 1 : 0)] ??=
+        _composeImage(hue, windingWidth, dark);
 
-Future<ui.Image> _composeImage(int? hue, int windingWidth) async {
+Future<ui.Image> _composeImage(int? hue, int windingWidth, bool dark) async {
   final base = await (_basePixels ??= _loadBasePixels());
   final pixels = composeTapePixels(
     base,
     accent: hue == null ? null : TapeColors.light.hues[hue],
     windingWidth: windingWidth,
+    dark: dark,
   );
   final completer = Completer<ui.Image>();
   ui.decodeImageFromPixels(pixels, tapeSpriteWidth, tapeSpriteHeight,

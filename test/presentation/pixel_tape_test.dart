@@ -16,6 +16,8 @@ void main() {
   const lavender = 0xFF887999;
   const warmGrey = 0xFF8D8579;
   const brown = 0xFF44230A;
+  const shell = 0xFF231E20;
+  const shellLifted = 0xFF3A342E;
 
   late Uint8List base;
 
@@ -94,6 +96,24 @@ void main() {
           expect(argbAt(out, 57, 27), 0x00000000);
         }
       }
+    });
+
+    test('dark lifts every shell pixel one step, nothing else (r11)', () {
+      final accent = TapeColors.light.hues[2];
+      final out = composeTapePixels(base,
+          accent: accent, windingWidth: 11, dark: true);
+      expect(count(out, shell), 0);
+      expect(count(out, shellLifted), count(base, shell));
+      // Depth survives: cream band, accent and wound tape keep their colors.
+      expect(argbAt(out, 47, 12), argbAt(base, 47, 12));
+      expect(count(out, accent.toARGB32()), count(base, lavender));
+      expect(count(out, brown), count(base, brown));
+    });
+
+    test('light theme keeps the true shell ink', () {
+      final out = composeTapePixels(base, windingWidth: 11);
+      expect(count(out, shellLifted), 0);
+      expect(count(out, shell), count(base, shell));
     });
 
     test('label band and inks are untouched by the swap', () {
