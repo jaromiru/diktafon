@@ -1,5 +1,5 @@
+• New home screen: cassette tiles in the app icon's pixel-art style.
 • Clearer transcripts: voice-activity detection and a tuned Android microphone path cut background-noise ghost words.
-• Snappier summaries — one-line memo gists, short memos skip the wait, and cassette titles now name the topic.
+• Snappier summaries: one-line memo gists, short memos skip the wait, cassette titles name the topic.
 • Memos no longer get stuck at "transcribing" after the app is killed in the background.
-• Playback and recording errors are surfaced instead of failing silently.
-• Fixed the jumpy cursor when playing right after tapping a word.
+• Playback and recording errors are surfaced; fixed the jumpy cursor after tapping a word.
