@@ -82,6 +82,14 @@ android {
             }
         }
     }
+
+    // Google Play's dependency-info signing block is encrypted so only Google
+    // can read it — F-Droid's scanner rejects APKs that carry it. Keep it in
+    // the Play bundle, where it still feeds SDK-insights warnings.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = true
+    }
 }
 
 kotlin {

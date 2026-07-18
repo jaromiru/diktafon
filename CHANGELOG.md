@@ -3,6 +3,13 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.4] — 2026-07-18
+
+### Changed
+- Android APKs no longer embed Google Play's encrypted dependency-info
+  signing block (F-Droid's scanner rejects it). Packaging-only release —
+  no functional changes.
+
 ## [1.0.3] — 2026-07-17
 
 ### Added
@@ -115,6 +122,7 @@ First public release.
 - Android and Linux desktop builds; release CI with per-ABI APKs, signed
   builds, and provenance attestation.
 
+[1.0.4]: https://github.com/jaromiru/diktafon/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/jaromiru/diktafon/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/jaromiru/diktafon/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/jaromiru/diktafon/compare/v1.0.0...v1.0.1

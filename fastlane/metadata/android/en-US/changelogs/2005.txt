@@ -1,0 +1,1 @@
+Packaging-only release: Android APKs no longer embed Google Play's encrypted dependency-info block (required for F-Droid inclusion). No functional changes.
