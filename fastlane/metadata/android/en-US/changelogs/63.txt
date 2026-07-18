@@ -1,0 +1,1 @@
+Packaging-only release: Android version codes switch to F-Droid's split-ABI scheme (versionCode × 10 + ABI) for reproducible F-Droid builds. Sideloaded installs of older versions need a one-time reinstall. No functional changes.

@@ -3,6 +3,22 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.5] — 2026-07-18
+
+### Changed
+- Android split-ABI version codes switch to F-Droid's scheme
+  (versionCode × 10 + ABI digit: arm64-v8a 62, x86_64 63) so F-Droid can
+  build reproducibly and verify against the GitHub release APKs. Play
+  (appbundle) version codes are unaffected. **Sideloaded installs of
+  1.0.4 or older need a one-time uninstall/reinstall** — the old
+  Flutter scheme's codes (2005/4005) are higher, so Android rejects the
+  new APKs as downgrades. Packaging-only release — no functional
+  changes.
+
+### Added
+- `assets/models/README.md` documents the bundled Silero VAD model's
+  origin, purpose, license, and how to verify it against upstream.
+
 ## [1.0.4] — 2026-07-18
 
 ### Changed
