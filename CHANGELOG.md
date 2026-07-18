@@ -3,6 +3,18 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.6] — 2026-07-18
+
+### Changed
+- Android builds are byte-for-byte reproducible so F-Droid can verify the
+  release APKs against its own from-source builds. Engine libraries drop
+  embedded build paths (`-ffile-prefix-map`) and the machine-dependent ELF
+  build-id note (also dropped from plugin-built `libdartjni.so`); release CI
+  builds at the F-Droid buildserver's canonical path, matching the two
+  remaining path-derived bits (the Dart plugin registrant URI inside the AOT
+  snapshot and libomp's ident strings). Packaging-only release — no
+  functional changes.
+
 ## [1.0.5] — 2026-07-18
 
 ### Changed

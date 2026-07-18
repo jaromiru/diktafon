@@ -9,6 +9,18 @@ project(diktafon_native LANGUAGES C CXX)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Reproducible Android builds (F-Droid byte-compares our APKs against the
+# GitHub-release reference): __FILE__ strings (ggml assert/trace messages)
+# embed absolute source paths, and the linker's build-id note hashes debug
+# info full of machine paths (the note survives stripping) — normalize both.
+# OpenMP's ident strings ignore the prefix map; those are matched by building
+# at the same absolute path instead (release.yml mirrors the F-Droid
+# buildserver's /home/vagrant/build/cz.mod42.diktafon).
+if(ANDROID)
+  add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=/src/native")
+  add_link_options("-Wl,--build-id=none")
+endif()
+
 # Static engines folded into our shared libraries. (Cache-forced:
 # upstream declares BUILD_SHARED_LIBS as an option defaulting to ON.)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)

@@ -1,0 +1,1 @@
+Packaging-only release: Android builds are made byte-for-byte reproducible so F-Droid can verify the official APKs. No functional changes.

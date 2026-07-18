@@ -138,18 +138,37 @@ jobs:
           keyPassword=$KEY_PASSWORD
           EOF
 
+      # Reproducible builds: F-Droid rebuilds these APKs on their buildserver
+      # at /home/vagrant/build/cz.mod42.diktafon (with a repo-local pub cache)
+      # and byte-compares them against the release assets. Two absolute build
+      # paths survive into the APK and cannot be normalized by compiler flags
+      # — the Dart plugin registrant's file:// URI baked into libapp.so's AOT
+      # snapshot, and libomp's ident strings in the engine libs (they ignore
+      # -ffile-prefix-map) — so build at the same canonical path.
+      - name: Mirror the F-Droid buildserver path
+        run: |
+          sudo mkdir -p /home/vagrant/build
+          sudo chown "$USER" /home/vagrant /home/vagrant/build
+          cp -a "$GITHUB_WORKSPACE" /home/vagrant/build/cz.mod42.diktafon
+
       # NDK 28.2 (android/app/build.gradle.kts ← flutter.ndkVersion) is
       # auto-installed by the Android Gradle Plugin on first build.
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
+        working-directory: /home/vagrant/build/cz.mod42.diktafon
+        env:
+          PUB_CACHE: /home/vagrant/build/cz.mod42.diktafon/.pub-cache
       # --target-platform keeps the split 64-bit-only (armeabi-v7a is
       # neither built by the native CMake project nor shipped).
       - run: flutter build apk --release --split-per-abi --target-platform android-arm64,android-x64
+        working-directory: /home/vagrant/build/cz.mod42.diktafon
+        env:
+          PUB_CACHE: /home/vagrant/build/cz.mod42.diktafon/.pub-cache
 
       - name: Rename APKs
         run: |
-          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+          mv /home/vagrant/build/cz.mod42.diktafon/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
              "diktafon-$VERSION-android-arm64-v8a.apk"
-          mv build/app/outputs/flutter-apk/app-x86_64-release.apk \
+          mv /home/vagrant/build/cz.mod42.diktafon/build/app/outputs/flutter-apk/app-x86_64-release.apk \
              "diktafon-$VERSION-android-x86_64.apk"
 
       - uses: actions/upload-artifact@v4
