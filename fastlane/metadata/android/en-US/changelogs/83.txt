@@ -1,0 +1,1 @@
+Packaging-only release: the Android engine libraries no longer embed the builder's git state, completing byte-for-byte reproducible builds for F-Droid verification. No functional changes.

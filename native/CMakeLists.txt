@@ -19,6 +19,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(ANDROID)
   add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=/src/native")
   add_link_options("-Wl,--build-id=none")
+
+  # ggml bakes `git rev-parse --short HEAD` plus a -dirty suffix into
+  # ggml_commit() — resolved against the *enclosing app repo* (the vendored
+  # trees carry no .git). The dirty probe is `git diff-index`, which trusts
+  # git's stat cache, so a mere file copy of the checkout flips it: the
+  # GitHub reference APK embedded "…-dirty" while F-Droid's fresh clone was
+  # clean, shifting every later relocation addend (v1.0.6 verification
+  # failure). Pre-seeding ggml's GIT_EXE cache entry with `true` (prints
+  # nothing, exits 0) pins the string to the constant "unknown" on every
+  # builder. Both vendored ggml trees and the whisper/llama build-info
+  # modules share the GIT_EXE name — re-check on engine upgrades.
+  find_program(GIT_EXE NAMES true NO_CMAKE_FIND_ROOT_PATH REQUIRED)
 endif()
 
 # Static engines folded into our shared libraries. (Cache-forced:

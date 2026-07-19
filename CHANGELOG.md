@@ -3,6 +3,17 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.7] — 2026-07-19
+
+### Changed
+- The last environment-dependent bytes are pinned out of the Android engine
+  libraries: ggml embeds the enclosing repo's git commit (with a `-dirty`
+  suffix decided by git's copy-sensitive stat cache) into `ggml_commit()`,
+  which made the v1.0.6 reference APKs differ from F-Droid's from-source
+  rebuild by one string. Android builds now pin that string to a constant,
+  independent of the builder's git state. Packaging-only release — no
+  functional changes.
+
 ## [1.0.6] — 2026-07-18
 
 ### Changed
