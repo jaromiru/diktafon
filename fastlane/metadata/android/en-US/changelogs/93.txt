@@ -1,0 +1,1 @@
+Packaging-only release: each Android APK is now built with a single-ABI invocation so F-Droid builds only the ABI it ships. No functional changes.

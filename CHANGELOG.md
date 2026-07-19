@@ -3,6 +3,17 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.8] — 2026-07-19
+
+### Changed
+- Release CI builds each Android APK in its own parallel job with a
+  single-ABI invocation (`--target-platform android-arm64` / `android-x64`)
+  instead of one dual-target build, so the F-Droid recipe can build only
+  the ABI each of its blocks ships (review request). The target-platform list is baked into
+  the APK (`NativeAssetsManifest.json`, manifest metadata), so reference and
+  from-source rebuild must use identical per-ABI invocations. Packaging-only
+  release — no functional changes.
+
 ## [1.0.7] — 2026-07-19
 
 ### Changed

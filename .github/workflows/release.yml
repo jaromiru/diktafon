@@ -99,10 +99,25 @@ jobs:
           path: diktafon-*-linux-x64.tar.gz
           if-no-files-found: error
 
+  # One job per ABI, mirroring the F-Droid recipe's two independent build
+  # blocks (each runs on a fresh buildserver VM). The --target-platform list
+  # survives into the APK (NativeAssetsManifest.json records it;
+  # merged-manifest metadata shifts with it), so the reference and the
+  # F-Droid rebuild must use the same per-ABI invocation. Single-target also
+  # keeps the split 64-bit-only (armeabi-v7a is neither built by the native
+  # CMake project nor shipped).
   build-android:
+    name: build-android (${{ matrix.abi }})
     needs: preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      matrix:
+        include:
+          - target: android-arm64
+            abi: arm64-v8a
+          - target: android-x64
+            abi: x86_64
     env:
       VERSION: ${{ needs.preflight.outputs.version }}
     steps:
@@ -157,23 +172,22 @@ jobs:
         working-directory: /home/vagrant/build/cz.mod42.diktafon
         env:
           PUB_CACHE: /home/vagrant/build/cz.mod42.diktafon/.pub-cache
-      # --target-platform keeps the split 64-bit-only (armeabi-v7a is
-      # neither built by the native CMake project nor shipped).
-      - run: flutter build apk --release --split-per-abi --target-platform android-arm64,android-x64
+      - run: flutter build apk --release --split-per-abi --target-platform ${{ matrix.target }}
         working-directory: /home/vagrant/build/cz.mod42.diktafon
         env:
           PUB_CACHE: /home/vagrant/build/cz.mod42.diktafon/.pub-cache
 
-      - name: Rename APKs
+      - name: Rename APK
         run: |
-          mv /home/vagrant/build/cz.mod42.diktafon/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-             "diktafon-$VERSION-android-arm64-v8a.apk"
-          mv /home/vagrant/build/cz.mod42.diktafon/build/app/outputs/flutter-apk/app-x86_64-release.apk \
-             "diktafon-$VERSION-android-x86_64.apk"
+          mv "/home/vagrant/build/cz.mod42.diktafon/build/app/outputs/flutter-apk/app-${{ matrix.abi }}-release.apk" \
+             "diktafon-$VERSION-android-${{ matrix.abi }}.apk"
 
+      # upload-artifact v4 rejects same-name uploads from parallel jobs, so
+      # each leg uploads under its own name; the release job's download step
+      # merges all artifacts.
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apks
+          name: android-apk-${{ matrix.abi }}
           path: diktafon-*-android-*.apk
           if-no-files-found: error
 
