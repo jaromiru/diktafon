@@ -3,6 +3,14 @@
 </h1>
 
 <p align="center">
+  <!-- Once the F-Droid listing is live:
+  <a href="https://f-droid.org/packages/cz.mod42.diktafon"><img src="media/badges/f-droid.png" alt="Get it on F-Droid" height="60"></a>
+  -->
+  <a href="https://play.google.com/store/apps/details?id=cz.mod42.diktafon"><img src="media/badges/google-play.png" alt="Get it on Google Play" height="60"></a>&nbsp;
+  <a href="https://apps.apple.com/app/diktafon-voice-memos-on-tape/id6790008802"><img src="media/badges/app-store.png" alt="Download on the App Store" height="60"></a>
+</p>
+
+<p align="center">
  <b>Voice memos on cassette tapes — transcribed and summarised entirely on your device.</b>
 </p>
 
@@ -70,15 +78,17 @@ recordings.
 
 ## Install
 
-Prebuilt artifacts for every release are on the
-[releases page](https://github.com/jaromiru/diktafon/releases).
-
 ### Android
 
-Download `diktafon-<version>-android-arm64-v8a.apk` (64-bit phones; the
-`x86_64` APK is for emulators) and install it — you may need to allow
-"install unknown apps" for your browser or file manager. Requires Android 7.0
-(API 24) or newer; 4 GB RAM recommended for the default models.
+Get it on [Google Play](https://play.google.com/store/apps/details?id=cz.mod42.diktafon).
+Requires Android 7.0 (API 24) or newer; 4 GB RAM recommended for the default
+models.
+
+To sideload instead, download `diktafon-<version>-android-arm64-v8a.apk`
+(64-bit phones; the `x86_64` APK is for emulators) from the
+[releases page](https://github.com/jaromiru/diktafon/releases) and install
+it — you may need to allow "install unknown apps" for your browser or file
+manager.
 
 Alternatively, install from a computer with
 [adb](https://developer.android.com/tools/adb) (USB debugging enabled on the
@@ -88,7 +98,17 @@ device):
 adb install diktafon-<version>-android-arm64-v8a.apk
 ```
 
+### iOS
+
+Get it on the
+[App Store](https://apps.apple.com/app/diktafon-voice-memos-on-tape/id6790008802).
+Requires iOS 13.0 or newer; a recent device is recommended for the default
+models.
+
 ### Linux
+
+Download `diktafon-<version>-linux-x64.tar.gz` from the
+[releases page](https://github.com/jaromiru/diktafon/releases), then:
 
 ```bash
 tar xzf diktafon-<version>-linux-x64.tar.gz
