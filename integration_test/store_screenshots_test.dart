@@ -267,12 +267,17 @@ void main() {
     );
     final kitchenAudio = Directory('${audioDir.path}/c-kitchen')
       ..createSync(recursive: true);
+    // Only the first memo's transcript clears the 350-char gist gate
+    // (design.md §6.7) — the short ones stay gistless, as the app would
+    // leave them.
     await memo('c-kitchen', 'm-measure', ago(days: 3, hours: 2), sentences: [
       'Measured the whole kitchen this morning.',
       'The window wall is three meters twenty and the counter run is two '
           'forty, with seventy centimeters left for the fridge.',
       'One thing to remember, the radiator pipe sticks out on the left, so '
           'the corner cabinet needs a cutout.',
+      'The floor also slopes toward the balcony door, so the plinths will '
+          'need scribing before anything sits level.',
     ], gist: 'Kitchen measured: window wall 3.20 m, counter 2.40 m, 70 cm '
         'left for the fridge; the corner cabinet needs a cutout for the '
         'radiator pipe.');
@@ -281,8 +286,7 @@ void main() {
       'He can start in the second week of next month and the full number '
           'arrives by Thursday.',
       'Demolition is included but disposal is extra, roughly two hundred.',
-    ], gist: 'Hanson can start in the second week of next month; the full '
-        'quote arrives Thursday. Demolition included, disposal ~200 extra.');
+    ]);
     await memo('c-kitchen', 'm-colors', ago(minutes: 20), sentences: [
       'Cabinet colors, round three.',
       'I keep coming back to sage green, but the off-white would make the '
@@ -290,8 +294,7 @@ void main() {
       'Maybe green below and white above.',
       'Also decided that every appliance stays except the oven, that one '
           'is done for.',
-    ], gist: 'Cabinet color is down to sage green vs. off-white, possibly '
-        'split. All appliances stay except the oven.');
+    ]);
     // Real (tone) audio so the tape player has files to load.
     for (final f in ['m-measure', 'm-quote', 'm-colors']) {
       File('${kitchenAudio.path}/$f.wav')

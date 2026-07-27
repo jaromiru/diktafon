@@ -224,7 +224,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                     child: TranscriptView(
                       tape: tape,
                       colorSeed: cassette.colorSeed,
-                      globalMs: playback.globalMs,
+                      // While recording, the parked playback position is
+                      // stale context — no word deserves a highlight.
+                      globalMs: isRecordingHere ? -1 : playback.globalMs,
                       currentMemoIndex: playback.memoIndex,
                       playing: playback.playing,
                       seekCount: playback.seekCount,
