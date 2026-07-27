@@ -741,6 +741,15 @@ extern "C" {
 
     WHISPER_API void whisper_log_set(ggml_log_callback log_callback, void * user_data);
 
+    // Diktafon patch (native/README.md): optional persistent CPU threadpool.
+    // When set, every CPU graph compute in this library (encoder/decoder
+    // sched, VAD, misc helpers) attaches this pool instead of spawning a
+    // disposable per-call one. Caller keeps ownership and must outlive all
+    // contexts; NULL detaches. Set before use — not synchronized against
+    // in-flight computes.
+    struct ggml_threadpool;
+    WHISPER_API void whisper_dk_set_cpu_threadpool(struct ggml_threadpool * tp);
+
     // Get the no_speech probability for the specified segment
     WHISPER_API float whisper_full_get_segment_no_speech_prob           (struct whisper_context * ctx, int i_segment);
     WHISPER_API float whisper_full_get_segment_no_speech_prob_from_state(struct whisper_state * state, int i_segment);

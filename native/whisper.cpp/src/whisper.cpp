@@ -5,6 +5,7 @@
 #include "ggml-cpp.h"
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
+#include "ggml-cpu.h" // Diktafon patch: whisper_dk_set_cpu_threadpool
 
 #ifdef WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"
@@ -165,12 +166,31 @@ static std::string format(const char * fmt, ...) {
 // ggml helpers
 //
 
+// Diktafon patch (native/README.md): a caller-owned persistent CPU
+// threadpool. Without one, every non-OpenMP ggml_graph_compute spawns and
+// joins a disposable pool — per encoder pass and per decoded token — at
+// default params (hybrid busy-poll, normal priority). The shim installs a
+// poll=0 / GGML_SCHED_PRIO_LOW pool here so compute threads sleep when
+// idle and yield to the UI thread.
+static struct ggml_threadpool * g_dk_cpu_threadpool = nullptr;
+
+void whisper_dk_set_cpu_threadpool(struct ggml_threadpool * tp) {
+    g_dk_cpu_threadpool = tp;
+}
+
+static void whisper_dk_attach_cpu_threadpool(ggml_backend_t backend) {
+    if (g_dk_cpu_threadpool != nullptr && ggml_backend_is_cpu(backend)) {
+        ggml_backend_cpu_set_threadpool(backend, g_dk_cpu_threadpool);
+    }
+}
+
 static bool ggml_graph_compute_helper(
           struct ggml_cgraph * graph,
                          int   n_threads,
          ggml_abort_callback   abort_callback,
                         void * abort_callback_data) {
     ggml_backend_ptr backend { ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr) };
+    whisper_dk_attach_cpu_threadpool(backend.get()); // Diktafon patch
 
     auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend.get()));
 
@@ -201,6 +221,7 @@ static bool ggml_graph_compute_helper(
         if (fn_set_n_threads) {
             fn_set_n_threads(backend, n_threads);
         }
+        whisper_dk_attach_cpu_threadpool(backend); // Diktafon patch
     }
 
     const bool t = (ggml_backend_sched_graph_compute(sched, graph) == GGML_STATUS_SUCCESS);

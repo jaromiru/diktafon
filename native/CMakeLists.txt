@@ -46,6 +46,18 @@ set(LLAMA_BUILD_EXAMPLES   OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER     OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_APP        OFF CACHE BOOL "" FORCE)
 
+# No OpenMP: ggml's OMP compute path busy-spins at normal priority — at
+# every inter-node barrier and through KMP_BLOCKTIME (~200 ms) between
+# graphs, which decoder steps outrun, so the pool never sleeps — starving
+# the Android main thread into input-dispatch ANRs mid-transcription
+# (design.md §6.5). With OMP off both shims attach a persistent internal
+# ggml threadpool (poll=0: sleep when idle; GGML_SCHED_PRIO_LOW: yield to
+# the UI). iOS never had OpenMP (Xcode ships no libomp), so this also
+# aligns Android/Linux with the iOS build, and drops libomp.so from the
+# APK (one F-Droid reproducibility surface less — see the ident-string
+# note above, now moot).
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+
 # llama.cpp must come first: it defines the `ggml` target that whisper.cpp
 # then reuses via its `if (NOT TARGET ggml)` guard. Both vendored trees pin
 # ggml 0.15.1 (whisper v1.9.1 2026-06-19, llama b9700 2026-06-18).

@@ -6,6 +6,9 @@
 
 #include "whisper.h"
 #include "ggml.h"
+#include "ggml-cpu.h"
+
+#include "dk_thread_bg.h"
 
 struct dk_whisper {
     whisper_context * ctx = nullptr;
@@ -33,6 +36,32 @@ bool dk_abort_cb(void * user_data) {
 // 30 ms pad, 100 ms min silence) clip quiet speech onsets — the phase-0
 // bench lost whole words to them. These values were tuned on the verified
 // corpus; the env knobs stay for bench sweeps only.
+// Persistent CPU threadpool shared by every whisper compute (main context
+// and VAD) — created on the first call that knows n_threads and installed
+// via the whisper_dk_set_cpu_threadpool patch. poll=0 sleeps the workers
+// between graphs instead of ggml's default hybrid busy-poll, and LOW prio
+// (SCHED_BATCH + nice 10 on Linux/Android via the ggml patch) yields the
+// cores to the UI thread — OpenMP's spinning pool starved the Android main
+// thread into input-dispatch ANRs mid-transcription (design.md §6.5).
+// Process-lived by design: live contexts hold backend pointers to it, and
+// the worker isolate spans the process. First-seen n_threads sizes the
+// pool; ggml clamps any larger later request to the pool's size.
+ggml_threadpool * g_dk_pool = nullptr;
+
+void dk_ensure_threadpool(int32_t n_threads) {
+    if (g_dk_pool != nullptr) {
+        return;
+    }
+    ggml_threadpool_params tpp =
+        ggml_threadpool_params_default(n_threads > 0 ? n_threads : 1);
+    tpp.prio = GGML_SCHED_PRIO_LOW;
+    tpp.poll = 0;
+    g_dk_pool = ggml_threadpool_new(&tpp);
+    if (g_dk_pool != nullptr) {
+        whisper_dk_set_cpu_threadpool(g_dk_pool);
+    }
+}
+
 whisper_vad_params dk_vad_params() {
     whisper_vad_params params = whisper_vad_default_params();
     params.threshold               = 0.35f;
@@ -55,6 +84,8 @@ whisper_vad_params dk_vad_params() {
 extern "C" {
 
 dk_whisper * dk_whisper_init(const char * model_path) {
+    // Model load is a CPU/IO burst too — keep it off the UI's back.
+    DkThreadBackgroundScope bg;
     // Whisper/ggml log every model layer to stderr; keep the app console
     // usable unless explicitly debugging the engine.
     if (std::getenv("DK_WHISPER_LOG") == nullptr) {
@@ -97,6 +128,8 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
                               const char * lang,
                               int32_t n_threads,
                               const int32_t * cancel) {
+    dk_ensure_threadpool(n_threads);
+    DkThreadBackgroundScope bg;
     const bool beam = dw->beam_size > 1;
     whisper_full_params wparams = whisper_full_default_params(
         beam ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY);
@@ -238,6 +271,8 @@ int32_t dk_whisper_vad_has_speech(const char * vad_model_path,
                                   const float * pcm,
                                   int32_t n_samples,
                                   int32_t n_threads) {
+    dk_ensure_threadpool(n_threads);
+    DkThreadBackgroundScope bg;
     if (std::getenv("DK_WHISPER_LOG") == nullptr) {
         whisper_log_set(dk_quiet_log, nullptr);
         ggml_log_set(dk_quiet_log, nullptr);

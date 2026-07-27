@@ -27,6 +27,34 @@
   `if (NOT TARGET ggml)` guard. When upgrading either engine, keep their ggml
   sync points close (both trees carry a `ggml/` copy; llama's wins).
 
+## Local patches (re-apply on every engine upgrade)
+
+The vendored trees are otherwise pristine, but carry three deliberate
+Diktafon patches — all marked with a `Diktafon patch` comment at the site
+and motivated by design.md §6.5 (UI-thread starvation → Android
+input-dispatch ANRs; the build is OpenMP-free, see `GGML_OPENMP OFF` in
+`CMakeLists.txt`, so ggml's internal threadpool is the only compute pool):
+
+1. `llama.cpp/ggml/src/ggml-cpu/ggml-cpu.c` — the thread priority/affinity
+   block compiles on Android too (`__gnu_linux__ || __ANDROID__`; bionic
+   defines only `__linux__`, so upstream fell into the no-op branch), and
+   `GGML_SCHED_PRIO_LOW` additionally drops nice to 10 (SCHED_BATCH alone
+   keeps full CFS weight).
+2. `whisper.cpp/include/whisper.h` + `whisper.cpp/src/whisper.cpp` —
+   `whisper_dk_set_cpu_threadpool()`: whisper has no public threadpool API,
+   so a process-global pool set by the shim is attached to the CPU backend
+   in both `ggml_graph_compute_helper` variants (covers encoder/decoder
+   sched, VAD, and misc computes). Without it, every non-OpenMP compute
+   spawns a disposable pool at default params (hybrid busy-poll, normal
+   priority) — per encoder pass and per decoded token.
+3. (No llama patch needed — `llama_attach_threadpool()` is public; the shim
+   uses it.)
+
+The shims create the pools with `poll=0` (sleep between graphs, no
+busy-spin) and `GGML_SCHED_PRIO_LOW`, and additionally background the
+*calling* thread for the duration of each engine call on Android
+(`src/dk_thread_bg.h` — thread 0 of every compute is the caller).
+
 ## Consumers
 
 - **Linux (dev/E2E):** `linux/CMakeLists.txt` adds this directory and installs

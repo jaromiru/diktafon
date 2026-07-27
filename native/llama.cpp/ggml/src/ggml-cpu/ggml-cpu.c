@@ -2579,8 +2579,18 @@ static bool ggml_thread_apply_priority(int32_t prio) {
     return true;
 }
 
-#elif defined(__gnu_linux__)
+#elif defined(__gnu_linux__) || defined(__ANDROID__)
 // TODO: this may not work on BSD, to be verified
+// Diktafon patch (native/README.md): bionic defines __linux__ but not
+// __gnu_linux__, so upstream Android builds fell through to the no-op
+// branch below and GGML_SCHED_PRIO_LOW silently kept inference threads at
+// full weight — starving the UI thread into input-dispatch ANRs. This
+// block already carries the bionic affinity fallback; compile it on
+// Android too, and give LOW a real CFS weight drop (nice 10, Android's
+// THREAD_PRIORITY_BACKGROUND) — SCHED_BATCH alone keeps full weight.
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 static bool ggml_thread_apply_affinity(const bool * mask) {
     cpu_set_t cpuset;
@@ -2625,6 +2635,15 @@ static bool ggml_thread_apply_priority(int32_t prio) {
     if (prio == GGML_SCHED_PRIO_NORMAL) {
         // Keep inherited policy/priority
         return true;
+    }
+
+    // Diktafon patch: SCHED_BATCH keeps full CFS weight — drop nice too so
+    // LOW actually yields the core to interactive threads. Best-effort; the
+    // pool workers are dedicated and never need the value restored.
+    if (prio == GGML_SCHED_PRIO_LOW) {
+        if (setpriority(PRIO_PROCESS, (id_t) syscall(SYS_gettid), 10) != 0) {
+            fprintf(stderr, "warn: failed to set thread nice : %s\n", strerror(errno));
+        }
     }
 
     int32_t err = pthread_setschedparam(pthread_self(), policy, &p);

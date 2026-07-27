@@ -7,10 +7,19 @@
 
 #include "llama.h"
 #include "ggml.h"
+#include "ggml-cpu.h"
+
+#include "dk_thread_bg.h"
 
 struct dk_llama {
     llama_model *   model = nullptr;
     llama_context * ctx   = nullptr;
+    // Persistent CPU threadpool for this context's computes: poll=0 sleeps
+    // the workers between graphs (ggml's default hybrid-poll busy-spins),
+    // LOW prio yields the cores to the UI thread (design.md §6.5). Without
+    // an attached pool, the non-OpenMP build would also respawn a
+    // disposable pool per decoded token.
+    ggml_threadpool * threadpool = nullptr;
     int32_t         n_ctx = 0;
     // Cancel flag for the generate in flight; read by the abort callback.
     const volatile int32_t * cancel = nullptr;
@@ -75,6 +84,8 @@ extern "C" {
 dk_llama * dk_llama_init(const char * model_path,
                          int32_t n_ctx,
                          int32_t n_threads) {
+    // Model load is a CPU/IO burst too — keep it off the UI's back.
+    DkThreadBackgroundScope bg;
     // llama/ggml log every tensor to stderr; keep the app console usable
     // unless explicitly debugging the engine.
     if (std::getenv("DK_LLAMA_LOG") == nullptr) {
@@ -119,6 +130,17 @@ dk_llama * dk_llama_init(const char * model_path,
     dl->ctx   = ctx;
     dl->n_ctx = n_ctx;
     llama_set_abort_callback(ctx, dk_abort_cb, dl);
+
+    ggml_threadpool_params tpp =
+        ggml_threadpool_params_default(n_threads > 0 ? n_threads : 1);
+    tpp.prio = GGML_SCHED_PRIO_LOW;
+    tpp.poll = 0;
+    dl->threadpool = ggml_threadpool_new(&tpp);
+    if (dl->threadpool != nullptr) {
+        // Same pool for single-token and batched decode (one n_threads).
+        // On failure llama falls back to its per-decode disposable pool.
+        llama_attach_threadpool(ctx, dl->threadpool, dl->threadpool);
+    }
     return dl;
 }
 
@@ -128,6 +150,9 @@ void dk_llama_free(dk_llama * dl) {
     }
     llama_free(dl->ctx);
     llama_model_free(dl->model);
+    if (dl->threadpool != nullptr) {
+        ggml_threadpool_free(dl->threadpool);
+    }
     delete dl;
 }
 
@@ -137,6 +162,7 @@ int32_t dk_llama_generate(dk_llama * dl,
                           int32_t max_tokens,
                           float temperature,
                           const int32_t * cancel) {
+    DkThreadBackgroundScope bg;
     dl->cancel = cancel;
     dl->result.clear();
 
