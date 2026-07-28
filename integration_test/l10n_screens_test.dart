@@ -85,6 +85,7 @@ void main() {
     // RTL pair: layout mirrors, tape face stays LTR (§5.7/§13).
     ('ar', const Locale('ar'), 'الإعدادات'),
     ('fa', const Locale('fa'), 'تنظیمات'),
+    ('hi', const Locale('hi'), 'सेटिंग्स'),
   ]) {
     testWidgets('the app renders localized in $code', (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);

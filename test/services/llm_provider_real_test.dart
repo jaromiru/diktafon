@@ -76,9 +76,13 @@ void main() {
     timeout: const Timeout(Duration(minutes: 5)),
   );
 
-  // Per-language probes for the tr/ru/ko wave: the summary must come back
-  // non-empty and — where the script is distinctive — *in that script*
+  // Per-language probes (tr/ru/ko wave + §13 wave 2): the summary must come
+  // back non-empty and — where the script is distinctive — *in that script*
   // (prompts pin the output language per D8). Reuses the same lib/model.
+  // CJK texts are pre-spaced per word here only to build the Word list; the
+  // app joins them flush (script-aware joins). zh-Hant asserts Han script,
+  // not Hant specifically — the Hans→Hant belt-and-braces conversion is the
+  // job queue's, unit-tested in chinese_script/job_queue tests.
   const memoTexts = {
     'tr': 'yarın markete gidip süt ekmek ve peynir almam lazım ayrıca '
         'annemi arayıp hafta sonu planını sormalıyım',
@@ -86,10 +90,37 @@ void main() {
         'маме насчёт планов на выходные',
     'ko': '내일 마트에 가서 우유랑 빵을 사야 하고 주말 계획에 대해 엄마에게 '
         '전화해야 한다',
+    'it': 'domani devo comprare latte pane e formaggio e poi chiamare la '
+        'mamma per i piani del fine settimana',
+    'id': 'besok saya harus beli susu roti dan keju lalu menelepon ibu '
+        'soal rencana akhir pekan',
+    'uk': 'треба купити молоко хліб і корм для собаки а ще подзвонити '
+        'мамі щодо планів на вихідні',
+    'vi': 'ngày mai phải mua sữa bánh mì và phô mai rồi gọi cho mẹ về kế '
+        'hoạch cuối tuần',
+    'ja': '明日 スーパー で 牛乳 と パン を 買って 母 に 週末 の 予定 を '
+        '電話 する',
+    'zh-Hans': '明天 要 去 超市 买 牛奶 和 面包 还要 给 妈妈 打 电话 说 '
+        '周末 的 计划',
+    'zh-Hant': '明天 要 去 超市 買 牛奶 和 麵包 還要 給 媽媽 打 電話 說 '
+        '週末 的 計劃',
+    'ar': 'غدا يجب أن أشتري الحليب والخبز والجبن وأتصل بأمي بخصوص خطة '
+        'نهاية الأسبوع',
+    'fa': 'فردا باید شیر و نان و پنیر بخرم و به مادرم درباره برنامه آخر '
+        'هفته زنگ بزنم',
+    'hi': 'कल मुझे दूध रोटी और पनीर खरीदना है और सप्ताहांत की योजना के बारे '
+        'में माँ को फोन करना है',
   };
   final scriptOf = {
     'ru': RegExp(r'[Ѐ-ӿ]'),
     'ko': RegExp(r'[가-힯]'),
+    'uk': RegExp(r'[Ѐ-ӿ]'),
+    'ja': RegExp(r'[ぁ-ヿ一-鿿]'),
+    'zh-Hans': RegExp(r'[一-鿿]'),
+    'zh-Hant': RegExp(r'[一-鿿]'),
+    'ar': RegExp(r'[؀-ۿ]'),
+    'fa': RegExp(r'[؀-ۿ]'),
+    'hi': RegExp(r'[ऀ-ॿ]'),
   };
 
   for (final MapEntry(key: code, value: text) in memoTexts.entries) {

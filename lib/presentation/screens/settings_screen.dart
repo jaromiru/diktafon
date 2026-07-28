@@ -49,6 +49,7 @@ class SettingsScreen extends ConsumerWidget {
     'zh-Hant': '中文（繁體）',
     'ar': 'العربية',
     'fa': 'فارسی',
+    'hi': 'हिन्दी',
   };
 
   @override
