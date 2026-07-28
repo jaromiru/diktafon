@@ -3,9 +3,7 @@
 </h1>
 
 <p align="center">
-  <!-- Once the F-Droid listing is live:
-  <a href="https://f-droid.org/packages/cz.mod42.diktafon"><img src="media/badges/f-droid.png" alt="Get it on F-Droid" height="60"></a>
-  -->
+  <a href="https://f-droid.org/packages/cz.mod42.diktafon"><img src="media/badges/f-droid.png" alt="Get it on F-Droid" height="60"></a>&nbsp;
   <a href="https://play.google.com/store/apps/details?id=cz.mod42.diktafon"><img src="media/badges/google-play.png" alt="Get it on Google Play" height="60"></a>&nbsp;
   <a href="https://apps.apple.com/app/diktafon-voice-memos-on-tape/id6790008802"><img src="media/badges/app-store.png" alt="Download on the App Store" height="60"></a>
 </p>
@@ -80,9 +78,12 @@ recordings.
 
 ### Android
 
-Get it on [Google Play](https://play.google.com/store/apps/details?id=cz.mod42.diktafon).
+Get it on [F-Droid](https://f-droid.org/packages/cz.mod42.diktafon) or
+[Google Play](https://play.google.com/store/apps/details?id=cz.mod42.diktafon).
 Requires Android 7.0 (API 24) or newer; 4 GB RAM recommended for the default
-models.
+models. F-Droid distributes the same developer-signed APKs as the
+[releases page](https://github.com/jaromiru/diktafon/releases), so F-Droid
+and sideloaded installs update interchangeably.
 
 To sideload instead, download `diktafon-<version>-android-arm64-v8a.apk`
 (64-bit phones; the `x86_64` APK is for emulators) from the
