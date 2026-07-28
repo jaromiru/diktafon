@@ -41,6 +41,7 @@ class SettingsScreen extends ConsumerWidget {
     'id': 'Bahasa Indonesia',
     'uk': 'Українська',
     'vi': 'Tiếng Việt',
+    'ja': '日本語',
   };
 
   @override

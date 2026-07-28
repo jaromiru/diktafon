@@ -12,6 +12,7 @@ import 'app_localizations_es.dart';
 import 'app_localizations_fr.dart';
 import 'app_localizations_id.dart';
 import 'app_localizations_it.dart';
+import 'app_localizations_ja.dart';
 import 'app_localizations_ko.dart';
 import 'app_localizations_pl.dart';
 import 'app_localizations_pt.dart';
@@ -19,6 +20,7 @@ import 'app_localizations_ru.dart';
 import 'app_localizations_tr.dart';
 import 'app_localizations_uk.dart';
 import 'app_localizations_vi.dart';
+import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -113,6 +115,7 @@ abstract class AppLocalizations {
     Locale('fr'),
     Locale('id'),
     Locale('it'),
+    Locale('ja'),
     Locale('ko'),
     Locale('pl'),
     Locale('pt'),
@@ -120,6 +123,7 @@ abstract class AppLocalizations {
     Locale('tr'),
     Locale('uk'),
     Locale('vi'),
+    Locale('zh'),
   ];
 
   /// No description provided for @untitledCassette.
@@ -1071,6 +1075,7 @@ class _AppLocalizationsDelegate
     'fr',
     'id',
     'it',
+    'ja',
     'ko',
     'pl',
     'pt',
@@ -1078,6 +1083,7 @@ class _AppLocalizationsDelegate
     'tr',
     'uk',
     'vi',
+    'zh',
   ].contains(locale.languageCode);
 
   @override
@@ -1101,6 +1107,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsId();
     case 'it':
       return AppLocalizationsIt();
+    case 'ja':
+      return AppLocalizationsJa();
     case 'ko':
       return AppLocalizationsKo();
     case 'pl':
@@ -1115,6 +1123,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsUk();
     case 'vi':
       return AppLocalizationsVi();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(

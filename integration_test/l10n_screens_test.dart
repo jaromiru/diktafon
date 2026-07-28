@@ -78,6 +78,8 @@ void main() {
     ('id', 'PENGATURAN'),
     ('uk', 'НАЛАШТУВАННЯ'),
     ('vi', 'CÀI ĐẶT'),
+    ('ja', '設定'),
+    ('zh', '设置'),
   ]) {
     testWidgets('the app renders localized in $code', (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);

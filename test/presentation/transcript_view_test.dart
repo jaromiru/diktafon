@@ -138,4 +138,89 @@ void main() {
     expect(rect!.top, greaterThan(viewport.top + 60));
     expect(rect.bottom, lessThan(viewport.bottom - 60));
   });
+
+  group('CJK paragraphs (§13 wave 2)', () {
+    // Words as the wave-2 whisper assembly stores them: per-token, with
+    // punctuation already re-attached; one code-switching Latin word.
+    final cjkWords = ['今天', '天气', '很好。', 'Flutter', '写的'];
+    final cjkMemo = Memo(
+      id: 'cjk1',
+      cassetteId: 'c1',
+      filePath: '/dev/null',
+      durationMs: cjkWords.length * wordMs,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(1000000),
+      status: MemoStatus.ready,
+      transcript: Transcript(
+        languageCode: 'zh-Hans',
+        segments: [
+          Segment(
+            startMs: 0,
+            endMs: cjkWords.length * wordMs,
+            words: [
+              for (var j = 0; j < cjkWords.length; j++)
+                Word(
+                    text: cjkWords[j],
+                    startMs: j * wordMs,
+                    endMs: (j + 1) * wordMs),
+            ],
+          ),
+        ],
+      ),
+    );
+    final cjkTape = Tape([cjkMemo]);
+    final seeks = <int>[];
+
+    Widget cjkApp() => MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: TranscriptView(
+              tape: cjkTape,
+              colorSeed: 0,
+              globalMs: 0,
+              currentMemoIndex: 0,
+              playing: false,
+              onSeekGlobalMs: seeks.add,
+            ),
+          ),
+        );
+
+    testWidgets('spans join flush — no spaces inside CJK, one space at the '
+        'code-switch boundary; the style carries the memo locale',
+        (tester) async {
+      await tester.pumpWidget(cjkApp());
+      await tester.pump();
+      final paragraph = find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().startsWith('今天'));
+      expect(paragraph, findsOneWidget);
+      final rich = tester.widget<RichText>(paragraph);
+      expect(rich.text.toPlainText(), '今天天气很好。 Flutter 写的');
+      expect(rich.text.style?.locale,
+          const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'));
+    });
+
+    testWidgets('tapping a narrow CJK word seeks to its start '
+        '(geometry mirrors the flush offsets)', (tester) async {
+      seeks.clear();
+      await tester.pumpWidget(cjkApp());
+      await tester.pump();
+      final paragraph = find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().startsWith('今天'));
+      final render = tester.renderObject<RenderParagraph>(paragraph);
+      // '天气' sits at plain-text offset 2..4 — flush against its
+      // neighbours, exactly as wordGeometryAt computes it.
+      final boxes = render.getBoxesForSelection(
+          const TextSelection(baseOffset: 2, extentOffset: 4));
+      expect(boxes, isNotEmpty);
+      final target = boxes.first
+          .toRect()
+          .shift(render.localToGlobal(Offset.zero))
+          .center;
+      await tester.tapAt(target);
+      expect(seeks, [wordMs],
+          reason: '天气 starts at 500 ms into the (only) memo');
+    });
+  });
 }

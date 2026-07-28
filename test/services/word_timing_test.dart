@@ -88,4 +88,108 @@ void main() {
           isTrue);
     });
   });
+
+  group('CJK token-boundary words (§13 wave 2)', () {
+    test('spaceless CJK tokens become per-token words with genuine token '
+        'times — not one giant word', () {
+      final transcript = assembleTranscript('zh', [
+        RawSegment(0, 2000, [
+          _token('今天', 0, 300),
+          _token('天气', 300, 700),
+          _token('很好', 700, 1100),
+        ]),
+      ]);
+      final words = transcript.segments.single.words;
+      expect(words.map((w) => w.text), ['今天', '天气', '很好']);
+      expect(words[1].startMs, 300);
+      expect(words[1].endMs, 700, reason: 'token times survive untouched — '
+          'VAD interpolation already happened on the RawToken times');
+    });
+
+    test('a token split mid-character keeps accumulating until the char '
+        'completes; the word spans both tokens', () {
+      final bytes = utf8.encode('語'); // 3 bytes
+      final transcript = assembleTranscript('ja', [
+        RawSegment(0, 1000, [
+          _token('日本', 0, 200),
+          RawToken(Uint8List.fromList(bytes.sublist(0, 1)), 200, 300),
+          RawToken(Uint8List.fromList(bytes.sublist(1)), 300, 500),
+        ]),
+      ]);
+      final words = transcript.segments.single.words;
+      expect(words.map((w) => w.text), ['日本', '語']);
+      expect(words[1].startMs, 200);
+      expect(words[1].endMs, 500);
+    });
+
+    test('kana runs flush per token, including the prolonged-sound mark', () {
+      final transcript = assembleTranscript('ja', [
+        RawSegment(0, 1000, [
+          _token('コー', 0, 200),
+          _token('ヒー', 200, 400),
+          _token('を', 400, 500),
+          _token('飲む', 500, 800),
+        ]),
+      ]);
+      expect(transcript.segments.single.words.map((w) => w.text),
+          ['コー', 'ヒー', 'を', '飲む']);
+      expect(transcript.plainText, 'コーヒーを飲む');
+    });
+
+    test('code-switching: a CJK token after Latin pending closes the Latin '
+        'word; Latin after CJK opens via the flush', () {
+      final transcript = assembleTranscript('zh', [
+        RawSegment(0, 2000, [
+          _token('我用', 0, 300),
+          _token('Fl', 300, 400),
+          _token('utter', 400, 600),
+          _token('写的', 600, 900),
+        ]),
+      ]);
+      final words = transcript.segments.single.words;
+      expect(words.map((w) => w.text), ['我用', 'Flutter', '写的']);
+      expect(words[1].startMs, 300);
+      expect(words[1].endMs, 600);
+      expect(transcript.plainText, '我用 Flutter 写的');
+    });
+
+    test('CJK punctuation re-attaches: closers left, openers right', () {
+      final transcript = assembleTranscript('ja', [
+        RawSegment(0, 2000, [
+          _token('です', 0, 300),
+          _token('。', 300, 350),
+          _token('「', 350, 400),
+          _token('はい', 400, 700),
+          _token('」', 700, 750),
+        ]),
+      ]);
+      final words = transcript.segments.single.words;
+      expect(words.map((w) => w.text), ['です。', '「はい」']);
+      expect(words[0].endMs, 350);
+      expect(words[1].startMs, 350);
+      expect(transcript.plainText, 'です。「はい」');
+    });
+
+    test('Korean stays space-ruled — Hangul is not in the CJK no-space set',
+        () {
+      final transcript = assembleTranscript('ko', [
+        RawSegment(0, 2000, [
+          _token(' 안녕', 0, 300),
+          _token('하세요', 300, 700),
+          _token(' 저는', 800, 1200),
+        ]),
+      ]);
+      expect(transcript.segments.single.words.map((w) => w.text),
+          ['안녕하세요', '저는']);
+    });
+
+    test('fullwidth-bracketed noise segments drop like ASCII ones (§14)', () {
+      final transcript = assembleTranscript('zh', [
+        RawSegment(0, 1000, [_token('（', 0, 10), _token('字幕', 10, 500),
+            _token('）', 500, 510)]),
+        RawSegment(1000, 2000, [_token('真的', 1000, 1500)]),
+      ]);
+      expect(transcript.segments.single.words.single.text, '真的');
+    });
+  });
 }

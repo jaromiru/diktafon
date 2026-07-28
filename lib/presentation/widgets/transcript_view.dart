@@ -13,6 +13,7 @@ import '../../domain/script.dart';
 import '../../domain/tape.dart';
 import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
+import 'content_locale.dart';
 
 /// The transcript of the whole tape (§5.3): memo boundaries as light dashed
 /// dividers carrying "Memo N — date time" and the memo's gist; every word is
@@ -378,6 +379,11 @@ class _MemoDivider extends StatelessWidget {
                               ? null
                               : TextDecoration.underline,
                           decorationColor: tape.ink2,
+                          // The gist is content in the memo's language;
+                          // progress/retry notes are UI chrome.
+                          locale: caption.$1 == memo.memoSummary
+                              ? contentLocale(memo.detectedLang)
+                              : null,
                         ),
                       ),
                     ),
@@ -537,7 +543,14 @@ class _MemoParagraphState extends State<_MemoParagraph> {
         onLongPress: widget.onCopy,
         child: Text.rich(
           TextSpan(children: spans),
-          style: TextStyle(fontSize: 12.5, height: 1.75, color: tape.ink),
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.75,
+            color: tape.ink,
+            // Han unification: kanji vs hanzi glyph variants follow the
+            // memo's language, not the app locale.
+            locale: contentLocale(widget.memo.transcript!.languageCode),
+          ),
         ),
       ),
     );

@@ -16,6 +16,7 @@ import '../../services/providers/transcription_provider.dart';
 import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
+import '../widgets/content_locale.dart';
 import '../widgets/content_width.dart';
 import '../widgets/deck.dart';
 import '../widgets/level_meter.dart';
@@ -187,7 +188,13 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!isRecordingHere) _summaryLine(cassette),
+          if (!isRecordingHere)
+            _summaryLine(cassette,
+                // The overview is written in the tape's language (D8: the
+                // first contributing memo's), not the UI locale.
+                languageCode: tape.memos
+                    .map((m) => m.detectedLang)
+                    .firstWhere((l) => l != null, orElse: () => null)),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
             child: _tapeTop(playback, tape, recording, isRecordingHere),
@@ -259,7 +266,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
         false;
   }
 
-  Widget _summaryLine(Cassette cassette) {
+  Widget _summaryLine(Cassette cassette, {String? languageCode}) {
     final tapeColors = context.tape;
     final summary =
         cassette.summary ?? context.l10n.summaryPlaceholder;
@@ -284,6 +291,11 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                     color: tapeColors.ink2,
                     fontStyle:
                         cassette.summary == null ? FontStyle.italic : null,
+                    // Content text (Han unification); the placeholder is
+                    // UI chrome and inherits the app locale.
+                    locale: cassette.summary == null
+                        ? null
+                        : contentLocale(languageCode),
                   ),
                 ),
               ),
