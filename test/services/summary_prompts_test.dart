@@ -38,6 +38,40 @@ void main() {
       expect(languageName('xx'), 'xx');
     });
 
+    test('languageName is total over the whisper language set (§13 wave 2)',
+        () {
+      // whisper.cpp's g_lang, v3 vocab — any of these can land in
+      // detectedLang under auto-detect (D8) and must resolve to an English
+      // name, never to a raw code inside the prompt.
+      const whisperCodes = [
+        'en', 'zh', 'de', 'es', 'ru', 'ko', 'fr', 'ja', 'pt', 'tr', 'pl',
+        'ca', 'nl', 'ar', 'sv', 'it', 'id', 'hi', 'fi', 'vi', 'he', 'uk',
+        'el', 'ms', 'cs', 'ro', 'da', 'hu', 'ta', 'no', 'th', 'ur', 'hr',
+        'bg', 'lt', 'la', 'mi', 'ml', 'cy', 'sk', 'te', 'fa', 'lv', 'bn',
+        'sr', 'az', 'sl', 'kn', 'et', 'mk', 'br', 'eu', 'is', 'hy', 'ne',
+        'mn', 'bs', 'kk', 'sq', 'sw', 'gl', 'mr', 'pa', 'si', 'km', 'sn',
+        'yo', 'so', 'af', 'oc', 'ka', 'be', 'tg', 'sd', 'gu', 'am', 'yi',
+        'lo', 'uz', 'fo', 'ht', 'ps', 'tk', 'nn', 'mt', 'sa', 'lb', 'my',
+        'bo', 'tl', 'mg', 'as', 'tt', 'haw', 'ln', 'ha', 'ba', 'jw', 'su',
+        'yue',
+      ];
+      expect(whisperCodes, hasLength(100));
+      for (final code in whisperCodes) {
+        expect(languageName(code), isNot(code),
+            reason: 'prompts would read "Write a summary in $code"');
+        expect(languageName(code), matches(RegExp(r'^[A-Z]')),
+            reason: '$code should resolve to an English display name');
+      }
+    });
+
+    test('script-qualified Chinese pins the script; unknown subtags fall '
+        'back to the base language', () {
+      expect(languageName('zh-Hans'), 'Simplified Chinese');
+      expect(languageName('zh-Hant'), 'Traditional Chinese');
+      expect(languageName('zh'), 'Chinese');
+      expect(languageName('pt-BR'), 'Portuguese');
+    });
+
     test('overlong transcripts are truncated to the context budget', () {
       final prompt = memoSummaryPrompt(
           transcriptOf([List.filled(9000, 'slovo').join(' ')]),

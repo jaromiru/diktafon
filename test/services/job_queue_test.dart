@@ -11,7 +11,7 @@ import 'package:diktafon/services/providers/transcription_provider.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Plain text well past [gistTranscriptThreshold] — long enough to earn a
+/// Plain text well past [gistTokenThreshold] — long enough to earn a
 /// gist (§6.7 revised); the [lead] words come first so tests can keep
 /// asserting on them.
 Transcript longTranscript(String lang, List<String> lead) {
@@ -1013,7 +1013,7 @@ void main() {
     });
   });
 
-  group('§6.7 revised: the $gistTranscriptThreshold-char gist gate', () {
+  group('§6.7 revised: the $gistTokenThreshold-token gist gate', () {
     test('a short transcript completes without the LLM; the overview reads '
         'the transcript directly', () async {
       engine.result = shortTranscript('cs', 'koupit mléko a chleba');
@@ -1033,9 +1033,11 @@ void main() {
           reason: 'a transcript-only overview still suggests a title (D10)');
     });
 
-    test('the gate is strict: at the threshold no gist, one char past it '
+    test('the gate is strict: at the threshold no gist, one token past it '
         'a gist', () async {
-      engine.result = shortTranscript('cs', 'a' * gistTranscriptThreshold);
+      // Latin ≈ ⅓ token/char: 351 'a's estimate exactly at the 117-token
+      // threshold (not past it), 352 tip over.
+      engine.result = shortTranscript('cs', 'a' * (gistTokenThreshold * 3));
       await seedMemo('m1');
       await queue.enqueueTranscription('m1');
       await queue.drain();
@@ -1043,7 +1045,27 @@ void main() {
       expect(llm.memoCalls, 0);
 
       engine.result =
-          shortTranscript('cs', 'a' * (gistTranscriptThreshold + 1));
+          shortTranscript('cs', 'a' * (gistTokenThreshold * 3 + 1));
+      await seedMemo('m2');
+      await queue.enqueueTranscription('m2');
+      await queue.drain();
+      expect((await memoRow('m2')).memoSummary, 'gist');
+      expect(llm.memoCalls, 1);
+    });
+
+    test('the gate is script-aware: Han text of the same char count as a '
+        'gated-out Latin note earns a gist', () async {
+      // 150 chars either way — ~50 estimated tokens of Latin (well under
+      // the gate) vs ~150 of Han (well past it): the old 350-char gate
+      // would have skipped both (§6.7 wave-2 revision).
+      engine.result = shortTranscript('en', 'a' * 150);
+      await seedMemo('m1');
+      await queue.enqueueTranscription('m1');
+      await queue.drain();
+      expect((await memoRow('m1')).memoSummary, isNull);
+      expect(llm.memoCalls, 0);
+
+      engine.result = shortTranscript('zh', '语' * 150);
       await seedMemo('m2');
       await queue.enqueueTranscription('m2');
       await queue.drain();

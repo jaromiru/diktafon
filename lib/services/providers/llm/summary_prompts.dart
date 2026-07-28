@@ -5,6 +5,7 @@
 library;
 
 import '../../../domain/models.dart';
+import '../../../domain/script.dart';
 import '../summarization_provider.dart';
 
 /// One chat exchange for the worker.
@@ -18,20 +19,46 @@ class LlmPrompt {
 
 /// Instructions are English (small models follow English instructions most
 /// reliably); the *output* language is pinned explicitly (D8).
+///
+/// Total over the whole whisper language set (§13 wave 2): auto-detect can
+/// hand any of these to the prompt layer, and a code the map missed would
+/// read "Write a summary in nl". Script-qualified Chinese (D8 amendment)
+/// resolves to an explicit script name — Qwen3 drifts Simplified otherwise.
+/// Unknown codes fall back to their base subtag, then to the raw code.
 String languageName(String code) =>
-    const {
-      'en': 'English',
-      'fr': 'French',
-      'es': 'Spanish',
-      'pt': 'Portuguese',
-      'de': 'German',
-      'pl': 'Polish',
-      'cs': 'Czech',
-      'tr': 'Turkish',
-      'ru': 'Russian',
-      'ko': 'Korean',
-    }[code] ??
+    _languageNames[code] ??
+    _languageNames[baseLanguageCode(code)] ??
     code;
+
+const _languageNames = <String, String>{
+  'af': 'Afrikaans', 'am': 'Amharic', 'ar': 'Arabic', 'as': 'Assamese',
+  'az': 'Azerbaijani', 'ba': 'Bashkir', 'be': 'Belarusian', 'bg': 'Bulgarian',
+  'bn': 'Bengali', 'bo': 'Tibetan', 'br': 'Breton', 'bs': 'Bosnian',
+  'ca': 'Catalan', 'cs': 'Czech', 'cy': 'Welsh', 'da': 'Danish',
+  'de': 'German', 'el': 'Greek', 'en': 'English', 'es': 'Spanish',
+  'et': 'Estonian', 'eu': 'Basque', 'fa': 'Persian', 'fi': 'Finnish',
+  'fo': 'Faroese', 'fr': 'French', 'gl': 'Galician', 'gu': 'Gujarati',
+  'ha': 'Hausa', 'haw': 'Hawaiian', 'he': 'Hebrew', 'hi': 'Hindi',
+  'hr': 'Croatian', 'ht': 'Haitian Creole', 'hu': 'Hungarian',
+  'hy': 'Armenian', 'id': 'Indonesian', 'is': 'Icelandic', 'it': 'Italian',
+  'ja': 'Japanese', 'jw': 'Javanese', 'ka': 'Georgian', 'kk': 'Kazakh',
+  'km': 'Khmer', 'kn': 'Kannada', 'ko': 'Korean', 'la': 'Latin',
+  'lb': 'Luxembourgish', 'ln': 'Lingala', 'lo': 'Lao', 'lt': 'Lithuanian',
+  'lv': 'Latvian', 'mg': 'Malagasy', 'mi': 'Maori', 'mk': 'Macedonian',
+  'ml': 'Malayalam', 'mn': 'Mongolian', 'mr': 'Marathi', 'ms': 'Malay',
+  'mt': 'Maltese', 'my': 'Burmese', 'ne': 'Nepali', 'nl': 'Dutch',
+  'nn': 'Norwegian Nynorsk', 'no': 'Norwegian', 'oc': 'Occitan',
+  'pa': 'Punjabi', 'pl': 'Polish', 'ps': 'Pashto', 'pt': 'Portuguese',
+  'ro': 'Romanian', 'ru': 'Russian', 'sa': 'Sanskrit', 'sd': 'Sindhi',
+  'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian', 'sn': 'Shona',
+  'so': 'Somali', 'sq': 'Albanian', 'sr': 'Serbian', 'su': 'Sundanese',
+  'sv': 'Swedish', 'sw': 'Swahili', 'ta': 'Tamil', 'te': 'Telugu',
+  'tg': 'Tajik', 'th': 'Thai', 'tk': 'Turkmen', 'tl': 'Tagalog',
+  'tr': 'Turkish', 'tt': 'Tatar', 'uk': 'Ukrainian', 'ur': 'Urdu',
+  'uz': 'Uzbek', 'vi': 'Vietnamese', 'yi': 'Yiddish', 'yo': 'Yoruba',
+  'yue': 'Cantonese', 'zh': 'Chinese',
+  'zh-Hans': 'Simplified Chinese', 'zh-Hant': 'Traditional Chinese',
+};
 
 const _system =
     'You summarize personal voice memos. Reply with only the requested text — '

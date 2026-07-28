@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/models.dart';
 import '../../domain/palette.dart';
+import '../../domain/script.dart';
 import '../../domain/tape.dart';
 import '../../l10n/l10n.dart';
 import '../theme/tape_colors.dart';
@@ -458,21 +459,27 @@ class _MemoParagraphState extends State<_MemoParagraph> {
   /// The paragraph's render object plus the local rect of the word under
   /// [localMs] — between words the upcoming word answers, past the last
   /// word the last one does. Null before layout or with no words at all.
-  /// Character offsets mirror [build]: every word span is followed by ' '.
+  /// Character offsets mirror [build]: words separated by [wordSeparator]
+  /// (a space, or nothing between CJK neighbours).
   (RenderParagraph, Rect)? wordGeometryAt(int localMs) {
     final render = _textKey.currentContext?.findRenderObject();
     if (render is! RenderParagraph || !render.hasSize) return null;
     var offset = 0;
     var start = -1, end = -1;
     var found = false;
-    for (final segment in widget.memo.transcript!.segments) {
-      for (final word in segment.words) {
-        if (!found) {
-          start = offset;
-          end = offset + word.text.length;
-          found = word.endMs > localMs;
-        }
-        offset += word.text.length + 1;
+    final words = [
+      for (final segment in widget.memo.transcript!.segments) ...segment.words
+    ];
+    for (var i = 0; i < words.length; i++) {
+      final word = words[i];
+      if (!found) {
+        start = offset;
+        end = offset + word.text.length;
+        found = word.endMs > localMs;
+      }
+      offset += word.text.length;
+      if (i + 1 < words.length) {
+        offset += wordSeparator(word.text, words[i + 1].text).length;
       }
     }
     if (start < 0) return null;
@@ -495,28 +502,33 @@ class _MemoParagraphState extends State<_MemoParagraph> {
 
     final tape = context.tape;
     final spans = <InlineSpan>[];
-    for (final segment in widget.memo.transcript!.segments) {
-      for (final word in segment.words) {
-        final wordGlobalStart =
-            widget.tape.toGlobalMs(widget.memoIndex, word.startMs);
-        final wordGlobalEnd =
-            widget.tape.toGlobalMs(widget.memoIndex, word.endMs);
-        final isCurrent = widget.globalMs >= wordGlobalStart &&
-            widget.globalMs < wordGlobalEnd;
-        final recognizer = TapGestureRecognizer()
-          ..onTap = () => widget.onSeekGlobalMs?.call(wordGlobalStart);
-        _recognizers.add(recognizer);
-        spans.add(TextSpan(
-          text: word.text,
-          recognizer: recognizer,
-          style: isCurrent
-              ? TextStyle(
-                  backgroundColor: tape.highlight,
-                  fontWeight: FontWeight.w700,
-                )
-              : null,
-        ));
-        spans.add(const TextSpan(text: ' '));
+    final words = [
+      for (final segment in widget.memo.transcript!.segments) ...segment.words
+    ];
+    for (var i = 0; i < words.length; i++) {
+      final word = words[i];
+      final wordGlobalStart =
+          widget.tape.toGlobalMs(widget.memoIndex, word.startMs);
+      final wordGlobalEnd =
+          widget.tape.toGlobalMs(widget.memoIndex, word.endMs);
+      final isCurrent = widget.globalMs >= wordGlobalStart &&
+          widget.globalMs < wordGlobalEnd;
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () => widget.onSeekGlobalMs?.call(wordGlobalStart);
+      _recognizers.add(recognizer);
+      spans.add(TextSpan(
+        text: word.text,
+        recognizer: recognizer,
+        style: isCurrent
+            ? TextStyle(
+                backgroundColor: tape.highlight,
+                fontWeight: FontWeight.w700,
+              )
+            : null,
+      ));
+      if (i + 1 < words.length) {
+        final separator = wordSeparator(word.text, words[i + 1].text);
+        if (separator.isNotEmpty) spans.add(TextSpan(text: separator));
       }
     }
     return Padding(

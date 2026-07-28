@@ -1,6 +1,8 @@
 /// Domain entities (§4.1) — pure Dart, no I/O, no Flutter imports.
 library;
 
+import 'script.dart';
+
 /// Memo lifecycle (§4.3). A memo is always playable from `stored` onward;
 /// everything after is best-effort enrichment.
 enum MemoStatus {
@@ -101,9 +103,10 @@ class Transcript {
   bool get isEmpty => segments.every((s) => s.words.isEmpty);
 
   /// The transcript flattened to plain text — one line per segment (clipboard
-  /// copy, LLM prompts; words are stored trimmed).
+  /// copy, LLM prompts; words are stored trimmed). Joins are script-aware:
+  /// CJK words sit flush, spaced scripts keep their spaces.
   String get plainText => segments
-      .map((s) => s.words.map((w) => w.text).join(' '))
+      .map((s) => joinWords(s.words.map((w) => w.text)))
       .where((line) => line.isNotEmpty)
       .join('\n');
 }

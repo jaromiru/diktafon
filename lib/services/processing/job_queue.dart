@@ -9,6 +9,7 @@ import '../../data/repositories/cassette_repository.dart';
 import '../../data/repositories/memo_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
+import '../providers/llm/summary_prompts.dart' show estimateTokens;
 import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
 
@@ -29,11 +30,13 @@ enum JobType {
       this == transcribe || this == cleanupTranscript || this == summarizeMemo;
 }
 
-/// §6.7 (revised 2026-07-14): only transcripts *longer* than this many chars
-/// get a memo gist — anything shorter is its own summary, so the LLM pass
-/// would only restate it (and burn battery). The cassette overview reads the
-/// transcript directly for gistless memos.
-const int gistTranscriptThreshold = 350;
+/// §6.7 (revised 2026-07-28): only transcripts estimated *longer* than this
+/// many tokens get a memo gist — anything shorter is its own summary, so the
+/// LLM pass would only restate it (and burn battery). The cassette overview
+/// reads the transcript directly for gistless memos. Counted in tokens, not
+/// chars: 350 Han chars carry 2–3× the content of 350 Latin chars, so the
+/// old 350-char gate was script-biased; 117 ≈ 350/3 keeps Latin behaviour.
+const int gistTokenThreshold = 117;
 
 /// Durable background pipeline (§6.5): jobs persist in the DB so they survive
 /// restarts; ML concurrency is 1 to bound CPU/thermals/battery.
@@ -390,7 +393,7 @@ class JobQueue {
 
   /// §6.7: short transcripts are their own summary — no gist.
   bool _wantsGist(Transcript t) =>
-      t.plainText.length > gistTranscriptThreshold;
+      estimateTokens(t.plainText) > gistTokenThreshold;
 
   /// Rebuilds the overview from *all* memo digests, in tape order (§6.7
   /// revised): the gist where one exists, the (short) transcript itself

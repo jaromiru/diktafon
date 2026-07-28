@@ -173,10 +173,7 @@ class CassetteExporter {
         ],
       };
 
-  static String _plainText(Transcript transcript) => transcript.segments
-      .map((s) => s.words.map((w) => w.text).join(' '))
-      .where((line) => line.isNotEmpty)
-      .join('\n');
+  static String _plainText(Transcript transcript) => transcript.plainText;
 
   static String _stamp(DateTime t) =>
       DateFormat('yyyy-MM-dd HH:mm').format(t);
