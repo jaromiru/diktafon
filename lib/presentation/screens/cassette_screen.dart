@@ -19,6 +19,7 @@ import '../theme/theme.dart';
 import '../widgets/content_locale.dart';
 import '../widgets/content_width.dart';
 import '../widgets/deck.dart';
+import '../widgets/directional_chevrons.dart';
 import '../widgets/level_meter.dart';
 import '../widgets/timeline_bar.dart';
 import '../widgets/transcript_view.dart';
@@ -134,7 +135,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
       appBar: AppBar(
         titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left, size: 28),
+          icon: Icon(backChevron(context), size: 28),
           tooltip: context.l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -195,21 +196,30 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                 languageCode: tape.memos
                     .map((m) => m.detectedLang)
                     .firstWhere((l) => l != null, orElse: () => null)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-            child: _tapeTop(playback, tape, recording, isRecordingHere),
+          // §5.7/§13: the tape face — counters, timeline, transport — is
+          // print on a physical object and a media-player convention: it
+          // stays LTR with Western digits even under an RTL app locale.
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+              child: _tapeTop(playback, tape, recording, isRecordingHere),
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: TimelineBar(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: TimelineBar(
               tape: tape,
               colorSeed: cassette.colorSeed,
               globalMs: playback.globalMs,
               recordingElapsed: isRecordingHere ? recording.elapsed : null,
-              onScrub: (ms) => player.seekGlobal(ms),
-              onJumpToMemo: (i) =>
-                  player.seekGlobal(tape.offsetsMs[i]),
-              onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
+                onScrub: (ms) => player.seekGlobal(ms),
+                onJumpToMemo: (i) =>
+                    player.seekGlobal(tape.offsetsMs[i]),
+                onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
+              ),
             ),
           ),
           Expanded(
@@ -246,10 +256,12 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                     ),
                   ),
           ),
-          if (isRecordingHere)
-            _RecordingPanel(elapsed: recording.elapsed)
-          else
-            _deck(playback, tape),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: isRecordingHere
+                ? _RecordingPanel(elapsed: recording.elapsed)
+                : _deck(playback, tape),
+          ),
         ],
       )),
     );

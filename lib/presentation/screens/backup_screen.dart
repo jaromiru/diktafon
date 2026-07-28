@@ -13,6 +13,7 @@ import '../../services/export/cassette_exporter.dart';
 import '../../services/system/system_settings.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/content_width.dart';
+import '../widgets/directional_chevrons.dart';
 import '../widgets/settings_rows.dart';
 
 /// Backup, export & import (§8): OS backup covers the metadata
@@ -42,7 +43,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       appBar: AppBar(
         titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left, size: 28),
+          icon: Icon(backChevron(context), size: 28),
           tooltip: l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),

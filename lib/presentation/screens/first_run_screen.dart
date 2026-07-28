@@ -10,6 +10,7 @@ import '../../services/providers/model_manager.dart';
 import '../../services/providers/transcription_provider.dart';
 import '../theme/tape_colors.dart';
 import '../theme/theme.dart';
+import '../widgets/directional_chevrons.dart';
 import '../widgets/ink_progress_bar.dart';
 import 'cassette_screen.dart';
 import 'settings_screen.dart';
@@ -302,7 +303,7 @@ class _SetupRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 1, right: 12),
+              padding: const EdgeInsetsDirectional.only(top: 1, end: 12),
               child: Icon(icon, size: 20, color: iconColor),
             ),
             Expanded(
@@ -337,8 +338,8 @@ class _SetupRow extends StatelessWidget {
               InkWell(
                 onTap: onChevron,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 8, top: 2),
-                  child: Icon(Icons.chevron_right, size: 18, color: tape.ink2),
+                  padding: const EdgeInsetsDirectional.only(start: 8, top: 2),
+                  child: Icon(forwardChevron(context), size: 18, color: tape.ink2),
                 ),
               ),
           ],

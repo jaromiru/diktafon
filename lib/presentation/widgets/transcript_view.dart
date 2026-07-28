@@ -350,7 +350,7 @@ class _MemoDivider extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(width: 10, height: 10, color: hue,
-              margin: const EdgeInsets.only(top: 2, right: 9)),
+              margin: const EdgeInsetsDirectional.only(top: 2, end: 9)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

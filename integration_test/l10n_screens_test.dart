@@ -82,6 +82,9 @@ void main() {
     ('zh', const Locale('zh'), '设置'),
     // Script-less zh-TW must resolve to the Hant ARB (wave-2 resolution).
     ('zh-hant', const Locale('zh', 'TW'), '設定'),
+    // RTL pair: layout mirrors, tape face stays LTR (§5.7/§13).
+    ('ar', const Locale('ar'), 'الإعدادات'),
+    ('fa', const Locale('fa'), 'تنظیمات'),
   ]) {
     testWidgets('the app renders localized in $code', (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);

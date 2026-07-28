@@ -14,6 +14,7 @@ import '../../services/providers/whisper/whisper_model_manager.dart';
 import '../../services/system/device_ram.dart';
 import '../theme/tape_colors.dart';
 import '../widgets/content_width.dart';
+import '../widgets/directional_chevrons.dart';
 import '../widgets/ink_progress_bar.dart';
 import '../widgets/ink_toggle.dart';
 import '../widgets/settings_rows.dart';
@@ -46,6 +47,8 @@ class SettingsScreen extends ConsumerWidget {
     // whisper-`zh`; the stored value carries the content-script preference.
     'zh-Hans': '中文（简体）',
     'zh-Hant': '中文（繁體）',
+    'ar': 'العربية',
+    'fa': 'فارسی',
   };
 
   @override
@@ -58,7 +61,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left, size: 28),
+          icon: Icon(backChevron(context), size: 28),
           tooltip: l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -678,7 +681,7 @@ class _PickerOption extends StatelessWidget {
               ),
               if (description.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(left: 22, top: 1),
+                  padding: const EdgeInsetsDirectional.only(start: 22, top: 1),
                   child: Text(
                     description,
                     style: TextStyle(
@@ -687,7 +690,7 @@ class _PickerOption extends StatelessWidget {
                 ),
               if (progress != null)
                 Padding(
-                  padding: const EdgeInsets.only(left: 22, top: 6, bottom: 2),
+                  padding: const EdgeInsetsDirectional.only(start: 22, top: 6, bottom: 2),
                   child: InkProgressBar(fraction: progress!),
                 ),
             ],

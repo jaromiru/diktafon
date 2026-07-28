@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tape_colors.dart';
+import 'directional_chevrons.dart';
 
 /// Ink-bordered settings group (§5.5, mockup 05), shared by Settings and
 /// Backup & export.
@@ -89,7 +90,7 @@ class SettingsRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             trailing ??
-                Icon(Icons.chevron_right, size: 18, color: tape.ink2),
+                Icon(forwardChevron(context), size: 18, color: tape.ink2),
           ],
         ),
       ),

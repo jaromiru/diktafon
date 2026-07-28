@@ -223,4 +223,91 @@ void main() {
           reason: '天气 starts at 500 ms into the (only) memo');
     });
   });
+
+  group('RTL paragraphs (§13 wave 2)', () {
+    // Arabic with an embedded Western-digit token — the bidi case the
+    // word-tap geometry must survive (numbers run LTR inside RTL text).
+    final arWords = ['اشترِ', 'الحليب', 'الساعة', '15:30', 'غدًا'];
+    final arMemo = Memo(
+      id: 'ar1',
+      cassetteId: 'c1',
+      filePath: '/dev/null',
+      durationMs: arWords.length * wordMs,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(1000000),
+      status: MemoStatus.ready,
+      transcript: Transcript(
+        languageCode: 'ar',
+        segments: [
+          Segment(
+            startMs: 0,
+            endMs: arWords.length * wordMs,
+            words: [
+              for (var j = 0; j < arWords.length; j++)
+                Word(
+                    text: arWords[j],
+                    startMs: j * wordMs,
+                    endMs: (j + 1) * wordMs),
+            ],
+          ),
+        ],
+      ),
+    );
+    final arTape = Tape([arMemo]);
+    final seeks = <int>[];
+
+    Widget arApp() => MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('ar'),
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: TranscriptView(
+              tape: arTape,
+              colorSeed: 0,
+              globalMs: 0,
+              currentMemoIndex: 0,
+              playing: false,
+              onSeekGlobalMs: seeks.add,
+            ),
+          ),
+        );
+
+    testWidgets('bidi word-tap geometry: an embedded LTR number inside RTL '
+        'text still seeks to its own word', (tester) async {
+      seeks.clear();
+      await tester.pumpWidget(arApp());
+      await tester.pump();
+      final paragraph = find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().startsWith('اشترِ'));
+      expect(paragraph, findsOneWidget);
+      final render = tester.renderObject<RenderParagraph>(paragraph);
+      final plain =
+          (tester.widget(paragraph) as RichText).text.toPlainText();
+
+      // The digits word, via the same char-offset convention the view uses.
+      final start = plain.indexOf('15:30');
+      final boxes = render.getBoxesForSelection(TextSelection(
+          baseOffset: start, extentOffset: start + '15:30'.length));
+      expect(boxes, isNotEmpty);
+      final target = boxes.first
+          .toRect()
+          .shift(render.localToGlobal(Offset.zero))
+          .center;
+      await tester.tapAt(target);
+      expect(seeks, [3 * wordMs],
+          reason: 'the 15:30 word is the fourth on the tape');
+
+      // And a plain Arabic word after it — bidi reordering must not leak
+      // between the two.
+      seeks.clear();
+      final start2 = plain.indexOf('غدًا');
+      final boxes2 = render.getBoxesForSelection(TextSelection(
+          baseOffset: start2, extentOffset: start2 + 'غدًا'.length));
+      await tester.tapAt(boxes2.first
+          .toRect()
+          .shift(render.localToGlobal(Offset.zero))
+          .center);
+      expect(seeks, [4 * wordMs]);
+    });
+  });
 }
