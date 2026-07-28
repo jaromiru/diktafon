@@ -2,6 +2,8 @@
 /// transcription/summarization engine is a factory change — never a UI change.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/database.dart';
@@ -10,6 +12,7 @@ import '../data/repositories/cassette_repository.dart';
 import '../data/repositories/memo_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../domain/models.dart';
+import '../domain/script.dart';
 import '../domain/tape.dart';
 import '../services/audio/pcm_decoder.dart';
 import '../services/audio/recorder_service.dart';
@@ -106,7 +109,24 @@ final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
       ref.watch(settingsRepositoryProvider),
       () => ref.read(transcriptionProvider),
       () => ref.read(summarizationProvider),
+      systemZhScript: systemZhScript,
     ));
+
+/// The script an auto-detected Chinese memo is stored in (D8 amendment):
+/// the first Chinese locale in the system preference list decides; with
+/// none, the primary locale's region; Simplified as the majority default.
+String systemZhScript() {
+  final locales = ui.PlatformDispatcher.instance.locales;
+  for (final locale in locales) {
+    if (locale.languageCode == 'zh' || locale.languageCode == 'yue') {
+      return zhScriptFor(
+          scriptCode: locale.scriptCode, countryCode: locale.countryCode);
+    }
+  }
+  final primary = ui.PlatformDispatcher.instance.locale;
+  return zhScriptFor(
+      scriptCode: primary.scriptCode, countryCode: primary.countryCode);
+}
 
 /// Archive import (§8): restored memos that lack a transcript or gist
 /// re-enter the pipeline through the queue's own entry points.

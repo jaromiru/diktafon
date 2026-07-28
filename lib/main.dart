@@ -12,6 +12,7 @@ import 'app.dart';
 import 'application/providers.dart';
 import 'data/files/audio_file_store.dart';
 import 'l10n/gen/app_localizations.dart';
+import 'l10n/locale_resolution.dart';
 import 'services/notifications/download_notifier.dart';
 import 'services/notifications/local_notifications_sink.dart';
 import 'services/providers/llm/llm_model_manager.dart';
@@ -113,7 +114,8 @@ Future<void> _attachDownloadNotifications(
   if (sink == null) return;
   AppLocalizations l10n;
   try {
-    l10n = lookupAppLocalizations(ui.PlatformDispatcher.instance.locale);
+    l10n = lookupAppLocalizations(
+        padZhLocale(ui.PlatformDispatcher.instance.locale));
   } catch (_) {
     l10n = lookupAppLocalizations(const Locale('en'));
   }

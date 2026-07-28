@@ -12,6 +12,7 @@ import '../../domain/models.dart';
 import '../providers/llm/summary_prompts.dart' show estimateTokens;
 import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
+import 'chinese_script.dart';
 
 /// The §6.5 job types. The cassette overview is always rebuilt from *all*
 /// memo digests (§6.7 revised 2026-07-08), so `recomputeCassetteSummary` and
@@ -47,7 +48,8 @@ const int gistTokenThreshold = 117;
 class JobQueue {
   JobQueue(this._db, this._memos, this._cassettes, this._settings,
       this._transcription, this._summarization,
-      {this._retryDelayUnit = const Duration(seconds: 1)});
+      {this._retryDelayUnit = const Duration(seconds: 1),
+      this._systemZhScript = _defaultZhScript});
 
   final AppDatabase _db;
   final MemoRepository _memos;
@@ -55,6 +57,12 @@ class JobQueue {
   final SettingsRepository _settings;
   final TranscriptionProvider Function() _transcription;
   final SummarizationProvider Function() _summarization;
+
+  /// D8 amendment: the script an auto-detected `zh` memo is stored in —
+  /// production wires the system locale; tests inject.
+  final String Function() _systemZhScript;
+
+  static String _defaultZhScript() => 'Hans';
 
   /// Backoff = attempts × this; tests inject zero.
   final Duration _retryDelayUnit;
@@ -317,10 +325,19 @@ class JobQueue {
     try {
       await _memos.updateStatus(memoId, MemoStatus.transcribing);
       final settings = await _settings.get();
-      final transcript = await _transcription().transcribe(
+      final raw = await _transcription().transcribe(
         AudioRef(row.filePath),
         languageCode: settings.appLanguage,
         cancel: cancel,
+      );
+      // D8 amendment: Chinese transcripts are stored script-converted under
+      // a script-qualified code (forced zh-Hans/zh-Hant, or the system
+      // locale's script for an auto-detected zh); everything else is
+      // untouched.
+      final transcript = resolveChineseScript(
+        raw,
+        appLanguage: settings.appLanguage,
+        systemZhScript: _systemZhScript,
       );
 
       if (transcript.isEmpty) {
@@ -378,9 +395,13 @@ class JobQueue {
     await _memos.updateStatus(memoId, MemoStatus.summarizing);
 
     final language = await _languageFor(row.detectedLang);
-    final summary = (await _summarization()
-            .summarizeMemo(transcript, languageCode: language))
-        .trim();
+    // matchChineseScript is belt-and-braces (D8): the prompt pins
+    // Simplified/Traditional, but small models drift.
+    final summary = matchChineseScript(
+        (await _summarization()
+                .summarizeMemo(transcript, languageCode: language))
+            .trim(),
+        language);
 
     // An empty gist (model produced nothing usable) is recorded as "no
     // summary", not a failure — the memo is still fully enriched (§6.7).
@@ -429,18 +450,20 @@ class JobQueue {
     }
 
     final language = await _languageFor(contributing.first.$1.detectedLang);
-    final summary = (await _summarization().updateCassetteSummary(
-      previousSummary: null,
-      newMemos: [
-        for (final (row, text) in contributing)
-          MemoDigest(
-            memoSummary: text,
-            createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
-          ),
-      ],
-      languageCode: language,
-    ))
-        .trim();
+    final summary = matchChineseScript(
+        (await _summarization().updateCassetteSummary(
+          previousSummary: null,
+          newMemos: [
+            for (final (row, text) in contributing)
+              MemoDigest(
+                memoSummary: text,
+                createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+              ),
+          ],
+          languageCode: language,
+        ))
+            .trim(),
+        language);
     if (summary.isEmpty) return;
 
     await _cassettes.setSummary(cassetteId, summary);
@@ -449,10 +472,13 @@ class JobQueue {
     // effectively once, with the first overview; after that the name stays
     // put until the user renames.
     if (cassette.label == null && !cassette.titleIsUserSet) {
-      final title = await _summarization()
-          .suggestTitle(summary, languageCode: language);
-      if (title.trim().isNotEmpty) {
-        await _cassettes.setSuggestedLabel(cassetteId, title.trim());
+      final title = matchChineseScript(
+          (await _summarization()
+                  .suggestTitle(summary, languageCode: language))
+              .trim(),
+          language);
+      if (title.isNotEmpty) {
+        await _cassettes.setSuggestedLabel(cassetteId, title);
       }
     }
   }

@@ -72,3 +72,13 @@ String baseLanguageCode(String code) {
   final dash = code.indexOf('-');
   return dash < 0 ? code : code.substring(0, dash);
 }
+
+/// 'Hans' or 'Hant' from a locale's subtags: an explicit script wins,
+/// otherwise the traditional-script regions decide (TW/HK/MO), otherwise
+/// Simplified — the majority default. (D8 amendment; also drives UI-locale
+/// resolution for systems that report zh with a region but no script.)
+String zhScriptFor({String? scriptCode, String? countryCode}) {
+  if (scriptCode == 'Hant') return 'Hant';
+  if (scriptCode == 'Hans') return 'Hans';
+  return const {'TW', 'HK', 'MO'}.contains(countryCode) ? 'Hant' : 'Hans';
+}

@@ -69,23 +69,25 @@ void main() {
     }
   });
 
-  // (locale code, Settings app-bar title from that ARB).
-  for (final (code, settingsTitle) in [
-    ('tr', 'AYARLAR'),
-    ('ru', 'НАСТРОЙКИ'),
-    ('ko', '설정'),
-    ('it', 'IMPOSTAZIONI'),
-    ('id', 'PENGATURAN'),
-    ('uk', 'НАЛАШТУВАННЯ'),
-    ('vi', 'CÀI ĐẶT'),
-    ('ja', '設定'),
-    ('zh', '设置'),
+  // (shot/dir name, forced locale, Settings app-bar title from that ARB).
+  for (final (code, locale, settingsTitle) in [
+    ('tr', const Locale('tr'), 'AYARLAR'),
+    ('ru', const Locale('ru'), 'НАСТРОЙКИ'),
+    ('ko', const Locale('ko'), '설정'),
+    ('it', const Locale('it'), 'IMPOSTAZIONI'),
+    ('id', const Locale('id'), 'PENGATURAN'),
+    ('uk', const Locale('uk'), 'НАЛАШТУВАННЯ'),
+    ('vi', const Locale('vi'), 'CÀI ĐẶT'),
+    ('ja', const Locale('ja'), '設定'),
+    ('zh', const Locale('zh'), '设置'),
+    // Script-less zh-TW must resolve to the Hant ARB (wave-2 resolution).
+    ('zh-hant', const Locale('zh', 'TW'), '設定'),
   ]) {
     testWidgets('the app renders localized in $code', (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
-      tester.platformDispatcher.localesTestValue = [Locale(code)];
+      tester.platformDispatcher.localesTestValue = [locale];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
       final dir = Directory('${_workDir.path}/$code')

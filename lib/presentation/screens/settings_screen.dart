@@ -42,6 +42,10 @@ class SettingsScreen extends ConsumerWidget {
     'uk': 'Українська',
     'vi': 'Tiếng Việt',
     'ja': '日本語',
+    // D8 amendment: two script rows, one whisper language — both force
+    // whisper-`zh`; the stored value carries the content-script preference.
+    'zh-Hans': '中文（简体）',
+    'zh-Hant': '中文（繁體）',
   };
 
   @override

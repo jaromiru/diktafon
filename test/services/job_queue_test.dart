@@ -1204,4 +1204,60 @@ void main() {
       expect(llm.cassetteCalls, 0);
     });
   });
+
+  group('D8 script preference: Chinese memos (§13 wave 2)', () {
+    test('auto-detected zh stores the system script: transcript converted, '
+        'prompt pinned, drifting LLM output re-pinned', () async {
+      final zhQueue = JobQueue(
+          db, memos, cassettes, settings, () => engine, () => llm,
+          retryDelayUnit: Duration.zero, systemZhScript: () => 'Hant');
+      // 150 Han chars — past the token gate, so the gist pipeline runs.
+      engine.result = shortTranscript('zh', '万' * 150);
+      llm.memoResult = '这是一个摘要'; // the model drifted Simplified
+      llm.titleResult = '语音备忘';
+      await seedMemo('m1');
+      await zhQueue.enqueueTranscription('m1');
+      await zhQueue.drain();
+
+      final row = await memoRow('m1');
+      expect(row.detectedLang, 'zh-Hant',
+          reason: 'stored script-qualified for prompts and rendering');
+      expect(row.transcript, contains('萬'));
+      expect(row.transcript, isNot(contains('万')));
+      expect(llm.lastLanguageCode, 'zh-Hant',
+          reason: 'languageName pins Traditional Chinese in the prompt');
+      expect(row.memoSummary, '這是一個摘要',
+          reason: 'belt-and-braces conversion of drifting gists');
+      expect((await cassetteRow()).label, '語音備忘');
+    });
+
+    test('a forced zh-Hans override normalizes whisper\'s mixed output', ()
+        async {
+      final zhQueue = JobQueue(
+          db, memos, cassettes, settings, () => engine, () => llm,
+          retryDelayUnit: Duration.zero,
+          systemZhScript: () => fail('forced script never asks the system'));
+      await settings.setAppLanguage('zh-Hans');
+      engine.result = shortTranscript('zh', '語音備忘'); // mixed/Traditional
+      await seedMemo('m1');
+      await zhQueue.enqueueTranscription('m1');
+      await zhQueue.drain();
+
+      final row = await memoRow('m1');
+      expect(row.detectedLang, 'zh-Hans');
+      expect(row.transcript, contains('语音备忘'));
+    });
+
+    test('non-Chinese memos are untouched by the script machinery', () async {
+      final zhQueue = JobQueue(
+          db, memos, cassettes, settings, () => engine, () => llm,
+          retryDelayUnit: Duration.zero, systemZhScript: () => 'Hant');
+      engine.result = shortTranscript('cs', 'koupit mléko');
+      await seedMemo('m1');
+      await zhQueue.enqueueTranscription('m1');
+      await zhQueue.drain();
+
+      expect((await memoRow('m1')).detectedLang, 'cs');
+    });
+  });
 }

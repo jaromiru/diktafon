@@ -18,6 +18,7 @@ import 'dart:math';
 import 'package:ffi/ffi.dart';
 
 import '../../../domain/models.dart';
+import '../../../domain/script.dart';
 import '../../audio/pcm_decoder.dart';
 import '../../audio/pcm_highpass.dart';
 import '../transcription_provider.dart';
@@ -70,6 +71,10 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
     String? languageCode,
     CancelToken? cancel,
   }) async {
+    // Whisper knows bare codes only — the script-qualified zh-Hans/zh-Hant
+    // preference (D8) both force plain `zh` here; the job queue converts
+    // the output script afterwards.
+    languageCode = languageCode == null ? null : baseLanguageCode(languageCode);
     if (_models.statusOf(_model) != ModelStatus.ready) {
       throw StateError('whisper model ${_model.tier} is not installed');
     }

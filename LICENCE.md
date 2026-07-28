@@ -60,6 +60,15 @@ ggml tree from this copy.
 model, Copyright (c) 2020-present Silero Team, licensed under the MIT
 License. It is distributed with this repository and inside the app.
 
+### OpenCC character dictionaries (vendored)
+
+`tool/l10n/opencc/` contains the `STCharacters.txt` / `TSCharacters.txt`
+character dictionaries from [OpenCC](https://github.com/BYVoid/OpenCC)
+(Open Chinese Convert), Copyright (c) Carbo Kuo and contributors, licensed
+under the Apache License 2.0. They generate the Simplified↔Traditional
+conversion table compiled into the app
+(`lib/services/processing/hans_hant_table.dart`).
+
 ### Whisper models (downloaded at runtime)
 
 Speech-recognition models are not distributed with this repository or the app;

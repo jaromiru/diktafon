@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/providers.dart';
 import 'l10n/l10n.dart';
+import 'l10n/locale_resolution.dart';
 import 'presentation/screens/first_run_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/theme/theme.dart';
@@ -23,9 +24,11 @@ class DiktafonApp extends ConsumerWidget {
       title: 'Diktafon',
       debugShowCheckedModeBanner: false,
       // UI language follows the system locale (§13), independent of the
-      // transcription language (D8). English is the fallback.
+      // transcription language (D8). English is the fallback; script-less
+      // zh locales resolve their script from the region (wave 2).
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      localeListResolutionCallback: resolveAppLocale,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: switch (theme) {
