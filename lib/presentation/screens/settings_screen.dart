@@ -25,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   /// Endonyms on purpose — a language list reads best in its own words.
+  /// Keys are what `appLanguage` stores (D8) — bare whisper codes.
   static const languages = <String, String>{
     'en': 'English',
     'fr': 'Français',
@@ -36,6 +37,10 @@ class SettingsScreen extends ConsumerWidget {
     'tr': 'Türkçe',
     'ru': 'Русский',
     'ko': '한국어',
+    'it': 'Italiano',
+    'id': 'Bahasa Indonesia',
+    'uk': 'Українська',
+    'vi': 'Tiếng Việt',
   };
 
   @override

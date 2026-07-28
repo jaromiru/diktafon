@@ -18,15 +18,17 @@ void main() {
           .where((k) => !k.startsWith('@'))
           .toSet();
 
+  List<File> arbFiles() => Directory('lib/l10n')
+      .listSync()
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.arb'))
+      .toList();
+
   test('every locale ARB carries every template message', () {
     final template = keysOf(File('lib/l10n/app_en.arb'));
-    final arbs = Directory('lib/l10n')
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.arb'))
-        .toList();
-    expect(arbs.length, greaterThanOrEqualTo(10),
-        reason: 'en fr es pt de pl cs tr ru ko');
+    final arbs = arbFiles();
+    expect(arbs.length, greaterThanOrEqualTo(14),
+        reason: 'en fr es pt de pl cs tr ru ko + wave 2 (§13)');
     for (final arb in arbs) {
       expect(keysOf(arb), template, reason: arb.path);
     }
@@ -40,11 +42,14 @@ void main() {
   });
 
   test('every locale loads and its plural messages resolve', () async {
-    expect(AppLocalizations.supportedLocales, hasLength(10));
-    // 1/2/5/21 hit en =1, cs few/other, ru one/few/many (21 → one), ko other.
+    // One supported locale per ARB file — a new ARB gen-l10n missed (or a
+    // stale gen/) fails here.
+    expect(AppLocalizations.supportedLocales, hasLength(arbFiles().length));
+    // 1/2/5/11/21/100 sweep every category in use: en =1, cs few/other,
+    // ru+uk one/few/many (21 → one), ar zero…many, id/vi/ja/zh other.
     for (final locale in AppLocalizations.supportedLocales) {
       final l10n = await AppLocalizations.delegate.load(locale);
-      for (final count in [1, 2, 5, 21]) {
+      for (final count in [1, 2, 5, 11, 21, 100]) {
         expect(l10n.memoCount(count), contains('$count'),
             reason: '$locale memoCount($count)');
         expect(l10n.deleteCassetteBody('x', count), isNotEmpty);
