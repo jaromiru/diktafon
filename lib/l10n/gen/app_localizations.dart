@@ -1006,7 +1006,7 @@ abstract class AppLocalizations {
   /// Confirmation before re-running transcription for a whole cassette
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.'**
+  /// **'{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced, including any manual corrections. This can take a while.'**
   String retranscribeBody(int count);
 
   /// No description provided for @retranscribeAction.
@@ -1032,6 +1032,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy transcription'**
   String get copyTranscript;
+
+  /// No description provided for @editTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit transcription'**
+  String get editTranscript;
+
+  /// No description provided for @editTranscriptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EDIT TRANSCRIPTION'**
+  String get editTranscriptTitle;
 
   /// No description provided for @transcriptCopied.
   ///

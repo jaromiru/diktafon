@@ -605,7 +605,7 @@ class AppLocalizationsCs extends AppLocalizations {
       few: 'Všechny $count záznamy se přepíšou',
       one: 'Záznam se přepíše',
     );
-    return '$_temp0 znovu aktuálními modely a shrnutí se sestaví nanovo. Stávající přepisy a shrnutí budou nahrazeny. Může to chvíli trvat.';
+    return '$_temp0 znovu aktuálními modely a shrnutí se sestaví nanovo. Stávající přepisy a shrnutí budou nahrazeny, včetně ručních úprav. Může to chvíli trvat.';
   }
 
   @override
@@ -621,6 +621,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Kopírovat přepis';
+
+  @override
+  String get editTranscript => 'Upravit přepis';
+
+  @override
+  String get editTranscriptTitle => 'UPRAVIT PŘEPIS';
 
   @override
   String get transcriptCopied => 'Přepis zkopírován.';

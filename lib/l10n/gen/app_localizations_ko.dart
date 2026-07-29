@@ -548,7 +548,7 @@ class AppLocalizationsKo extends AppLocalizations {
       locale: localeName,
       other: '메모 $count개',
     );
-    return '$_temp0를 현재 모델로 다시 텍스트로 변환하고 요약을 새로 만듭니다. 기존 변환 텍스트와 요약은 교체됩니다. 시간이 걸릴 수 있습니다.';
+    return '$_temp0를 현재 모델로 다시 텍스트로 변환하고 요약을 새로 만듭니다. 기존 변환 텍스트와 요약은 직접 수정한 내용을 포함해 교체됩니다. 시간이 걸릴 수 있습니다.';
   }
 
   @override
@@ -564,6 +564,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get copyTranscript => '변환 텍스트 복사';
+
+  @override
+  String get editTranscript => '변환 텍스트 편집';
+
+  @override
+  String get editTranscriptTitle => '변환 텍스트 편집';
 
   @override
   String get transcriptCopied => '변환 텍스트가 복사되었습니다.';

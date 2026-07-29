@@ -563,7 +563,7 @@ class AppLocalizationsJa extends AppLocalizations {
       locale: localeName,
       other: '$count 件のメモ',
     );
-    return '$_temp0を現在のモデルで文字起こしし直し、要約を作り直します。既存の文字起こしと要約は置き換えられます。しばらく時間がかかることがあります。';
+    return '$_temp0を現在のモデルで文字起こしし直し、要約を作り直します。既存の文字起こしと要約は、手動での修正も含めて置き換えられます。しばらく時間がかかることがあります。';
   }
 
   @override
@@ -579,6 +579,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get copyTranscript => '文字起こしをコピー';
+
+  @override
+  String get editTranscript => '文字起こしを編集';
+
+  @override
+  String get editTranscriptTitle => '文字起こしを編集';
 
   @override
   String get transcriptCopied => '文字起こしをコピーしました。';

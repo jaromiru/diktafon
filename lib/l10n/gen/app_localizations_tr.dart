@@ -589,7 +589,7 @@ class AppLocalizationsTr extends AppLocalizations {
       other: '$count notun tümü',
       one: 'Not',
     );
-    return '$_temp0 güncel modellerle yeniden yazıya dökülecek ve özet yeniden oluşturulacak. Mevcut transkriptler ve özetler değiştirilir. Bu biraz sürebilir.';
+    return '$_temp0 güncel modellerle yeniden yazıya dökülecek ve özet yeniden oluşturulacak. Mevcut transkriptler ve özetler, elle yapılan düzeltmeler dahil değiştirilir. Bu biraz sürebilir.';
   }
 
   @override
@@ -605,6 +605,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Transkripti kopyala';
+
+  @override
+  String get editTranscript => 'Transkripti düzenle';
+
+  @override
+  String get editTranscriptTitle => 'TRANSKRİPTİ DÜZENLE';
 
   @override
   String get transcriptCopied => 'Transkript kopyalandı.';

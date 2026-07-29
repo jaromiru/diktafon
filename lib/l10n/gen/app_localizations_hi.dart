@@ -591,7 +591,7 @@ class AppLocalizationsHi extends AppLocalizations {
       other: 'सभी $count मेमो मौजूदा मॉडलों से दोबारा ट्रांसक्राइब होंगे',
       one: '$count मेमो मौजूदा मॉडलों से दोबारा ट्रांसक्राइब होगा',
     );
-    return '$_temp0 और सारांश नए सिरे से बनाया जाएगा। मौजूदा ट्रांसक्रिप्ट और सारांश बदल दिए जाएंगे। इसमें कुछ समय लग सकता है।';
+    return '$_temp0 और सारांश नए सिरे से बनाया जाएगा। मौजूदा ट्रांसक्रिप्ट और सारांश, हाथ से किए गए सुधारों समेत, बदल दिए जाएंगे। इसमें कुछ समय लग सकता है।';
   }
 
   @override
@@ -607,6 +607,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get copyTranscript => 'ट्रांसक्रिप्ट कॉपी करें';
+
+  @override
+  String get editTranscript => 'ट्रांसक्रिप्ट संपादित करें';
+
+  @override
+  String get editTranscriptTitle => 'ट्रांसक्रिप्ट संपादित करें';
 
   @override
   String get transcriptCopied => 'ट्रांसक्रिप्ट कॉपी हो गई।';

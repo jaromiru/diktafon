@@ -591,7 +591,7 @@ class AppLocalizationsFa extends AppLocalizations {
       other: 'همهٔ $count یادداشت با مدل‌های فعلی دوباره رونویسی می‌شوند',
       one: 'این یادداشت با مدل‌های فعلی دوباره رونویسی می‌شود',
     );
-    return '$_temp0 و خلاصهٔ کاست از نو ساخته می‌شود. رونوشت‌ها و خلاصه‌های موجود جایگزین می‌شوند. این کار ممکن است کمی طول بکشد.';
+    return '$_temp0 و خلاصهٔ کاست از نو ساخته می‌شود. رونوشت‌ها و خلاصه‌های موجود، از جمله اصلاح‌های دستی، جایگزین می‌شوند. این کار ممکن است کمی طول بکشد.';
   }
 
   @override
@@ -607,6 +607,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get copyTranscript => 'کپی رونوشت';
+
+  @override
+  String get editTranscript => 'ویرایش رونوشت';
+
+  @override
+  String get editTranscriptTitle => 'ویرایش رونوشت';
 
   @override
   String get transcriptCopied => 'رونوشت کپی شد.';

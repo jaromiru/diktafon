@@ -10,6 +10,7 @@ import '../../application/recording_controller.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
 import '../../domain/tape.dart';
+import '../../domain/transcript_edit.dart';
 import '../../l10n/l10n.dart';
 import '../../services/audio/tape_player_service.dart';
 import '../../services/providers/transcription_provider.dart';
@@ -20,6 +21,7 @@ import '../widgets/content_locale.dart';
 import '../widgets/content_width.dart';
 import '../widgets/deck.dart';
 import '../widgets/directional_chevrons.dart';
+import '../widgets/edit_transcript_dialog.dart';
 import '../widgets/level_meter.dart';
 import '../widgets/timeline_bar.dart';
 import '../widgets/transcript_view.dart';
@@ -252,6 +254,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                       onRetryMemo: (memoId) => ref
                           .read(jobQueueProvider)
                           .retryEnrichment(memoId),
+                      onEditMemo: (i) => _editTranscript(tape.memos[i]),
                       onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
                     ),
                   ),
@@ -515,6 +518,23 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
       memoCount: memoCount,
     );
     if (deleted && mounted) Navigator.of(context).pop();
+  }
+
+  /// Hand-corrects a memo's transcription (§6.9): the dialog edits the
+  /// plainText form, the corrected words are re-timed onto the engine's
+  /// grid, and the memo re-enters the pipeline at the summary stage.
+  /// Unchanged or emptied text saves nothing.
+  Future<void> _editTranscript(Memo memo) async {
+    final transcript = memo.transcript;
+    if (transcript == null) return;
+    final initial = transcript.plainText;
+    final edited = await showEditTranscriptDialog(context,
+        initialText: initial, languageCode: transcript.languageCode);
+    if (edited == null || edited == initial) return;
+    final retimed = retimeEditedTranscript(transcript, edited,
+        memoDurationMs: memo.durationMs);
+    if (retimed == null) return; // no words left — nothing to store
+    await ref.read(jobQueueProvider).applyTranscriptEdit(memo.id, retimed);
   }
 
   /// Long-press a segment → delete memo (§5.3); the tape re-flows (§4.2).

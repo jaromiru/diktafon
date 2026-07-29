@@ -592,7 +592,7 @@ class AppLocalizationsFr extends AppLocalizations {
       other: 'Les $count mémos seront retranscrits',
       one: 'Le mémo sera retranscrit',
     );
-    return '$_temp0 avec les modèles actuels et le résumé sera reconstruit. Les transcriptions et résumés existants seront remplacés. Cela peut prendre un moment.';
+    return '$_temp0 avec les modèles actuels et le résumé sera reconstruit. Les transcriptions et résumés existants seront remplacés, y compris les corrections manuelles. Cela peut prendre un moment.';
   }
 
   @override
@@ -608,6 +608,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Copier la transcription';
+
+  @override
+  String get editTranscript => 'Modifier la transcription';
+
+  @override
+  String get editTranscriptTitle => 'MODIFIER LA TRANSCRIPTION';
 
   @override
   String get transcriptCopied => 'Transcription copiée.';

@@ -310,4 +310,83 @@ void main() {
       expect(seeks, [4 * wordMs]);
     });
   });
+
+  group('§6.9 edit from the memo menu', () {
+    Memo bareMemo(int i, {Transcript? transcript, required MemoStatus status}) =>
+        Memo(
+          id: 'bare$i',
+          cassetteId: 'c1',
+          filePath: '/dev/null',
+          durationMs: 1000,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(2000000 + i * 60000),
+          status: status,
+          transcript: transcript,
+        );
+
+    Widget menuApp(Tape tape, {ValueChanged<int>? onEdit}) => MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: TranscriptView(
+              tape: tape,
+              colorSeed: 0,
+              globalMs: 0,
+              currentMemoIndex: 0,
+              playing: false,
+              onEditMemo: onEdit,
+              onDeleteMemo: (_) {},
+            ),
+          ),
+        );
+
+    testWidgets('a transcribed memo offers Edit; the callback carries the '
+        'ordinal', (tester) async {
+      final small = Tape([
+        bareMemo(0,
+            status: MemoStatus.ready,
+            transcript: const Transcript(languageCode: 'en', segments: [
+              Segment(startMs: 0, endMs: 500, words: [
+                Word(text: 'first', startMs: 0, endMs: 500),
+              ]),
+            ])),
+        bareMemo(1,
+            status: MemoStatus.ready,
+            transcript: const Transcript(languageCode: 'en', segments: [
+              Segment(startMs: 0, endMs: 500, words: [
+                Word(text: 'second', startMs: 0, endMs: 500),
+              ]),
+            ])),
+      ]);
+      int? edited;
+      await tester.pumpWidget(menuApp(small, onEdit: (i) => edited = i));
+      await tester.tap(find.byIcon(Icons.more_horiz).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit transcription'));
+      await tester.pumpAndSettle();
+      expect(edited, 1);
+    });
+
+    testWidgets('an empty "no speech" transcript still offers Edit; a memo '
+        'with none does not', (tester) async {
+      final small = Tape([
+        bareMemo(0,
+            status: MemoStatus.ready,
+            transcript: const Transcript(languageCode: '', segments: [])),
+        bareMemo(1, status: MemoStatus.stored),
+      ]);
+      await tester.pumpWidget(menuApp(small, onEdit: (_) {}));
+      await tester.tap(find.byIcon(Icons.more_horiz).at(0));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit transcription'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5)); // dismiss
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_horiz).at(1));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit transcription'), findsNothing);
+      expect(find.text('Delete memo'), findsOneWidget);
+    });
+  });
 }

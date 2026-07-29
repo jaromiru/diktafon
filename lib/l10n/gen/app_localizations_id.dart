@@ -576,7 +576,7 @@ class AppLocalizationsId extends AppLocalizations {
       locale: localeName,
       other: '$count memo',
     );
-    return '$_temp0 akan ditranskripsi ulang dengan model saat ini, dan ringkasan akan disusun ulang. Transkrip dan ringkasan yang ada akan diganti. Proses ini bisa memakan waktu.';
+    return '$_temp0 akan ditranskripsi ulang dengan model saat ini, dan ringkasan akan disusun ulang. Transkrip dan ringkasan yang ada akan diganti, termasuk koreksi manual. Proses ini bisa memakan waktu.';
   }
 
   @override
@@ -592,6 +592,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Salin transkripsi';
+
+  @override
+  String get editTranscript => 'Edit transkrip';
+
+  @override
+  String get editTranscriptTitle => 'EDIT TRANSKRIP';
 
   @override
   String get transcriptCopied => 'Transkripsi disalin.';

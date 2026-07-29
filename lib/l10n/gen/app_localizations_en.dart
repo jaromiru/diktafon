@@ -589,7 +589,7 @@ class AppLocalizationsEn extends AppLocalizations {
       other: 'All $count memos',
       one: 'The memo',
     );
-    return '$_temp0 will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.';
+    return '$_temp0 will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced, including any manual corrections. This can take a while.';
   }
 
   @override
@@ -605,6 +605,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Copy transcription';
+
+  @override
+  String get editTranscript => 'Edit transcription';
+
+  @override
+  String get editTranscriptTitle => 'EDIT TRANSCRIPTION';
 
   @override
   String get transcriptCopied => 'Transcription copied.';

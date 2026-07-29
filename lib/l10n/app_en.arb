@@ -270,7 +270,7 @@
   "changeColor": "Change colour",
   "retranscribe": "Re-transcribe",
   "retranscribeTitle": "RE-TRANSCRIBE CASSETTE?",
-  "retranscribeBody": "{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced. This can take a while.",
+  "retranscribeBody": "{count, plural, =1{The memo} other{All {count} memos}} will be transcribed again with the current models and the summary will be rebuilt. Existing transcripts and summaries are replaced, including any manual corrections. This can take a while.",
   "@retranscribeBody": {
     "description": "Confirmation before re-running transcription for a whole cassette",
     "placeholders": {"count": {"type": "int"}}
@@ -280,6 +280,8 @@
   "colorSwatch": "Colour {n}",
   "@colorSwatch": {"placeholders": {"n": {"type": "int"}}},
   "copyTranscript": "Copy transcription",
+  "editTranscript": "Edit transcription",
+  "editTranscriptTitle": "EDIT TRANSCRIPTION",
   "transcriptCopied": "Transcription copied.",
   "deleteMemo": "Delete memo",
   "memoActions": "Memo actions",

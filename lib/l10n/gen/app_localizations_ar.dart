@@ -627,7 +627,7 @@ class AppLocalizationsAr extends AppLocalizations {
       one: 'المذكرة',
       zero: 'المذكرات',
     );
-    return 'سيُعاد تفريغ $_temp0 بالنماذج الحالية وسيُعاد إنشاء الملخص. ستحل النتائج الجديدة محل النصوص والملخصات الحالية. قد يستغرق هذا بعض الوقت.';
+    return 'سيُعاد تفريغ $_temp0 بالنماذج الحالية وسيُعاد إنشاء الملخص. ستحل النتائج الجديدة محل النصوص والملخصات الحالية، بما في ذلك التصحيحات اليدوية. قد يستغرق هذا بعض الوقت.';
   }
 
   @override
@@ -643,6 +643,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get copyTranscript => 'نسخ النص';
+
+  @override
+  String get editTranscript => 'تحرير النص';
+
+  @override
+  String get editTranscriptTitle => 'تحرير النص';
 
   @override
   String get transcriptCopied => 'تم نسخ النص.';

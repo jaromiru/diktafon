@@ -576,7 +576,7 @@ class AppLocalizationsVi extends AppLocalizations {
       locale: localeName,
       other: '$count bản ghi',
     );
-    return '$_temp0 sẽ được chép lời lại bằng các mô hình hiện tại và bản tóm tắt sẽ được tạo lại. Bản chép lời và tóm tắt hiện có sẽ bị thay thế. Việc này có thể mất một lúc.';
+    return '$_temp0 sẽ được chép lời lại bằng các mô hình hiện tại và bản tóm tắt sẽ được tạo lại. Bản chép lời và tóm tắt hiện có sẽ bị thay thế, kể cả các chỉnh sửa thủ công. Việc này có thể mất một lúc.';
   }
 
   @override
@@ -592,6 +592,12 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Sao chép bản chép lời';
+
+  @override
+  String get editTranscript => 'Sửa bản chép lời';
+
+  @override
+  String get editTranscriptTitle => 'SỬA BẢN CHÉP LỜI';
 
   @override
   String get transcriptCopied => 'Đã sao chép bản chép lời.';

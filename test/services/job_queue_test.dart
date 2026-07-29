@@ -1260,4 +1260,77 @@ void main() {
       expect((await memoRow('m1')).detectedLang, 'cs');
     });
   });
+
+  group('§6.9 manual transcript edit', () {
+    test('a long edit clears the gist and re-enters at the summary stage',
+        () async {
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      await queue.drain(); // original enrichment completes
+      expect((await memoRow('m1')).memoSummary, 'gist');
+
+      llm.memoResult = 'edited gist';
+      await queue.applyTranscriptEdit(
+          'm1', longTranscript('cs', ['opravené', 'slovo']));
+      await queue.drain();
+
+      final row = await memoRow('m1');
+      expect(row.transcript, contains('opravené'));
+      expect(row.memoSummary, 'edited gist');
+      expect(row.status, MemoStatus.ready.name);
+      expect((await cassetteRow()).summary, contains('edited gist'));
+    });
+
+    test('the stale gist is cleared immediately, before the LLM reruns',
+        () async {
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      await queue.drain();
+      expect((await memoRow('m1')).memoSummary, 'gist');
+
+      llm.status = ModelStatus.notInstalled; // rerun parks behind the gate
+      await queue.applyTranscriptEdit(
+          'm1', longTranscript('cs', ['opravené', 'slovo']));
+      await queue.drain();
+
+      final row = await memoRow('m1');
+      expect(row.memoSummary, null);
+      expect(row.status, MemoStatus.transcribed.name);
+      expect((await jobs()).single.type, JobType.summarizeMemo.name);
+    });
+
+    test('a short edit completes without the LLM; the overview reads the '
+        'text directly', () async {
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      await queue.drain();
+
+      await queue.applyTranscriptEdit(
+          'm1', shortTranscript('cs', 'jen krátká poznámka'));
+      final row = await memoRow('m1');
+      expect(row.status, MemoStatus.ready.name);
+      expect(row.memoSummary, null);
+      expect(llm.memoCalls, 1); // only the original enrichment
+
+      await queue.drain();
+      expect((await cassetteRow()).summary, contains('jen krátká poznámka'));
+    });
+
+    test('an edit drops the memo\'s queued jobs — no stale gist from the '
+        'replaced text', () async {
+      llm.status = ModelStatus.notInstalled; // parks the seeded gist job
+      await seedTranscribed('m1', jobCreatedAt: 1);
+      await queue.drain();
+
+      await queue.applyTranscriptEdit(
+          'm1', longTranscript('cs', ['opravené', 'slovo']));
+      final memoJobs =
+          (await jobs()).where((j) => j.targetId == 'm1').toList();
+      expect(memoJobs.single.id, isNot('job-m1'));
+      expect(memoJobs.single.type, JobType.summarizeMemo.name);
+    });
+
+    test('editing a deleted memo is a no-op', () async {
+      await queue.applyTranscriptEdit(
+          'gone', shortTranscript('cs', 'nic'));
+      expect(await jobs(), isEmpty);
+    });
+  });
 }

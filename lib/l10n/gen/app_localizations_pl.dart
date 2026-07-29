@@ -627,7 +627,7 @@ class AppLocalizationsPl extends AppLocalizations {
       few: 'Wszystkie $count nagrania zostaną przepisane',
       one: 'Nagranie zostanie przepisane',
     );
-    return '$_temp0 od nowa aktualnymi modelami, a podsumowanie powstanie na nowo. Istniejące transkrypcje i podsumowania zostaną zastąpione. To może chwilę potrwać.';
+    return '$_temp0 od nowa aktualnymi modelami, a podsumowanie powstanie na nowo. Istniejące transkrypcje i podsumowania zostaną zastąpione, w tym ręczne poprawki. To może chwilę potrwać.';
   }
 
   @override
@@ -643,6 +643,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Kopiuj transkrypcję';
+
+  @override
+  String get editTranscript => 'Edytuj transkrypcję';
+
+  @override
+  String get editTranscriptTitle => 'EDYTUJ TRANSKRYPCJĘ';
 
   @override
   String get transcriptCopied => 'Skopiowano transkrypcję.';

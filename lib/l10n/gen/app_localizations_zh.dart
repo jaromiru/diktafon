@@ -560,7 +560,7 @@ class AppLocalizationsZh extends AppLocalizations {
       locale: localeName,
       other: '$count 条备忘',
     );
-    return '$_temp0将使用当前模型重新转写，摘要也会重新生成。现有转写文本和摘要将被替换。这可能需要一些时间。';
+    return '$_temp0将使用当前模型重新转写，摘要也会重新生成。现有转写文本和摘要（包括手动修改）将被替换。这可能需要一些时间。';
   }
 
   @override
@@ -576,6 +576,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get copyTranscript => '复制转写文本';
+
+  @override
+  String get editTranscript => '编辑转写文本';
+
+  @override
+  String get editTranscriptTitle => '编辑转写文本';
 
   @override
   String get transcriptCopied => '转写文本已复制。';
@@ -1153,7 +1159,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       locale: localeName,
       other: '$count 則備忘',
     );
-    return '$_temp0將以目前的模型重新轉錄，摘要也會重新產生。現有的逐字稿和摘要將被取代。這可能需要一些時間。';
+    return '$_temp0將以目前的模型重新轉錄，摘要也會重新產生。現有的逐字稿和摘要（包括手動修改）將被取代。這可能需要一些時間。';
   }
 
   @override
@@ -1169,6 +1175,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get copyTranscript => '複製逐字稿';
+
+  @override
+  String get editTranscript => '編輯逐字稿';
+
+  @override
+  String get editTranscriptTitle => '編輯逐字稿';
 
   @override
   String get transcriptCopied => '已複製逐字稿。';

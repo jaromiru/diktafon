@@ -63,6 +63,23 @@ class MemoRepository {
         ),
       );
 
+  /// Manual correction (§6.9): the edited transcript replaces the engine's
+  /// take, and the gist that described the old text goes with it — in one
+  /// write. The detected language is deliberately untouched: the user fixed
+  /// words, not the memo's language.
+  Future<void> setEditedTranscript(
+    String id,
+    Transcript transcript,
+    MemoStatus status,
+  ) =>
+      (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
+        MemosCompanion(
+          transcript: Value(jsonEncode(transcript.toJson())),
+          memoSummary: const Value(null),
+          status: Value(status.name),
+        ),
+      );
+
   /// [summary] null → the memo yielded no usable gist (§6.7 skip).
   Future<void> setMemoSummary(String id, String? summary, MemoStatus status) =>
       (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(

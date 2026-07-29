@@ -628,7 +628,7 @@ class AppLocalizationsUk extends AppLocalizations {
       few: '$count записи буде розшифровано заново',
       one: '$count запис буде розшифровано заново',
     );
-    return '$_temp0 поточними моделями, і підсумок буде складено заново. Наявні розшифровки та підсумки буде замінено. Це може тривати певний час.';
+    return '$_temp0 поточними моделями, і підсумок буде складено заново. Наявні розшифровки та підсумки буде замінено, зокрема ручні правки. Це може тривати певний час.';
   }
 
   @override
@@ -644,6 +644,12 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Копіювати розшифровку';
+
+  @override
+  String get editTranscript => 'Редагувати розшифровку';
+
+  @override
+  String get editTranscriptTitle => 'РЕДАГУВАТИ РОЗШИФРОВКУ';
 
   @override
   String get transcriptCopied => 'Розшифровку скопійовано.';

@@ -594,7 +594,7 @@ class AppLocalizationsPt extends AppLocalizations {
       other: 'As $count notas serão transcritas',
       one: 'A nota será transcrita',
     );
-    return '$_temp0 de novo com os modelos atuais e o resumo será refeito. As transcrições e os resumos existentes serão substituídos. Isso pode levar um tempo.';
+    return '$_temp0 de novo com os modelos atuais e o resumo será refeito. As transcrições e os resumos existentes serão substituídos, incluindo correções manuais. Isso pode levar um tempo.';
   }
 
   @override
@@ -610,6 +610,12 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get copyTranscript => 'Copiar transcrição';
+
+  @override
+  String get editTranscript => 'Editar transcrição';
+
+  @override
+  String get editTranscriptTitle => 'EDITAR TRANSCRIÇÃO';
 
   @override
   String get transcriptCopied => 'Transcrição copiada.';

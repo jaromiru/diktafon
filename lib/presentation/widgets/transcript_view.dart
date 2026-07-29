@@ -31,6 +31,7 @@ class TranscriptView extends StatefulWidget {
     this.modelReady = false,
     this.onSeekGlobalMs,
     this.onRetryMemo,
+    this.onEditMemo,
     this.onDeleteMemo,
   });
 
@@ -52,6 +53,11 @@ class TranscriptView extends StatefulWidget {
 
   /// Failed memo tapped → re-enqueue (§14 retry affordance).
   final ValueChanged<String>? onRetryMemo;
+
+  /// Manual correction from the divider's memo menu, by ordinal index
+  /// (§6.9) — offered for any memo that already has a transcript, even an
+  /// empty "no speech" one (quiet speech the engine missed can be typed in).
+  final ValueChanged<int>? onEditMemo;
 
   /// Delete from the divider's memo menu, by ordinal index — same confirm
   /// flow as the timeline's long-press (§5.3).
@@ -209,6 +215,9 @@ class _TranscriptViewState extends State<TranscriptView> {
               onCopy: memo.transcript?.isEmpty == false
                   ? () => _copyTranscript(memo)
                   : null,
+              onEdit: widget.onEditMemo == null || memo.transcript == null
+                  ? null
+                  : () => widget.onEditMemo!(i),
               onDelete: widget.onDeleteMemo == null
                   ? null
                   : () => widget.onDeleteMemo!(i),
@@ -296,6 +305,7 @@ class _MemoDivider extends StatelessWidget {
     required this.first,
     this.onRetry,
     this.onCopy,
+    this.onEdit,
     this.onDelete,
   });
 
@@ -307,8 +317,9 @@ class _MemoDivider extends StatelessWidget {
 
   /// The quiet per-memo menu at the stamp's right edge; entries appear only
   /// when their action is possible (copy needs words on the clipboard's
-  /// side, delete a wired-up confirm flow).
+  /// side, edit an existing transcript, delete a wired-up confirm flow).
   final VoidCallback? onCopy;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   /// The gist line under the stamp (§5.3): the memo summary once it exists,
@@ -391,7 +402,8 @@ class _MemoDivider extends StatelessWidget {
               ],
             ),
           ),
-          if (onCopy != null || onDelete != null) _menu(context),
+          if (onCopy != null || onEdit != null || onDelete != null)
+            _menu(context),
         ],
       ),
     );
@@ -404,14 +416,24 @@ class _MemoDivider extends StatelessWidget {
           tooltip: context.l10n.memoActions,
           padding: EdgeInsets.zero,
           icon: Icon(Icons.more_horiz, size: 16, color: context.tape.ink2),
-          onSelected: (action) =>
-              action == 'copy' ? onCopy!() : onDelete!(),
+          onSelected: (action) => switch (action) {
+            'copy' => onCopy!(),
+            'edit' => onEdit!(),
+            _ => onDelete!(),
+          },
           itemBuilder: (menuContext) => [
             if (onCopy != null)
               PopupMenuItem(
                 value: 'copy',
                 height: 38,
                 child: Text(menuContext.l10n.copyTranscript,
+                    style: const TextStyle(fontSize: 12.5)),
+              ),
+            if (onEdit != null)
+              PopupMenuItem(
+                value: 'edit',
+                height: 38,
+                child: Text(menuContext.l10n.editTranscript,
                     style: const TextStyle(fontSize: 12.5)),
               ),
             if (onDelete != null)

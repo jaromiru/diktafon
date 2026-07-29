@@ -97,6 +97,32 @@ class JobQueue {
     unawaited(drain());
   }
 
+  /// Manual transcript edit (§6.9): the corrected text replaces the engine's
+  /// take and re-enters the pipeline at the summary stage — the old gist
+  /// described the old words, so it is cleared rather than left to lie. Long
+  /// transcripts queue a fresh gist (which schedules the overview rebuild
+  /// itself); short ones are their own summary (§6.7), so only the overview
+  /// needs refreshing. The memo's queued jobs are dropped first — they would
+  /// re-derive stale artifacts from the replaced text.
+  Future<void> applyTranscriptEdit(String memoId, Transcript transcript) async {
+    final row = await _memoRow(memoId);
+    if (row == null) return; // deleted meanwhile (§14)
+    await cancelJobsFor(memoId);
+    final wantsGist = _wantsGist(transcript);
+    // Atomic pair, like retranscribe: a kill between the write and the
+    // enqueue must not strand the memo without its follow-up job.
+    await _db.transaction(() async {
+      await _memos.setEditedTranscript(memoId, transcript,
+          wantsGist ? MemoStatus.transcribed : MemoStatus.ready);
+      if (wantsGist) {
+        await _insertJob(JobType.summarizeMemo, memoId);
+      } else {
+        await _enqueueCassetteUpdate(row.cassetteId);
+      }
+    });
+    unawaited(drain());
+  }
+
   /// Re-runs the whole enrichment pipeline for every memo on the cassette —
   /// the user installed a more capable model and wants the texts refreshed.
   /// In-flight and queued work is cancelled, transcripts and gists wiped,
