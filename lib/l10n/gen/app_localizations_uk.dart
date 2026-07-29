@@ -669,4 +669,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label — установлено';
   }
+
+  @override
+  String get notifRecording => 'Триває запис';
+
+  @override
+  String get notifRecordingChannel => 'Запис';
 }

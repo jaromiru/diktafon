@@ -96,8 +96,14 @@ class CassetteExporter {
         audioNames[memo.id] = null;
         continue;
       }
+      // A capture the transcode job hasn't reached yet is still `.wav` —
+      // export whatever container the memo actually holds.
+      final dot = memo.filePath.lastIndexOf('.');
+      final ext = dot > memo.filePath.lastIndexOf('/')
+          ? memo.filePath.substring(dot)
+          : '.m4a';
       final name = 'memo-${(i + 1).toString().padLeft(3, '0')}_'
-          '${DateFormat('yyyy-MM-dd_HH-mm-ss').format(memo.createdAt)}.m4a';
+          '${DateFormat('yyyy-MM-dd_HH-mm-ss').format(memo.createdAt)}$ext';
       await source.copy('${audioDir.path}/$name');
       audioNames[memo.id] = name;
     }

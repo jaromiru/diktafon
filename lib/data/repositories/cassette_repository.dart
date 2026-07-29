@@ -144,6 +144,13 @@ class CassetteRepository {
         CassettesCompanion(updatedAt: Value(DateTime.now().millisecondsSinceEpoch)),
       );
 
+  /// Whether the cassette row still exists — capture recovery (§14) must
+  /// not resurrect a memo onto a deleted tape.
+  Future<bool> exists(String id) async =>
+      await (_db.select(_db.cassettes)..where((c) => c.id.equals(id)))
+          .getSingleOrNull() !=
+      null;
+
   /// Memos cascade-delete via foreign key; audio files are the caller's
   /// responsibility (see AudioFileStore.deleteCassetteDir).
   Future<void> delete(String id) =>

@@ -1074,6 +1074,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label} installed'**
   String notifModelInstalled(String label);
+
+  /// No description provided for @notifRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording memo'**
+  String get notifRecording;
+
+  /// No description provided for @notifRecordingChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording'**
+  String get notifRecordingChannel;
 }
 
 class _AppLocalizationsDelegate

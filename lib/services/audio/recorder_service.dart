@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/files/audio_file_store.dart';
 import '../../domain/models.dart';
+import 'capture_recovery.dart';
+import 'wav_repair.dart';
 
 /// The real duration of an audio file in ms, via a throwaway player; null
 /// when probing fails (unfinalized/corrupt file). Shared by the recorder
@@ -36,8 +38,11 @@ class RecordingResult {
   final int durationMs;
 }
 
-/// Capture (§6.4): mono AAC-LC `.m4a`, 16 kHz, ~48 kbps — one file per memo,
-/// never re-encoded. Recording never blocks on anything (design pillar #3).
+/// Capture (§6.4): PCM WAV, 16 kHz mono — crash-durable (a killed process
+/// leaves recoverable samples, not a moov-less container); the transcode job
+/// turns it into the archival mono AAC-LC `.m4a` (~48 kbps) once the memo is
+/// safely on the tape. One file per memo. Recording never blocks on anything
+/// (design pillar #3).
 class RecorderService {
   RecorderService(this._files);
 
@@ -73,24 +78,38 @@ class RecorderService {
   Future<void> start(String cassetteId) async {
     if (isRecording) throw StateError('already recording');
     final memoId = _uuid.v4();
-    final path = await _files.pathFor(cassetteId, memoId);
-    await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        sampleRate: 16000,
-        numChannels: 1,
-        bitRate: 48000,
-        // VOICE_RECOGNITION is the CDD-mandated clean feed (flat ±3 dB,
-        // OEM noise-suppression/AGC off) — closest to whisper's training
-        // distribution (§6.4; noise-robust-transcription.md §3.5).
-        androidConfig: AndroidRecordConfig(
-            audioSource: AndroidAudioSource.voiceRecognition),
-      ),
-      path: path,
+    final path = await _files.pathFor(cassetteId, memoId, extension: 'wav');
+    final startedAt = DateTime.now();
+    // Marker before capture (§14): from the first sample on disk, a killed
+    // process leaves enough behind for launch recovery to save the memo.
+    // The controller removes it once the memo row exists.
+    await writeCaptureMarker(
+      wavPath: path,
+      memoId: memoId,
+      cassetteId: cassetteId,
+      startedAt: startedAt,
     );
+    try {
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+          // VOICE_RECOGNITION is the CDD-mandated clean feed (flat ±3 dB,
+          // OEM noise-suppression/AGC off) — closest to whisper's training
+          // distribution (§6.4; noise-robust-transcription.md §3.5).
+          androidConfig: AndroidRecordConfig(
+              audioSource: AndroidAudioSource.voiceRecognition),
+        ),
+        path: path,
+      );
+    } catch (_) {
+      await removeCaptureMarker(path);
+      rethrow;
+    }
     _activeMemoId = memoId;
     _activePath = path;
-    _startedAt = DateTime.now();
+    _startedAt = startedAt;
     _stopwatch = Stopwatch()..start();
   }
 
@@ -109,9 +128,12 @@ class RecorderService {
       recordedPath = await _recorder.stop() ?? path;
     } catch (_) {
       // Plugin failure mid-stop (interruption, backend error): the capture
-      // file may still be playable — keep the memo rather than lose it;
-      // the duration probe below falls back to wall clock.
+      // file may still be playable — keep the memo rather than lose it. The
+      // WAV header is likely stale after a failed stop; repair it the way
+      // launch recovery would (§14). Duration probing falls back to wall
+      // clock below.
       recordedPath = path;
+      await repairWav(path);
     }
     _activeMemoId = null;
     _activePath = null;
@@ -138,7 +160,10 @@ class RecorderService {
     _startedAt = null;
     _stopwatch = null;
     await _recorder.stop();
-    if (path != null) await _files.deleteMemoFile(path);
+    if (path != null) {
+      await _files.deleteMemoFile(path);
+      await removeCaptureMarker(path);
+    }
   }
 
   Memo toMemo(RecordingResult result, String cassetteId) => Memo(

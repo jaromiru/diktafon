@@ -167,5 +167,7 @@
   "deleteMemo": "Удалить запись",
   "memoActions": "Действия с записью",
   "notifDownloading": "Скачивается {label}",
-  "notifModelInstalled": "{label} — установлено"
+  "notifModelInstalled": "{label} — установлено",
+  "notifRecording": "Идёт запись",
+  "notifRecordingChannel": "Запись"
 }

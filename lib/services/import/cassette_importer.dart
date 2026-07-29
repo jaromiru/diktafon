@@ -172,7 +172,13 @@ class CassetteImporter {
         }
 
         final memoId = _uuid.v4();
-        final path = await _files.pathFor(cassette.id, memoId);
+        // Keep the archive's container (`.wav` for a not-yet-transcoded
+        // capture): iOS players trust the extension over the bytes.
+        final dot = audio?.path.lastIndexOf('.') ?? -1;
+        final path = await _files.pathFor(cassette.id, memoId,
+            extension: dot > (audio?.path.lastIndexOf('/') ?? -1)
+                ? audio!.path.substring(dot + 1)
+                : 'm4a');
         // Audio-less memos keep their (dead) canonical path — the same
         // state the app already tolerates after a metadata-only OS restore.
         if (audio != null) await audio.copy(path);

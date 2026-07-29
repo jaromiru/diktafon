@@ -630,4 +630,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label installed';
   }
+
+  @override
+  String get notifRecording => 'Recording memo';
+
+  @override
+  String get notifRecordingChannel => 'Recording';
 }

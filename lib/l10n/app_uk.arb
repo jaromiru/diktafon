@@ -167,5 +167,7 @@
   "deleteMemo": "Видалити запис",
   "memoActions": "Дії із записом",
   "notifDownloading": "Завантажується {label}",
-  "notifModelInstalled": "{label} — установлено"
+  "notifModelInstalled": "{label} — установлено",
+  "notifRecording": "Триває запис",
+  "notifRecordingChannel": "Запис"
 }

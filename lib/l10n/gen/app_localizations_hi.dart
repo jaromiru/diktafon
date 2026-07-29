@@ -632,4 +632,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label इंस्टॉल हो गया';
   }
+
+  @override
+  String get notifRecording => 'रिकॉर्डिंग जारी है';
+
+  @override
+  String get notifRecordingChannel => 'रिकॉर्डिंग';
 }

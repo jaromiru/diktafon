@@ -3,12 +3,15 @@ package cz.mod42.diktafon
 import android.content.Intent
 import android.media.AudioFormat
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -16,6 +19,7 @@ import java.io.BufferedOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
@@ -77,9 +81,60 @@ class MainActivity : FlutterActivity() {
                     // creates. Answers false when the user backs out.
                     "saveDocument" -> startSaveDocument(call.argument("source"),
                         call.argument("name"), call.argument("mime"), result)
+                    // D13: microphone-type foreground service under a live
+                    // capture — false (never an error) when the OS rejects
+                    // the start; Dart then falls back to finalize-on-pause.
+                    "startRecordingService" -> result.success(
+                        startRecordingService(call.argument("title"),
+                            call.argument("channelName")))
+                    "stopRecordingService" -> {
+                        stopService(Intent(this, RecordingForegroundService::class.java))
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
+        // Counterpart of HostCodecAudioTranscoder (lib/services/audio/
+        // audio_transcoder.dart): WAV capture → archival AAC-LC m4a (§6.4).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "diktafon/transcoder")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "transcodeToAac") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val input = call.argument<String>("input")
+                val output = call.argument<String>("output")
+                val bitRate = call.argument<Int>("bitRate") ?: 48000
+                if (input == null || output == null) {
+                    result.error("bad_args", "input/output paths required", null)
+                    return@setMethodCallHandler
+                }
+                decodeExecutor.execute {
+                    try {
+                        transcodeWavToAac(input, output, bitRate)
+                        mainHandler.post { result.success(null) }
+                    } catch (e: Exception) {
+                        mainHandler.post { result.error("transcode_failed", e.message, null) }
+                    }
+                }
+            }
+    }
+
+    private fun startRecordingService(title: String?, channelName: String?): Boolean {
+        return try {
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, RecordingForegroundService::class.java).apply {
+                    putExtra(RecordingForegroundService.EXTRA_TITLE, title)
+                    putExtra(RecordingForegroundService.EXTRA_CHANNEL_NAME, channelName)
+                })
+            true
+        } catch (e: Exception) {
+            // ForegroundServiceStartNotAllowedException & friends: the app
+            // was not foreground enough — recording still works, it just
+            // won't survive backgrounding.
+            false
+        }
     }
 
     private fun startSaveDocument(
@@ -128,6 +183,132 @@ class MainActivity : FlutterActivity() {
                 mainHandler.post { result.error("save_failed", e.message, null) }
             }
         }.start()
+    }
+
+    /** WAV facts the encoder needs; sizes derived from the file length, not
+     *  the header fields (an interrupted capture leaves those stale). */
+    private class WavPcm(
+        val sampleRate: Int, val channels: Int, val dataOffset: Long, val dataBytes: Long)
+
+    private fun parseWavPcm(path: String, raf: RandomAccessFile): WavPcm {
+        val length = raf.length()
+        val head = ByteArray(12)
+        raf.readFully(head)
+        require(String(head, 0, 4) == "RIFF" && String(head, 8, 4) == "WAVE") {
+            "not a WAV: $path"
+        }
+        var sampleRate = 0
+        var channels = 0
+        var offset = 12L
+        while (offset + 8 <= length) {
+            raf.seek(offset)
+            val header = ByteArray(8)
+            raf.readFully(header)
+            val id = String(header, 0, 4)
+            val size = ByteBuffer.wrap(header, 4, 4)
+                .order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xFFFFFFFFL
+            if (id == "fmt ") {
+                val fmt = ByteArray(16)
+                raf.readFully(fmt)
+                val data = ByteBuffer.wrap(fmt).order(ByteOrder.LITTLE_ENDIAN)
+                val format = data.short.toInt() and 0xFFFF
+                require(format == 1 || format == 0xFFFE) { "not PCM: $path" }
+                channels = data.short.toInt()
+                sampleRate = data.int
+                data.int // byte rate
+                data.short // block align
+                val bits = data.short.toInt()
+                require(bits == 16) { "only s16 PCM supported, got $bits-bit" }
+            } else if (id == "data") {
+                require(sampleRate > 0 && channels > 0) { "data before fmt: $path" }
+                val dataBytes = (length - offset - 8).let { it - (it % 2) }
+                require(dataBytes > 0) { "empty WAV: $path" }
+                return WavPcm(sampleRate, channels, offset + 8, dataBytes)
+            }
+            offset += 8 + size + (size and 1)
+        }
+        throw IOException("no data chunk in $path")
+    }
+
+    /**
+     * PCM WAV → AAC-LC in an mp4 container (§6.4). Counterpart of the ffmpeg
+     * path on desktop; streaming like [decodeToF32] — one input buffer of
+     * samples in flight at a time, nothing accumulated.
+     */
+    private fun transcodeWavToAac(inputPath: String, outputPath: String, bitRate: Int) {
+        RandomAccessFile(inputPath, "r").use { raf ->
+            val wav = parseWavPcm(inputPath, raf)
+            raf.seek(wav.dataOffset)
+
+            val format = MediaFormat.createAudioFormat(
+                MediaFormat.MIMETYPE_AUDIO_AAC, wav.sampleRate, wav.channels)
+            format.setInteger(MediaFormat.KEY_AAC_PROFILE,
+                MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+            format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+            val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            val muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            var muxerStarted = false
+            var track = -1
+            codec.start()
+            try {
+                val bytesPerFrame = 2 * wav.channels
+                var remaining = wav.dataBytes
+                var framesFed = 0L
+                var inputDone = false
+                val info = MediaCodec.BufferInfo()
+                val chunk = ByteArray(8192)
+                while (true) {
+                    if (!inputDone) {
+                        val inIndex = codec.dequeueInputBuffer(10_000)
+                        if (inIndex >= 0) {
+                            if (remaining == 0L) {
+                                codec.queueInputBuffer(inIndex, 0, 0,
+                                    framesFed * 1_000_000L / wav.sampleRate,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                inputDone = true
+                            } else {
+                                val buffer = codec.getInputBuffer(inIndex)!!
+                                var want = minOf(
+                                    remaining, buffer.capacity().toLong(), chunk.size.toLong())
+                                want -= want % bytesPerFrame
+                                raf.readFully(chunk, 0, want.toInt())
+                                buffer.clear()
+                                buffer.put(chunk, 0, want.toInt())
+                                codec.queueInputBuffer(inIndex, 0, want.toInt(),
+                                    framesFed * 1_000_000L / wav.sampleRate, 0)
+                                framesFed += want / bytesPerFrame
+                                remaining -= want
+                            }
+                        }
+                    }
+                    when (val outIndex = codec.dequeueOutputBuffer(info, 10_000)) {
+                        MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                            track = muxer.addTrack(codec.outputFormat)
+                            muxer.start()
+                            muxerStarted = true
+                        }
+                        MediaCodec.INFO_TRY_AGAIN_LATER -> {}
+                        else -> if (outIndex >= 0) {
+                            if (info.size > 0 &&
+                                info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                                val buffer = codec.getOutputBuffer(outIndex)!!
+                                muxer.writeSampleData(track, buffer, info)
+                            }
+                            codec.releaseOutputBuffer(outIndex, false)
+                            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                                break
+                            }
+                        }
+                    }
+                }
+            } finally {
+                codec.stop()
+                codec.release()
+                if (muxerStarted) muxer.stop()
+                muxer.release()
+            }
+        }
     }
 
     /**

@@ -632,4 +632,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label نصب شد';
   }
+
+  @override
+  String get notifRecording => 'در حال ضبط';
+
+  @override
+  String get notifRecordingChannel => 'ضبط';
 }

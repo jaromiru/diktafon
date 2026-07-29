@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -10,6 +11,7 @@ import '../../data/repositories/memo_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
 import '../providers/llm/summary_prompts.dart' show estimateTokens;
+import '../audio/audio_transcoder.dart';
 import '../providers/summarization_provider.dart';
 import '../providers/transcription_provider.dart';
 import 'chinese_script.dart';
@@ -25,8 +27,13 @@ enum JobType {
   cleanupTranscript,
   summarizeMemo,
   updateCassetteSummary,
-  recomputeCassetteSummary;
+  recomputeCassetteSummary,
+  transcodeAudio;
 
+  /// Enrichment stages whose failure marks the memo `failed` (§14).
+  /// `transcodeAudio` deliberately stays out: a WAV that never becomes AAC
+  /// is bigger, not broken — the memo plays either way, so its status must
+  /// never suffer for a codec hiccup.
   bool get targetsMemo =>
       this == transcribe || this == cleanupTranscript || this == summarizeMemo;
 }
@@ -48,7 +55,8 @@ const int gistTokenThreshold = 117;
 class JobQueue {
   JobQueue(this._db, this._memos, this._cassettes, this._settings,
       this._transcription, this._summarization,
-      {this._retryDelayUnit = const Duration(seconds: 1),
+      {this._transcoder,
+      this._retryDelayUnit = const Duration(seconds: 1),
       this._systemZhScript = _defaultZhScript});
 
   final AppDatabase _db;
@@ -57,6 +65,10 @@ class JobQueue {
   final SettingsRepository _settings;
   final TranscriptionProvider Function() _transcription;
   final SummarizationProvider Function() _summarization;
+
+  /// §6.4: encodes finished WAV captures to the archival AAC. Null (tests
+  /// that predate it) keeps transcode jobs parked in the queue.
+  final AudioTranscoder Function()? _transcoder;
 
   /// D8 amendment: the script an auto-detected `zh` memo is stored in —
   /// production wires the system locale; tests inject.
@@ -78,6 +90,14 @@ class JobQueue {
   /// Enqueued on record-stop (D7).
   Future<void> enqueueTranscription(String memoId) async {
     await _insertJob(JobType.transcribe, memoId);
+    unawaited(drain());
+  }
+
+  /// Enqueued on record-stop, after the transcription (§6.4): the WAV
+  /// capture becomes the archival AAC in the background — the memo plays
+  /// either form, so nothing waits on this.
+  Future<void> enqueueTranscode(String memoId) async {
+    await _insertJob(JobType.transcodeAudio, memoId);
     unawaited(drain());
   }
 
@@ -188,6 +208,7 @@ class JobQueue {
       _recoveredOrphans = true;
       await _recoverOrphans();
       await _reconcileStrandedMemos();
+      await _reconcileStrandedWavs();
       // Done rows written by pre-pruning builds are pure archaeology —
       // completed jobs are deleted outright now (see _run), so sweep the
       // legacy ones too instead of scanning them on every drain forever.
@@ -208,6 +229,8 @@ class JobQueue {
       // Legacy cleanup rows only hand over to the gist — no LLM involved,
       // so they are always runnable.
       runnable.add(JobType.cleanupTranscript.name);
+      // Transcoding needs no model, only a wired platform encoder.
+      if (_transcoder != null) runnable.add(JobType.transcodeAudio.name);
       if (settings.summariesEnabled && llmReady) {
         runnable.addAll([
           JobType.summarizeMemo.name,
@@ -240,6 +263,8 @@ class JobQueue {
         case JobType.updateCassetteSummary:
         case JobType.recomputeCassetteSummary:
           await _updateCassetteSummary(job.targetId);
+        case JobType.transcodeAudio:
+          await _transcodeAudio(job.targetId);
       }
       // Completed jobs are deleted, not archived: nothing reads them back,
       // and years of use would otherwise leave thousands of dead rows under
@@ -339,6 +364,59 @@ class JobQueue {
         await _memos.updateStatus(row.id, MemoStatus.transcribed);
         await _insertJob(JobType.summarizeMemo, row.id);
       }
+    }
+  }
+
+  /// A memo still on its WAV capture with no transcode row anywhere — the
+  /// process died between the memo insert and the enqueue, or the row was
+  /// recovered by an older build. One fresh job puts it back on track;
+  /// `failed` rows count as covered so a permanently hopeless encode doesn't
+  /// re-enter on every launch (the WAV plays fine as it is).
+  Future<void> _reconcileStrandedWavs() async {
+    if (_transcoder == null) return;
+    final covered = {
+      for (final job in await (_db.select(_db.jobs)
+            ..where((j) => j.type.equals(JobType.transcodeAudio.name)))
+          .get())
+        job.targetId,
+    };
+    final rows = await (_db.select(_db.memos)
+          ..where((m) => m.filePath.like('%.wav')))
+        .get();
+    for (final row in rows) {
+      if (covered.contains(row.id)) continue;
+      await _insertJob(JobType.transcodeAudio, row.id);
+    }
+  }
+
+  /// §6.4: WAV capture → archival AAC, then the memo row is swapped over
+  /// and the WAV deleted. Idempotent and self-cancelling: a memo already on
+  /// AAC, gone, or missing its audio simply completes the job.
+  Future<void> _transcodeAudio(String memoId) async {
+    final row = await _memoRow(memoId);
+    if (row == null) return; // deleted meanwhile (§14)
+    final wavPath = row.filePath;
+    if (!wavPath.endsWith('.wav')) return; // already archival
+    if (!File(wavPath).existsSync()) return; // missing audio (§14)
+
+    final outPath = '${wavPath.substring(0, wavPath.length - 4)}.m4a';
+    await _transcoder!().transcode(wavPath, outPath);
+    final out = File(outPath);
+    if (!out.existsSync() || out.lengthSync() == 0) {
+      throw StateError('transcode produced no output');
+    }
+    if (await _memoRow(memoId) == null) {
+      // Deleted mid-encode — drop the output; the WAV went with the memo.
+      try {
+        out.deleteSync();
+      } catch (_) {}
+      return;
+    }
+    await _memos.updateFilePath(memoId, outPath);
+    try {
+      File(wavPath).deleteSync();
+    } catch (_) {
+      // A busy/vanished WAV is orphan-sweep food, not a failure.
     }
   }
 

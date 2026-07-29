@@ -60,6 +60,13 @@ Future<void> main() async {
         .rebaseAudioPaths(fileStore.rootPath);
   } catch (_) {}
 
+  // Captures a process death cut short come back as memos (D13/§14).
+  // Awaited before the UI (a fresh capture must never race the scan) and
+  // before the orphan sweep below (which would eventually eat these files).
+  try {
+    await container.read(captureRecoveryProvider).recover();
+  } catch (_) {}
+
   // Launch hygiene, off the critical path: audio files no memo references
   // (a capture killed before its stop() ever inserted a row, §7.1) and
   // stale temp dirs stranded by a mid-job kill (decoded PCM, import/export

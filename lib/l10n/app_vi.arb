@@ -167,5 +167,7 @@
   "deleteMemo": "Xóa bản ghi",
   "memoActions": "Thao tác với bản ghi",
   "notifDownloading": "Đang tải {label}",
-  "notifModelInstalled": "Đã cài {label}"
+  "notifModelInstalled": "Đã cài {label}",
+  "notifRecording": "Đang thu âm",
+  "notifRecordingChannel": "Thu âm"
 }

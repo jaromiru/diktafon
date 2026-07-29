@@ -46,6 +46,12 @@ class MemoRepository {
         status: memo.status.name,
       ));
 
+  /// Points the memo at its transcoded file (§6.4: capture is WAV, the
+  /// archival form is AAC — the transcode job swaps once the encode landed).
+  Future<void> updateFilePath(String id, String filePath) =>
+      (_db.update(_db.memos)..where((m) => m.id.equals(id)))
+          .write(MemosCompanion(filePath: Value(filePath)));
+
   Future<void> updateStatus(String id, MemoStatus status) =>
       (_db.update(_db.memos)..where((m) => m.id.equals(id)))
           .write(MemosCompanion(status: Value(status.name)));

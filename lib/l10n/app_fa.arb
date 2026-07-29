@@ -167,5 +167,7 @@
   "deleteMemo": "حذف یادداشت",
   "memoActions": "گزینه‌های یادداشت",
   "notifDownloading": "در حال دانلود {label}",
-  "notifModelInstalled": "{label} نصب شد"
+  "notifModelInstalled": "{label} نصب شد",
+  "notifRecording": "در حال ضبط",
+  "notifRecordingChannel": "ضبط"
 }

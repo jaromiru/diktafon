@@ -646,4 +646,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label — nainstalováno';
   }
+
+  @override
+  String get notifRecording => 'Probíhá nahrávání';
+
+  @override
+  String get notifRecordingChannel => 'Nahrávání';
 }

@@ -617,4 +617,10 @@ class AppLocalizationsId extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label terpasang';
   }
+
+  @override
+  String get notifRecording => 'Sedang merekam';
+
+  @override
+  String get notifRecordingChannel => 'Perekaman';
 }

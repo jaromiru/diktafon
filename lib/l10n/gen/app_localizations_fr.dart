@@ -633,4 +633,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label installé';
   }
+
+  @override
+  String get notifRecording => 'Enregistrement en cours';
+
+  @override
+  String get notifRecordingChannel => 'Enregistrement';
 }

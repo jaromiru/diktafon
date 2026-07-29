@@ -14,6 +14,8 @@ import '../data/repositories/settings_repository.dart';
 import '../domain/models.dart';
 import '../domain/script.dart';
 import '../domain/tape.dart';
+import '../services/audio/audio_transcoder.dart';
+import '../services/audio/capture_recovery.dart';
 import '../services/audio/pcm_decoder.dart';
 import '../services/audio/recorder_service.dart';
 import '../services/audio/tape_player_service.dart';
@@ -29,6 +31,7 @@ import '../services/providers/whisper/whisper_bindings.dart';
 import '../services/providers/whisper/whisper_model_manager.dart';
 import '../services/providers/whisper/whisper_transcription_provider.dart';
 import '../services/providers/whisper/whisper_worker.dart';
+import '../services/system/system_settings.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -109,8 +112,39 @@ final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
       ref.watch(settingsRepositoryProvider),
       () => ref.read(transcriptionProvider),
       () => ref.read(summarizationProvider),
+      transcoder: () => ref.read(audioTranscoderProvider),
       systemZhScript: systemZhScript,
     ));
+
+/// §6.4: WAV capture → archival AAC (MediaCodec/AVAssetWriter on mobile,
+/// ffmpeg CLI on desktop).
+final audioTranscoderProvider =
+    Provider<AudioTranscoder>((ref) => defaultAudioTranscoder());
+
+/// D13: the Android microphone foreground service under a live capture.
+/// A class-shaped seam so controller tests can fake the platform answer.
+class RecordingForegroundGlue {
+  Future<bool> start({required String title, required String channelName}) =>
+      startRecordingForegroundService(title: title, channelName: channelName);
+
+  Future<void> stop() => stopRecordingForegroundService();
+}
+
+final recordingForegroundGlueProvider =
+    Provider<RecordingForegroundGlue>((ref) => RecordingForegroundGlue());
+
+/// §14: killed captures come back as memos at launch — wired like the
+/// importer, through the queue's own entry points.
+final captureRecoveryProvider = Provider<CaptureRecovery>((ref) {
+  final jobs = ref.watch(jobQueueProvider);
+  return CaptureRecovery(
+    files: ref.watch(audioFileStoreProvider),
+    memos: ref.watch(memoRepositoryProvider),
+    cassettes: ref.watch(cassetteRepositoryProvider),
+    enqueueTranscription: jobs.enqueueTranscription,
+    enqueueTranscode: jobs.enqueueTranscode,
+  );
+});
 
 /// The script an auto-detected Chinese memo is stored in (D8 amendment):
 /// the first Chinese locale in the system preference list decides; with
