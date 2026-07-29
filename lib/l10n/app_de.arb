@@ -165,5 +165,7 @@
   "deleteMemo": "Memo löschen",
   "memoActions": "Memo-Aktionen",
   "notifDownloading": "{label} wird heruntergeladen",
-  "notifModelInstalled": "{label} installiert"
+  "notifModelInstalled": "{label} installiert",
+  "notifRecording": "Aufnahme läuft",
+  "notifRecordingChannel": "Aufnahme"
 }

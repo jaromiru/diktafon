@@ -598,4 +598,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label をインストールしました';
   }
+
+  @override
+  String get notifRecording => '録音中';
+
+  @override
+  String get notifRecordingChannel => '録音';
 }

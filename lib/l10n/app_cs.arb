@@ -165,5 +165,7 @@
   "deleteMemo": "Smazat záznam",
   "memoActions": "Akce záznamu",
   "notifDownloading": "Stahuje se {label}",
-  "notifModelInstalled": "{label} — nainstalováno"
+  "notifModelInstalled": "{label} — nainstalováno",
+  "notifRecording": "Probíhá nahrávání",
+  "notifRecordingChannel": "Nahrávání"
 }

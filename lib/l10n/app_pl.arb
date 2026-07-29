@@ -165,5 +165,7 @@
   "deleteMemo": "Usuń nagranie",
   "memoActions": "Działania nagrania",
   "notifDownloading": "Pobieranie: {label}",
-  "notifModelInstalled": "Zainstalowano {label}"
+  "notifModelInstalled": "Zainstalowano {label}",
+  "notifRecording": "Trwa nagrywanie",
+  "notifRecordingChannel": "Nagrywanie"
 }

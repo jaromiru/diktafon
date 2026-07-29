@@ -662,4 +662,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label — установлено';
   }
+
+  @override
+  String get notifRecording => 'Идёт запись';
+
+  @override
+  String get notifRecordingChannel => 'Запись';
 }

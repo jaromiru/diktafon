@@ -165,5 +165,7 @@
   "deleteMemo": "Notu sil",
   "memoActions": "Not işlemleri",
   "notifDownloading": "{label} indiriliyor",
-  "notifModelInstalled": "{label} yüklendi"
+  "notifModelInstalled": "{label} yüklendi",
+  "notifRecording": "Kayıt yapılıyor",
+  "notifRecordingChannel": "Kayıt"
 }

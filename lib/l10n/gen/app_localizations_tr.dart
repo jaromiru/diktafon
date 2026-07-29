@@ -624,4 +624,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label yüklendi';
   }
+
+  @override
+  String get notifRecording => 'Kayıt yapılıyor';
+
+  @override
+  String get notifRecordingChannel => 'Kayıt';
 }

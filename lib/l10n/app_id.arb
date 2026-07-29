@@ -165,5 +165,7 @@
   "deleteMemo": "Hapus memo",
   "memoActions": "Tindakan memo",
   "notifDownloading": "Mengunduh {label}",
-  "notifModelInstalled": "{label} terpasang"
+  "notifModelInstalled": "{label} terpasang",
+  "notifRecording": "Sedang merekam",
+  "notifRecordingChannel": "Perekaman"
 }

@@ -662,4 +662,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String notifModelInstalled(String label) {
     return 'Zainstalowano $label';
   }
+
+  @override
+  String get notifRecording => 'Trwa nagrywanie';
+
+  @override
+  String get notifRecordingChannel => 'Nagrywanie';
 }

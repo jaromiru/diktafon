@@ -2,10 +2,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- M2: whisper model downloads from HuggingFace (all build types, incl. release). -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- D13 (background recording) will need FOREGROUND_SERVICE +
-         FOREGROUND_SERVICE_MICROPHONE; declare them only together with the
-         actual service — the mic-FGS permission alone triggers Play's
-         foreground-service declaration & video review. -->
+    <!-- D13 background recording: RecordingForegroundService pins the mic
+         while a capture runs with the screen off / app backgrounded. The
+         mic-FGS permission triggers Play's foreground-service declaration
+         & video review — see docs/store/play-fgs-declaration.md. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <!-- Model-download progress notifications (Android 13+ runtime-gated;
          requested lazily when the first download starts). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -39,6 +41,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- D13: keep-alive token under a live capture — recording itself
+             stays in the Flutter process; the service only holds priority
+             and mic access while backgrounded. -->
+        <service
+            android:name=".RecordingForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

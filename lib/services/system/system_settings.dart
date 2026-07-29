@@ -41,6 +41,41 @@ Future<void> excludeFromIosBackup(String path) async {
   }
 }
 
+/// D13: pins a microphone-type foreground service under the live capture so
+/// Android keeps delivering mic audio with the app backgrounded or the
+/// screen off (without it the OS feeds silence). Returns true when the
+/// service is up; false when Android rejected the start — the caller falls
+/// back to finalizing on backgrounding. The strings become the persistent
+/// notification (localized by the caller; a service can't reach gen-l10n).
+/// Android-only by design: iOS covers this with the `audio` background mode
+/// and desktop activities never pause.
+Future<bool> startRecordingForegroundService({
+  required String title,
+  required String channelName,
+}) async {
+  if (!Platform.isAndroid) return false;
+  try {
+    final started = await _channel.invokeMethod<bool>('startRecordingService', {
+      'title': title,
+      'channelName': channelName,
+    });
+    return started ?? false;
+  } on PlatformException {
+    return false;
+  }
+}
+
+/// Tears the recording service (and its notification) down — call on every
+/// path that ends a capture. Safe to call when nothing is running.
+Future<void> stopRecordingForegroundService() async {
+  if (!Platform.isAndroid) return;
+  try {
+    await _channel.invokeMethod<void>('stopRecordingService');
+  } on PlatformException {
+    // The service dies with the process at the latest; nothing to add.
+  }
+}
+
 /// Offers the OS "save document" dialog (SAF create-document on Android,
 /// export document picker on iOS) and lands the finished file at [sourcePath]
 /// wherever the user picked (Drive, Files, …). Returns false when the user

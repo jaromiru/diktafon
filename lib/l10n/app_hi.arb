@@ -165,5 +165,7 @@
   "deleteMemo": "मेमो हटाएं",
   "memoActions": "मेमो के विकल्प",
   "notifDownloading": "{label} डाउनलोड हो रहा है",
-  "notifModelInstalled": "{label} इंस्टॉल हो गया"
+  "notifModelInstalled": "{label} इंस्टॉल हो गया",
+  "notifRecording": "रिकॉर्डिंग जारी है",
+  "notifRecordingChannel": "रिकॉर्डिंग"
 }

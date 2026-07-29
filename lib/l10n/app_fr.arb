@@ -165,5 +165,7 @@
   "deleteMemo": "Supprimer le mémo",
   "memoActions": "Actions du mémo",
   "notifDownloading": "Téléchargement de {label}",
-  "notifModelInstalled": "{label} installé"
+  "notifModelInstalled": "{label} installé",
+  "notifRecording": "Enregistrement en cours",
+  "notifRecordingChannel": "Enregistrement"
 }

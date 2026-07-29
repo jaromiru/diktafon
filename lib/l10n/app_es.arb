@@ -165,5 +165,7 @@
   "deleteMemo": "Eliminar nota",
   "memoActions": "Acciones de la nota",
   "notifDownloading": "Descargando {label}",
-  "notifModelInstalled": "{label} instalado"
+  "notifModelInstalled": "{label} instalado",
+  "notifRecording": "Grabando nota",
+  "notifRecordingChannel": "Grabación"
 }

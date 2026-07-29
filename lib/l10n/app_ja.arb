@@ -165,5 +165,7 @@
   "deleteMemo": "メモを削除",
   "memoActions": "メモの操作",
   "notifDownloading": "{label} をダウンロード中",
-  "notifModelInstalled": "{label} をインストールしました"
+  "notifModelInstalled": "{label} をインストールしました",
+  "notifRecording": "録音中",
+  "notifRecordingChannel": "録音"
 }

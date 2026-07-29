@@ -165,5 +165,7 @@
   "deleteMemo": "刪除備忘",
   "memoActions": "備忘操作",
   "notifDownloading": "正在下載 {label}",
-  "notifModelInstalled": "{label} 已安裝"
+  "notifModelInstalled": "{label} 已安裝",
+  "notifRecording": "正在錄音",
+  "notifRecordingChannel": "錄音"
 }

@@ -611,4 +611,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String notifModelInstalled(String label) {
     return 'Đã cài $label';
   }
+
+  @override
+  String get notifRecording => 'Đang thu âm';
+
+  @override
+  String get notifRecordingChannel => 'Thu âm';
 }

@@ -165,5 +165,7 @@
   "deleteMemo": "메모 삭제",
   "memoActions": "메모 동작",
   "notifDownloading": "{label} 다운로드 중",
-  "notifModelInstalled": "{label} 설치됨"
+  "notifModelInstalled": "{label} 설치됨",
+  "notifRecording": "녹음 중",
+  "notifRecordingChannel": "녹음"
 }

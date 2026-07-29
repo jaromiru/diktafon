@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-/// Audio layout (§7.1): `<app-documents>/audio/<cassetteId>/<memoId>.m4a`.
-/// One file per memo; nothing is ever re-encoded or stitched on disk.
+/// Audio layout (§7.1): `<app-documents>/audio/<cassetteId>/<memoId>.<ext>`
+/// — `.wav` while a capture awaits its transcode, `.m4a` after (§6.4). One
+/// file per memo; nothing is ever stitched on disk.
 class AudioFileStore {
   AudioFileStore(this._root);
 
@@ -20,11 +21,14 @@ class AudioFileStore {
     return AudioFileStore(root);
   }
 
-  /// Absolute path for a memo's audio; creates the cassette dir.
-  Future<String> pathFor(String cassetteId, String memoId) async {
+  /// Absolute path for a memo's audio; creates the cassette dir. The
+  /// default extension is the archival form; capture and the importer (which
+  /// keeps whatever the archive holds) pass their own.
+  Future<String> pathFor(String cassetteId, String memoId,
+      {String extension = 'm4a'}) async {
     final dir = Directory('${_root.path}/$cassetteId');
     await dir.create(recursive: true);
-    return '${dir.path}/$memoId.m4a';
+    return '${dir.path}/$memoId.$extension';
   }
 
   Future<void> deleteMemoFile(String filePath) async {

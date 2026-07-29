@@ -165,5 +165,7 @@
   "deleteMemo": "حذف المذكرة",
   "memoActions": "إجراءات المذكرة",
   "notifDownloading": "جارٍ تنزيل {label}",
-  "notifModelInstalled": "تم تثبيت {label}"
+  "notifModelInstalled": "تم تثبيت {label}",
+  "notifRecording": "جارٍ التسجيل",
+  "notifRecordingChannel": "التسجيل"
 }

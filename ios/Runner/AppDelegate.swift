@@ -50,6 +50,36 @@ import UIKit
           }
         }
       }
+    // Counterpart of HostCodecAudioTranscoder (lib/services/audio/
+    // audio_transcoder.dart): WAV capture → archival AAC-LC m4a (§6.4).
+    FlutterMethodChannel(name: "diktafon/transcoder", binaryMessenger: messenger)
+      .setMethodCallHandler { [weak self] call, result in
+        guard call.method == "transcodeToAac" else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        guard let args = call.arguments as? [String: Any],
+          let input = args["input"] as? String,
+          let output = args["output"] as? String
+        else {
+          result(FlutterError(code: "bad_args", message: "input/output paths required",
+                              details: nil))
+          return
+        }
+        let bitRate = args["bitRate"] as? Int ?? 48000
+        self?.decodeQueue.async {
+          do {
+            try AppDelegate.transcodeToAac(inputPath: input, outputPath: output,
+                                           bitRate: bitRate)
+            DispatchQueue.main.async { result(nil) }
+          } catch {
+            DispatchQueue.main.async {
+              result(FlutterError(code: "transcode_failed",
+                                  message: error.localizedDescription, details: nil))
+            }
+          }
+        }
+      }
     FlutterMethodChannel(name: "diktafon/system", binaryMessenger: messenger)
       .setMethodCallHandler { [weak self] call, result in
         switch call.method {
@@ -130,6 +160,100 @@ import UIKit
       .flatMap { $0.windows }
       .first { $0.isKeyWindow }?
       .rootViewController
+  }
+
+  /// PCM WAV → AAC-LC m4a (§6.4): AVAssetReader hands the writer interleaved
+  /// PCM at the source rate; the AAC-configured writer input runs the encode.
+  private static func transcodeToAac(inputPath: String, outputPath: String,
+                                     bitRate: Int) throws {
+    let asset = AVURLAsset(url: URL(fileURLWithPath: inputPath))
+    guard let track = asset.tracks(withMediaType: .audio).first else {
+      throw NSError(domain: "diktafon", code: 10, userInfo: [
+        NSLocalizedDescriptionKey: "no audio track in \(inputPath)"])
+    }
+    var sampleRate = 16000.0
+    var channels = 1
+    if let desc = track.formatDescriptions.first,
+       let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(
+         desc as! CMAudioFormatDescription)?.pointee {
+      sampleRate = asbd.mSampleRate
+      channels = Int(asbd.mChannelsPerFrame)
+    }
+
+    let reader = try AVAssetReader(asset: asset)
+    let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVLinearPCMBitDepthKey: 16,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+    ])
+    guard reader.canAdd(readerOutput) else {
+      throw NSError(domain: "diktafon", code: 11, userInfo: [
+        NSLocalizedDescriptionKey: "cannot read \(inputPath) as PCM"])
+    }
+    reader.add(readerOutput)
+
+    // MediaMuxer-style truncation: a leftover from a failed earlier run
+    // must not make the writer fail.
+    try? FileManager.default.removeItem(atPath: outputPath)
+    let writer = try AVAssetWriter(outputURL: URL(fileURLWithPath: outputPath),
+                                   fileType: .m4a)
+    let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+      AVFormatIDKey: kAudioFormatMPEG4AAC,
+      AVSampleRateKey: sampleRate,
+      AVNumberOfChannelsKey: channels,
+      AVEncoderBitRateKey: bitRate,
+    ])
+    guard writer.canAdd(writerInput) else {
+      throw NSError(domain: "diktafon", code: 12, userInfo: [
+        NSLocalizedDescriptionKey: "cannot write \(outputPath) as AAC"])
+    }
+    writer.add(writerInput)
+
+    guard reader.startReading() else {
+      throw reader.error ?? NSError(domain: "diktafon", code: 13, userInfo: [
+        NSLocalizedDescriptionKey: "AVAssetReader failed to start"])
+    }
+    guard writer.startWriting() else {
+      reader.cancelReading()
+      throw writer.error ?? NSError(domain: "diktafon", code: 14, userInfo: [
+        NSLocalizedDescriptionKey: "AVAssetWriter failed to start"])
+    }
+    writer.startSession(atSourceTime: .zero)
+
+    let queue = DispatchQueue(label: "cz.mod42.diktafon.transcode-feed")
+    let done = DispatchSemaphore(value: 0)
+    writerInput.requestMediaDataWhenReady(on: queue) {
+      while writerInput.isReadyForMoreMediaData {
+        if let sample = readerOutput.copyNextSampleBuffer() {
+          if !writerInput.append(sample) {
+            reader.cancelReading()
+            writerInput.markAsFinished()
+            done.signal()
+            return
+          }
+        } else {
+          writerInput.markAsFinished()
+          done.signal()
+          return
+        }
+      }
+    }
+    done.wait()
+
+    if reader.status == .failed {
+      writer.cancelWriting()
+      throw reader.error ?? NSError(domain: "diktafon", code: 15, userInfo: [
+        NSLocalizedDescriptionKey: "AVAssetReader failed mid-file"])
+    }
+    let finished = DispatchSemaphore(value: 0)
+    writer.finishWriting { finished.signal() }
+    finished.wait()
+    if writer.status != .completed {
+      throw writer.error ?? NSError(domain: "diktafon", code: 16, userInfo: [
+        NSLocalizedDescriptionKey: "AVAssetWriter did not complete"])
+    }
   }
 
   /// Decodes the first audio track to mono float PCM, resampled to 16 kHz.

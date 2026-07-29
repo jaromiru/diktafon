@@ -75,22 +75,27 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
-    // Backgrounded Android delivers *silence* to the mic (no foreground
-    // service — D13 still open) while the elapsed ticker keeps counting:
-    // finalize the memo instead of recording dead air. iOS records on
-    // (audio background mode); desktop never pauses the activity.
+    // D13: with the microphone foreground service up, an Android capture
+    // records on through backgrounding/screen-off (backgroundCapable). If
+    // the service was rejected, backgrounded Android delivers *silence*
+    // while the elapsed ticker keeps counting — finalize the memo instead
+    // of recording dead air. iOS records on (audio background mode);
+    // desktop never pauses the activity.
+    final recording = ref.read(recordingControllerProvider);
     if (lifecycle == AppLifecycleState.paused &&
         defaultTargetPlatform == TargetPlatform.android &&
-        ref
-            .read(recordingControllerProvider)
-            .isRecordingIn(widget.cassetteId)) {
+        !recording.backgroundCapable &&
+        recording.isRecordingIn(widget.cassetteId)) {
       unawaited(ref.read(recordingControllerProvider.notifier).stop());
     }
   }
 
   Future<void> _loadTape(Tape tape) async {
+    // filePath is part of the identity: the transcode job (§6.4) swaps a
+    // fresh memo's WAV for its AAC and deletes the WAV — without a reload
+    // the deck would try to open the deleted file on the next (re)start.
     final signature = tape.memos
-        .map((m) => '${m.id}:${m.durationMs}')
+        .map((m) => '${m.id}:${m.durationMs}:${m.filePath}')
         .join('|');
     if (signature == _loadedTapeSignature) return;
     _loadedTapeSignature = signature;

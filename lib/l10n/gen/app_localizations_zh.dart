@@ -595,6 +595,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label 已安装';
   }
+
+  @override
+  String get notifRecording => '正在录音';
+
+  @override
+  String get notifRecordingChannel => '录音';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1188,4 +1194,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String notifModelInstalled(String label) {
     return '$label 已安裝';
   }
+
+  @override
+  String get notifRecording => '正在錄音';
+
+  @override
+  String get notifRecordingChannel => '錄音';
 }

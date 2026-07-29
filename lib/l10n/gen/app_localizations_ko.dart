@@ -583,4 +583,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String notifModelInstalled(String label) {
     return '$label 설치됨';
   }
+
+  @override
+  String get notifRecording => '녹음 중';
+
+  @override
+  String get notifRecordingChannel => '녹음';
 }

@@ -1,7 +1,13 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
+import '../l10n/locale_resolution.dart';
+import '../services/audio/capture_recovery.dart';
 import '../services/audio/recorder_service.dart';
 import 'providers.dart';
 
@@ -11,12 +17,19 @@ class RecordingState {
   const RecordingState({
     required this.cassetteId,
     required this.elapsed,
+    this.backgroundCapable = true,
   });
 
   static const idle = RecordingState(cassetteId: null, elapsed: Duration.zero);
 
   final String? cassetteId;
   final Duration elapsed;
+
+  /// D13: whether this capture survives the app leaving the foreground —
+  /// true everywhere except Android with the microphone foreground service
+  /// not running (start rejected / pre-service build), where the screen
+  /// falls back to finalizing on backgrounding.
+  final bool backgroundCapable;
 
   bool get isRecording => cassetteId != null;
 
@@ -82,14 +95,29 @@ class RecordingController extends Notifier<RecordingState> {
         await recorder.discard();
         return RecordStartOutcome.ignored;
       }
+      // D13: on Android, a microphone foreground service keeps the capture
+      // alive with the app backgrounded / screen off. A rejected start is
+      // not an error — the screen falls back to finalizing on backgrounding
+      // (backgroundCapable=false), exactly the pre-service behaviour.
+      final backgroundCapable = await _pinForegroundService();
+      if (_abortRequested) {
+        await ref.read(recordingForegroundGlueProvider).stop();
+        await recorder.discard();
+        return RecordStartOutcome.ignored;
+      }
       _watchCaptureStops(recorder);
       _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
         state = RecordingState(
           cassetteId: state.cassetteId,
           elapsed: recorder.elapsed,
+          backgroundCapable: state.backgroundCapable,
         );
       });
-      state = RecordingState(cassetteId: cassetteId, elapsed: Duration.zero);
+      state = RecordingState(
+        cassetteId: cassetteId,
+        elapsed: Duration.zero,
+        backgroundCapable: backgroundCapable,
+      );
       return RecordStartOutcome.started;
     } catch (_) {
       return RecordStartOutcome.failed;
@@ -102,6 +130,28 @@ class RecordingController extends Notifier<RecordingState> {
   /// up, player still pausing) — called when its screen deactivates.
   void abortStartIn(String cassetteId) {
     if (_startingIn == cassetteId) _abortRequested = true;
+  }
+
+  bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;
+
+  Future<bool> _pinForegroundService() async {
+    if (!_isAndroid) return true; // iOS: audio bg mode; desktop never pauses
+    final l10n = _systemL10n();
+    return ref.read(recordingForegroundGlueProvider).start(
+          title: l10n.notifRecording,
+          channelName: l10n.notifRecordingChannel,
+        );
+  }
+
+  /// The service notification renders outside any widget tree — resolve the
+  /// system locale the way main() does for download notifications (§13).
+  AppLocalizations _systemL10n() {
+    try {
+      return lookupAppLocalizations(
+          padZhLocale(ui.PlatformDispatcher.instance.locale));
+    } catch (_) {
+      return lookupAppLocalizations(const ui.Locale('en'));
+    }
   }
 
   /// The OS can end the capture behind the app's back (phone call, Siri,
@@ -127,16 +177,23 @@ class RecordingController extends Notifier<RecordingState> {
       final recorder = ref.read(recorderServiceProvider);
       final result = await recorder.stop();
       state = RecordingState.idle;
+      await ref.read(recordingForegroundGlueProvider).stop();
 
       await ref.read(memoRepositoryProvider).insert(
             recorder.toMemo(result, cassetteId),
           );
       await ref.read(cassetteRepositoryProvider).touch(cassetteId);
-      await ref.read(jobQueueProvider).enqueueTranscription(result.memoId);
+      final jobs = ref.read(jobQueueProvider);
+      await jobs.enqueueTranscription(result.memoId);
+      await jobs.enqueueTranscode(result.memoId);
+      // Row + jobs are durable — from here the normal machinery owns the
+      // capture, so launch recovery (§14) must stop considering it.
+      await removeCaptureMarker(result.filePath);
     } finally {
       _stopping = false;
       // Whatever failed above, the UI must never stay frozen mid-recording.
       if (state.isRecording) state = RecordingState.idle;
+      unawaited(ref.read(recordingForegroundGlueProvider).stop());
     }
   }
 }
