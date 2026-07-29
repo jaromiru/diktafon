@@ -84,11 +84,17 @@ class _Memo {
 }
 
 class _Loc {
-  const _Loc(this.code, this.label, this.summary, this.memos);
-  final String code;
+  const _Loc(this.code, this.label, this.summary, this.memos,
+      {this.uiLocale});
+  final String code; // shot name, detectedLang, transcript language
   final String label;
   final String summary;
   final List<_Memo> memos; // measure, quote, colors — oldest first
+
+  /// Forced UI locale — defaults to `Locale(code)`. The zh entries need it:
+  /// content codes are script-qualified (`zh-Hans`/`zh-Hant`, D8) while the
+  /// UI locale resolves via language+region (wave-2 `resolveAppLocale`).
+  final Locale? uiLocale;
 }
 
 /// The store-screenshot "Kitchen renovation" cassette, translated. Content
@@ -423,6 +429,323 @@ const _locales = [
           'birden. Fırın hariç her şey kalıyor.'),
     ],
   ),
+  _Loc(
+    'it',
+    'Ristrutturazione della cucina',
+    'La ristrutturazione della cucina procede: le misure sono prese, il '
+        'preventivo dell\'artigiano arriva giovedì e il colore dei mobili è '
+        'tra verde salvia e bianco sporco. Tutti gli elettrodomestici '
+        'restano tranne il forno.',
+    [
+      _Memo([
+        'Stamattina ho misurato tutta la cucina.',
+        'La parete della finestra è tre metri e venti e il piano di lavoro '
+            'due e quaranta, con settanta centimetri per il frigorifero.',
+        'Una cosa da ricordare: il tubo del termosifone sporge a sinistra, '
+            'quindi il mobile ad angolo ha bisogno di un intaglio.',
+      ], 'Cucina misurata; il mobile ad angolo richiede un intaglio.'),
+      _Memo([
+        'Ho chiamato Hanson per il preventivo.',
+        'Può iniziare la seconda settimana del mese prossimo e la cifra '
+            'completa arriva entro giovedì.',
+        'La demolizione è inclusa ma lo smaltimento è a parte, circa '
+            'duecento.',
+      ], 'Hanson può iniziare la seconda settimana del mese prossimo; il '
+          'preventivo completo arriva giovedì. Demolizione inclusa, '
+          'smaltimento ~200 a parte.'),
+      _Memo([
+        'Colori dei mobili, terzo giro.',
+        'Torno sempre al verde salvia, ma il bianco sporco farebbe sembrare '
+            'la stanza più grande.',
+        'Magari verde sotto e bianco sopra.',
+        'Deciso anche: tutti gli elettrodomestici restano tranne il forno, '
+            'quello è andato.',
+      ], 'Colore dei mobili tra verde salvia e bianco sporco, forse '
+          'combinati. Resta tutto tranne il forno.'),
+    ],
+  ),
+  _Loc(
+    'id',
+    'Renovasi dapur',
+    'Renovasi dapur terus berjalan: pengukuran sudah selesai, penawaran '
+        'kontraktor datang hari Kamis, dan warna kabinet tinggal antara '
+        'hijau sage atau putih gading. Semua peralatan tetap dipakai '
+        'kecuali oven.',
+    [
+      _Memo([
+        'Tadi pagi saya mengukur seluruh dapur.',
+        'Dinding jendela tiga meter dua puluh dan meja dapur dua meter '
+            'empat puluh, tersisa tujuh puluh sentimeter untuk kulkas.',
+        'Satu hal yang perlu diingat: pipa radiator menonjol di sebelah '
+            'kiri, jadi kabinet sudut perlu dibuat lubang.',
+      ], 'Dapur sudah diukur; kabinet sudut perlu lubang untuk pipa.'),
+      _Memo([
+        'Saya menelepon Hanson soal penawaran.',
+        'Dia bisa mulai minggu kedua bulan depan dan angka lengkapnya '
+            'datang hari Kamis.',
+        'Pembongkaran sudah termasuk tapi pembuangan puing bayar terpisah, '
+            'sekitar dua ratus.',
+      ], 'Hanson bisa mulai minggu kedua bulan depan; penawaran lengkap '
+          'datang Kamis. Pembongkaran termasuk, pembuangan ~200 terpisah.'),
+      _Memo([
+        'Warna kabinet, ronde ketiga.',
+        'Saya terus kembali ke hijau sage, tapi putih gading akan membuat '
+            'ruangan terasa lebih besar.',
+        'Mungkin hijau di bawah dan putih di atas.',
+        'Juga sudah diputuskan: semua peralatan tetap dipakai kecuali oven, '
+            'yang itu sudah rusak.',
+      ], 'Warna kabinet antara hijau sage dan putih gading, mungkin '
+          'kombinasi. Semua tetap kecuali oven.'),
+    ],
+  ),
+  _Loc(
+    'uk',
+    'Ремонт кухні',
+    'Ремонт кухні просувається: заміри зроблено, кошторис від підрядника '
+        'буде в четвер, а колір шафок обирається між шавлієво-зеленим і '
+        'молочно-білим. Уся техніка залишається, крім духовки.',
+    [
+      _Memo([
+        'Сьогодні вранці обміряв усю кухню.',
+        'Стіна з вікном — три метри двадцять, стільниця — два сорок, на '
+            'холодильник лишається сімдесят сантиметрів.',
+        'Важливо не забути: зліва виступає труба від батареї, тож у '
+            'кутовій шафці потрібен виріз.',
+      ], 'Кухню обміряно; у кутовій шафці потрібен виріз під трубу.'),
+      _Memo([
+        'Телефонував Хансону щодо кошторису.',
+        'Він може почати другого тижня наступного місяця, а повна сума '
+            'буде до четверга.',
+        'Демонтаж входить у ціну, але вивіз сміття окремо, приблизно '
+            'двісті.',
+      ], 'Хансон може почати другого тижня наступного місяця; повний '
+          'кошторис буде в четвер. Демонтаж включено, вивіз ~200 окремо.'),
+      _Memo([
+        'Колір шафок, третій захід.',
+        'Увесь час повертаюся до шавлієво-зеленого, але з молочно-білим '
+            'кімната здавалася б більшою.',
+        'Може, знизу зелений, зверху білий.',
+        'Ще вирішив: уся техніка залишається, крім духовки, вона своє '
+            'відслужила.',
+      ], 'Колір шафок: шавлієво-зелений чи молочно-білий, можливо, разом. '
+          'Техніка залишається, крім духовки.'),
+    ],
+  ),
+  _Loc(
+    'vi',
+    'Sửa lại nhà bếp',
+    'Việc sửa bếp đang tiến triển: đo đạc đã xong, báo giá của nhà thầu sẽ '
+        'đến thứ Năm, và màu tủ bếp chỉ còn giữa xanh xô thơm và trắng ngà. '
+        'Mọi thiết bị đều giữ lại, trừ lò nướng.',
+    [
+      _Memo([
+        'Sáng nay tôi đã đo toàn bộ nhà bếp.',
+        'Bức tường có cửa sổ dài ba mét hai, dãy bàn bếp hai mét tư, còn '
+            'lại bảy mươi phân cho tủ lạnh.',
+        'Một điều cần nhớ: ống sưởi nhô ra bên trái, nên tủ góc cần khoét '
+            'một lỗ.',
+      ], 'Đã đo xong bếp; tủ góc cần khoét lỗ cho ống sưởi.'),
+      _Memo([
+        'Tôi đã gọi Hanson về báo giá.',
+        'Ông ấy có thể bắt đầu vào tuần thứ hai của tháng sau và con số '
+            'đầy đủ sẽ đến trước thứ Năm.',
+        'Phá dỡ đã bao gồm nhưng chở phế thải tính riêng, khoảng hai trăm.',
+      ], 'Hanson có thể bắt đầu tuần thứ hai tháng sau; báo giá đầy đủ đến '
+          'thứ Năm. Phá dỡ bao gồm, chở phế thải ~200 tính riêng.'),
+      _Memo([
+        'Màu tủ bếp, vòng thứ ba.',
+        'Tôi cứ quay lại với xanh xô thơm, nhưng trắng ngà sẽ làm căn '
+            'phòng trông rộng hơn.',
+        'Có lẽ xanh ở dưới và trắng ở trên.',
+        'Cũng đã quyết: mọi thiết bị giữ lại trừ lò nướng, cái đó hỏng '
+            'hẳn rồi.',
+      ], 'Màu tủ giữa xanh xô thơm và trắng ngà, có thể kết hợp. Giữ mọi '
+          'thiết bị trừ lò nướng.'),
+    ],
+  ),
+  // CJK transcripts are authored with a space at every word boundary — the
+  // span build joins CJK-adjacent words flush (§13 joinWords), so the shot
+  // shows natural unspaced text while taps still land on words. Summaries
+  // and gists are plain strings and are written without spaces directly.
+  _Loc(
+    'ja',
+    'キッチンのリフォーム',
+    'キッチンの改装は順調。採寸は済み、業者の見積もりは木曜に届く。棚の色は'
+        'セージグリーンかオフホワイトの二択まで絞れた。オーブン以外の家電は'
+        'すべてそのまま使う。',
+    [
+      _Memo([
+        '今朝 キッチン 全体 を 採寸 した 。',
+        '窓側 の 壁 は 三 メートル 二十 、 カウンター は 二 メートル 四十 で 、 '
+            '冷蔵庫 に は 七十 センチ 残る 。',
+        '忘れ ない よう に 、 左 に ラジエーター の 配管 が 出っ張って いる '
+            'から 、 コーナー 収納 に は 切り欠き が 要る 。',
+      ], 'キッチン採寸済み。コーナー収納には配管用の切り欠きが要る。'),
+      _Memo([
+        '見積もり の 件 で ハンソン さん に 電話 した 。',
+        '来月 の 第 二 週 に 着工 でき て 、 正式 な 金額 は 木曜 まで に 出る '
+            'そう だ 。',
+        '解体 は 込み だ が 、 廃材 の 処分 は 別 で だいたい 二百 かかる 。',
+      ], 'ハンソンさんは来月第二週に着工可能。正式な見積もりは木曜。'
+          '解体込み、処分は別で約二百。'),
+      _Memo([
+        '棚 の 色 、 三 回 目 。',
+        'つい セージグリーン に 戻って しまう が 、 オフホワイト なら 部屋 が '
+            '広く 見える はず 。',
+        '下 を 緑 、 上 を 白 に する 手 も ある 。',
+        'それ と 、 家電 は オーブン 以外 すべて 残す こと に 決めた 。 あれ '
+            'は もう 寿命 だ 。',
+      ], '棚の色はセージグリーンかオフホワイト、上下で分けるかも。'
+          '家電はオーブン以外残す。'),
+    ],
+  ),
+  _Loc(
+    'zh-Hans',
+    '厨房翻新',
+    '厨房改造在推进：尺寸量好了，承包商的报价周四到，柜子的颜色在鼠尾草绿和'
+        '米白之间二选一。除了烤箱，所有电器都留下。',
+    uiLocale: Locale('zh'),
+    [
+      _Memo([
+        '今天 早上 量 了 整个 厨房 。',
+        '窗户 那面 墙 三 米 二 ， 台面 两 米 四 ， 留 给 冰箱 七十 厘米 。',
+        '有 一点 要 记住 ， 暖气 管 在 左边 凸 出来 ， 所以 转角 柜 要 开 个 '
+            '缺口 。',
+      ], '厨房量好了；转角柜需要为暖气管开缺口。'),
+      _Memo([
+        '打 电话 问 了 汉森 报价 的 事 。',
+        '他 下个月 第二 周 能 开工 ， 完整 的 数字 周四 前 给 。',
+        '拆除 包 在 里面 ， 但 清运 另 算 ， 大概 两百 。',
+      ], '汉森下个月第二周能开工；完整报价周四到。拆除包含，清运另算约两百。'),
+      _Memo([
+        '柜子 颜色 ， 第三 轮 。',
+        '我 总 想 回 鼠尾草 绿 ， 可 米白 会 让 房间 显 大 。',
+        '也许 下面 绿 ， 上面 白 。',
+        '还 定 了 ： 除了 烤箱 ， 所有 电器 都 留 ， 那 台 是 真 不行 了 。',
+      ], '柜子颜色在鼠尾草绿和米白之间，可能上下搭配。电器都留，只换烤箱。'),
+    ],
+  ),
+  _Loc(
+    'zh-Hant',
+    '廚房翻新',
+    '廚房改造在推進：尺寸量好了，承包商的報價週四到，櫃子的顏色在鼠尾草綠和'
+        '米白之間二選一。除了烤箱，所有電器都留下。',
+    uiLocale: Locale('zh', 'TW'),
+    [
+      _Memo([
+        '今天 早上 量 了 整個 廚房 。',
+        '窗戶 那面 牆 三 米 二 ， 檯面 兩 米 四 ， 留 給 冰箱 七十 公分 。',
+        '有 一點 要 記住 ， 暖氣 管 在 左邊 凸 出來 ， 所以 轉角 櫃 要 開 個 '
+            '缺口 。',
+      ], '廚房量好了；轉角櫃需要為暖氣管開缺口。'),
+      _Memo([
+        '打 電話 問 了 漢森 報價 的 事 。',
+        '他 下個月 第二 週 能 開工 ， 完整 的 數字 週四 前 給 。',
+        '拆除 包 在 裡面 ， 但 清運 另 算 ， 大概 兩百 。',
+      ], '漢森下個月第二週能開工；完整報價週四到。拆除包含，清運另算約兩百。'),
+      _Memo([
+        '櫃子 顏色 ， 第三 輪 。',
+        '我 總 想 回 鼠尾草 綠 ， 可是 米白 會 讓 房間 顯 大 。',
+        '也許 下面 綠 ， 上面 白 。',
+        '還 定 了 ： 除了 烤箱 ， 所有 電器 都 留 ， 那 台 是 真 不行 了 。',
+      ], '櫃子顏色在鼠尾草綠和米白之間，可能上下搭配。電器都留，只換烤箱。'),
+    ],
+  ),
+  _Loc(
+    'ar',
+    'تجديد المطبخ',
+    'تجديد المطبخ يتقدّم: القياسات جاهزة، وعرض سعر المقاول يصل يوم الخميس، '
+        'ولون الخزائن محصور بين أخضر المريمية والأبيض الفاتح. كل الأجهزة '
+        'تبقى ما عدا الفرن.',
+    [
+      _Memo([
+        'قست المطبخ كله هذا الصباح.',
+        'جدار النافذة ثلاثة أمتار وعشرون سنتيمتراً وسطح العمل متران '
+            'وأربعون، ويتبقى سبعون سنتيمتراً للثلاجة.',
+        'شيء يجب تذكّره: أنبوب المدفأة بارز على اليسار، لذا تحتاج خزانة '
+            'الزاوية إلى فتحة.',
+      ], 'تم قياس المطبخ؛ خزانة الزاوية تحتاج فتحة للأنبوب.'),
+      _Memo([
+        'اتصلت بهانسون بخصوص عرض السعر.',
+        'يمكنه أن يبدأ في الأسبوع الثاني من الشهر القادم، والرقم الكامل '
+            'يصل قبل الخميس.',
+        'الهدم مشمول لكن نقل المخلفات إضافي، نحو مئتين.',
+      ], 'هانسون يبدأ في الأسبوع الثاني من الشهر القادم؛ العرض الكامل يصل '
+          'الخميس. الهدم مشمول، والنقل إضافي نحو مئتين.'),
+      _Memo([
+        'ألوان الخزائن، الجولة الثالثة.',
+        'أعود دائماً إلى أخضر المريمية، لكن الأبيض الفاتح سيجعل الغرفة '
+            'تبدو أوسع.',
+        'ربما أخضر في الأسفل وأبيض في الأعلى.',
+        'وقرّرت أيضاً أن تبقى كل الأجهزة ما عدا الفرن، فقد انتهى أمره.',
+      ], 'لون الخزائن بين أخضر المريمية والأبيض الفاتح، وربما الاثنان '
+          'معاً. كل الأجهزة تبقى ما عدا الفرن.'),
+    ],
+  ),
+  _Loc(
+    'fa',
+    'بازسازی آشپزخانه',
+    'بازسازی آشپزخانه پیش می‌رود: اندازه‌گیری تمام شده، پیشنهاد قیمت '
+        'پیمانکار پنجشنبه می‌رسد و رنگ کابینت‌ها بین سبز مریم‌گلی و سفید '
+        'استخوانی مانده است. همهٔ لوازم می‌مانند جز فر.',
+    [
+      _Memo([
+        'امروز صبح کل آشپزخانه را اندازه گرفتم.',
+        'دیوار پنجره سه متر و بیست است و صفحهٔ کار دو متر و چهل، و هفتاد '
+            'سانتی‌متر برای یخچال می‌ماند.',
+        'یک نکته که باید یادم بماند: لولهٔ شوفاژ سمت چپ بیرون زده، پس '
+            'کابینت گوشه به یک برش نیاز دارد.',
+      ], 'آشپزخانه اندازه‌گیری شد؛ کابینت گوشه برای لوله برش می‌خواهد.'),
+      _Memo([
+        'برای پیشنهاد قیمت به هانسون زنگ زدم.',
+        'می‌تواند هفتهٔ دوم ماه آینده شروع کند و رقم کامل تا پنجشنبه '
+            'می‌رسد.',
+        'تخریب شامل است اما بردن نخاله جداست، حدود دویست.',
+      ], 'هانسون از هفتهٔ دوم ماه آینده می‌تواند شروع کند؛ پیشنهاد کامل '
+          'پنجشنبه می‌رسد. تخریب شامل است، نخاله جدا حدود دویست.'),
+      _Memo([
+        'رنگ کابینت‌ها، دور سوم.',
+        'مدام به سبز مریم‌گلی برمی‌گردم، اما سفید استخوانی اتاق را '
+            'بزرگ‌تر نشان می‌دهد.',
+        'شاید پایین سبز و بالا سفید.',
+        'ضمناً تصمیم گرفتم همهٔ لوازم بمانند جز فر، که دیگر کارش تمام '
+            'است.',
+      ], 'رنگ کابینت بین سبز مریم‌گلی و سفید استخوانی، شاید ترکیبی. همه '
+          'چیز می‌ماند جز فر.'),
+    ],
+  ),
+  _Loc(
+    'hi',
+    'रसोई का नवीनीकरण',
+    'रसोई का काम आगे बढ़ रहा है: नाप हो चुकी है, ठेकेदार का कोटेशन गुरुवार '
+        'को आएगा, और कैबिनेट का रंग सेज ग्रीन या ऑफ-व्हाइट में से तय होना '
+        'है। ओवन को छोड़कर सारे उपकरण रहेंगे।',
+    [
+      _Memo([
+        'आज सुबह पूरी रसोई नापी।',
+        'खिड़की वाली दीवार तीन मीटर बीस है और काउंटर दो मीटर चालीस, फ्रिज '
+            'के लिए सत्तर सेंटीमीटर बचते हैं।',
+        'एक बात याद रखनी है: बाईं ओर रेडिएटर का पाइप निकला हुआ है, इसलिए '
+            'कोने वाली कैबिनेट में कटाव चाहिए।',
+      ], 'रसोई नाप ली; कोने वाली कैबिनेट में पाइप के लिए कटाव चाहिए।'),
+      _Memo([
+        'कोटेशन के लिए हैनसन को फ़ोन किया।',
+        'वह अगले महीने के दूसरे हफ़्ते में शुरू कर सकता है और पूरा आँकड़ा '
+            'गुरुवार तक आ जाएगा।',
+        'तोड़फोड़ शामिल है लेकिन मलबा हटाना अलग से, करीब दो सौ।',
+      ], 'हैनसन अगले महीने के दूसरे हफ़्ते में शुरू कर सकता है; पूरा '
+          'कोटेशन गुरुवार को। तोड़फोड़ शामिल, मलबा हटाना अलग से।'),
+      _Memo([
+        'कैबिनेट के रंग, तीसरा दौर।',
+        'मैं बार-बार सेज ग्रीन पर लौट आता हूँ, पर ऑफ-व्हाइट से कमरा बड़ा '
+            'लगेगा।',
+        'शायद नीचे हरा और ऊपर सफ़ेद।',
+        'यह भी तय किया कि ओवन को छोड़कर सारे उपकरण रहेंगे, वह अब चलने '
+            'वाला नहीं।',
+      ], 'कैबिनेट का रंग सेज ग्रीन बनाम ऑफ-व्हाइट, शायद दोनों। ओवन छोड़कर '
+          'सब रहेगा।'),
+    ],
+  ),
 ];
 
 void main() {
@@ -454,7 +777,9 @@ void main() {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
-      tester.platformDispatcher.localesTestValue = [Locale(loc.code)];
+      tester.platformDispatcher.localesTestValue = [
+        loc.uiLocale ?? Locale(loc.code)
+      ];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
       final dir = Directory('${_workDir.path}/${loc.code}')
@@ -526,9 +851,11 @@ void main() {
       await _settle(tester);
 
       // Open the cassette (the card paints its label — found via semantics
-      // "{label}, {memos}") and park the playhead mid-tape like 02-cassette.
+      // "{label}, {memos}"; anchored on the label only, since the separator
+      // is locale punctuation — 、 ， ، — in the CJK/RTL ARBs) and park the
+      // playhead mid-tape like 02-cassette.
       await tester
-          .tap(find.bySemanticsLabel(RegExp('^${RegExp.escape(loc.label)},')));
+          .tap(find.bySemanticsLabel(RegExp('^${RegExp.escape(loc.label)}')));
       await _settle(tester);
       // The collapsed summary Text holds the full string (store test relies
       // on this too) — a robust in-language probe; transcript words may be
@@ -539,6 +866,16 @@ void main() {
       final player = container.read(tapePlayerProvider);
       expect(player.tape.totalDurationMs, greaterThan(0));
       await player.seekGlobal((player.tape.totalDurationMs * 0.55).round());
+      await _settle(tester);
+      // The seek-follow scroll (§ transcript follows seeks) moves the view
+      // when a locale's wordier transcript puts the 55 % word below the
+      // viewport — jump back to the top so every locale crops to the same
+      // counter → timeline → memo-1-header/gist strip. No-op when the view
+      // never scrolled.
+      tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .jumpTo(0);
       await _settle(tester);
       await _shot(tester, loc.code);
     }, timeout: const Timeout(Duration(minutes: 2)));

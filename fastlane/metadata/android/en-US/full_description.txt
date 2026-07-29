@@ -12,7 +12,7 @@ Automatic transcriptions and summaries: every memo is transcribed, every cassett
 Everything is computed on your device. No accounts, no cloud, no ads, no analytics — your voice never leaves your phone. The only network use is a one-time download of the on-device models (Wi-Fi recommended; about 2 GB for the default models, up to 3 GB for the largest — or just 0.2 GB if you skip summaries).
 
 <b>SPEAKS YOUR LANGUAGE</b>
-Ten languages: English, Czech, French, German, Korean, Polish, Portuguese, Russian, Spanish and Turkish — in recordings, summaries and the app itself. The spoken language is detected for each memo, so one tape can freely mix languages.
+Twenty languages: Arabic, Chinese (Simplified and Traditional), Czech, English, French, German, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Russian, Spanish, Turkish, Ukrainian and Vietnamese — in recordings, summaries and the app itself. The spoken language is detected for each memo, so one tape can freely mix languages.
 
 <b>FREE &amp; OPEN SOURCE</b>
 No cost, no ads, no lock-in. MIT-licensed — read the code, build it yourself, make it yours: https://github.com/jaromiru/diktafon

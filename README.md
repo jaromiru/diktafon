@@ -39,13 +39,19 @@ recordings.
   read the code, build it yourself, make it yours.
 
 <p align="center">
-  <img src="media/lang/en.png" width="19%" alt="English"> <img src="media/lang/cs.png" width="19%" alt="Czech"> <img src="media/lang/de.png" width="19%" alt="German"> <img src="media/lang/es.png" width="19%" alt="Spanish"> <img src="media/lang/fr.png" width="19%" alt="French"> 
+  <img src="media/lang/en.png" width="19%" alt="English"> <img src="media/lang/ar.png" width="19%" alt="Arabic"> <img src="media/lang/cs.png" width="19%" alt="Czech"> <img src="media/lang/de.png" width="19%" alt="German"> <img src="media/lang/es.png" width="19%" alt="Spanish">
 </p>
 <p align="center">
-  <img src="media/lang/ko.png" width="19%" alt="Korean"> <img src="media/lang/pl.png" width="19%" alt="Polish"> <img src="media/lang/pt.png" width="19%" alt="Portuguese"> <img src="media/lang/ru.png" width="19%" alt="Russian"> <img src="media/lang/tr.png" width="19%" alt="Turkish">
+  <img src="media/lang/fa.png" width="19%" alt="Persian"> <img src="media/lang/fr.png" width="19%" alt="French"> <img src="media/lang/hi.png" width="19%" alt="Hindi"> <img src="media/lang/id.png" width="19%" alt="Indonesian"> <img src="media/lang/it.png" width="19%" alt="Italian">
 </p>
 <p align="center">
-  <sub>English · Čeština · Deutsch · Español · Français · 한국어 · Polski · Português · Русский · Türkçe</sub>
+  <img src="media/lang/ja.png" width="19%" alt="Japanese"> <img src="media/lang/ko.png" width="19%" alt="Korean"> <img src="media/lang/pl.png" width="19%" alt="Polish"> <img src="media/lang/pt.png" width="19%" alt="Portuguese"> <img src="media/lang/ru.png" width="19%" alt="Russian">
+</p>
+<p align="center">
+  <img src="media/lang/tr.png" width="19%" alt="Turkish"> <img src="media/lang/uk.png" width="19%" alt="Ukrainian"> <img src="media/lang/vi.png" width="19%" alt="Vietnamese"> <img src="media/lang/zh-Hans.png" width="19%" alt="Chinese (Simplified)"> <img src="media/lang/zh-Hant.png" width="19%" alt="Chinese (Traditional)">
+</p>
+<p align="center">
+  <sub>English · العربية · Čeština · Deutsch · Español · فارسی · Français · हिन्दी · Bahasa Indonesia · Italiano · 日本語 · 한국어 · Polski · Português · Русский · Türkçe · Українська · Tiếng Việt · 简体中文 · 繁體中文</sub>
 </p>
 
 ### More features
