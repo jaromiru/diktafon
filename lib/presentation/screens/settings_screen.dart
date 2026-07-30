@@ -20,6 +20,119 @@ import '../widgets/ink_toggle.dart';
 import '../widgets/settings_rows.dart';
 import 'backup_screen.dart';
 
+/// A bounded language chooser with an explicit, draggable scroll affordance.
+///
+/// [SimpleDialog] makes its choices scrollable, but does not show that a long
+/// list continues below the fold. Once the supported-language set outgrew a
+/// phone-height dialog, choices after the first screen (starting with Italian
+/// on common devices) were effectively hidden. This picker owns its controller
+/// so the thumb is always visible and usable on touch and desktop.
+class _LanguagePickerDialog extends StatefulWidget {
+  const _LanguagePickerDialog({required this.selectedLanguage});
+
+  final String? selectedLanguage;
+
+  @override
+  State<_LanguagePickerDialog> createState() =>
+      _LanguagePickerDialogState();
+}
+
+class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: 280,
+          maxWidth: 420,
+          maxHeight: 560,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+              child: Text(
+                context.l10n.transcriptionLanguageTitle,
+                style: Theme.of(context).dialogTheme.titleTextStyle,
+              ),
+            ),
+            Flexible(
+              child: Scrollbar(
+                key: const Key('language-picker-scrollbar'),
+                controller: _scrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                interactive: true,
+                child: ListView(
+                  key: const Key('language-picker-list'),
+                  controller: _scrollController,
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(0, 0, 8, 16),
+                  children: [
+                    _option(
+                      context,
+                      label: context.l10n.autoDetectOption,
+                      selected: widget.selectedLanguage == null,
+                      result: 'auto',
+                    ),
+                    for (final entry in SettingsScreen.languages.entries)
+                      _option(
+                        context,
+                        label: entry.value,
+                        selected: widget.selectedLanguage == entry.key,
+                        result: entry.key,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _option(
+    BuildContext context, {
+    required String label,
+    required bool selected,
+    required String result,
+  }) =>
+      SimpleDialogOption(
+        onPressed: () => Navigator.pop(context, result),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              child: selected
+                  ? Icon(Icons.check, size: 16, color: context.tape.ink)
+                  : null,
+            ),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : null,
+                  color: context.tape.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 /// Settings (§5.5, mockup 05): grouped ink-bordered cards, rectangular
 /// toggles. Model & backup rows are honest about what ships in M1.
 class SettingsScreen extends ConsumerWidget {
@@ -136,23 +249,8 @@ class SettingsScreen extends ConsumerWidget {
       BuildContext context, SettingsRepository repo, AppSettings s) async {
     final choice = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Text(context.l10n.transcriptionLanguageTitle),
-        children: [
-          _dialogOption(
-            dialogContext,
-            label: context.l10n.autoDetectOption,
-            selected: s.appLanguage == null,
-            result: 'auto',
-          ),
-          for (final entry in languages.entries)
-            _dialogOption(
-              dialogContext,
-              label: entry.value,
-              selected: s.appLanguage == entry.key,
-              result: entry.key,
-            ),
-        ],
+      builder: (_) => _LanguagePickerDialog(
+        selectedLanguage: s.appLanguage,
       ),
     );
     if (choice != null) {
@@ -701,4 +799,3 @@ class _PickerOption extends StatelessWidget {
     );
   }
 }
-
