@@ -3,6 +3,38 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [1.0.9] — 2026-07-30
+
+### Added
+- **Background recording** (Android) — recording keeps running with the
+  screen off or the app in the background: a microphone foreground
+  service pins the capture and shows an ongoing notification with the
+  elapsed time. Capture is now crash-durable on all platforms: audio is
+  written as WAV while recording and transcoded to the archival AAC in
+  the background afterwards, so a killed or crashed app no longer loses
+  the in-flight memo — it is recovered, complete with transcription,
+  on next launch.
+- **Manual transcript editing** — "Edit transcription" in the per-memo
+  menu. Untouched words keep their exact tap-to-seek timings; edited
+  passages are re-timed proportionally, and the memo's summary is
+  refreshed from the edited text.
+- **Ten new languages** (twenty total): Arabic, Chinese (Simplified and
+  Traditional), Hindi, Indonesian, Italian, Japanese, Persian,
+  Ukrainian and Vietnamese. Arabic and Persian get fully mirrored
+  right-to-left layouts; Japanese and Chinese transcripts get proper
+  word boundaries with genuine per-word tap-to-seek; Chinese output
+  follows the chosen script (Simplified/Traditional), with conversion
+  between the two.
+
+### Changed
+- Store screenshots (F-Droid/fastlane) replaced with the marketing set.
+
+### Fixed
+- App freezes and ANRs on Android while transcription or summaries ran:
+  the inference engines' worker threads now run at low priority without
+  OpenMP busy-waiting, so the interface stays responsive even with the
+  large-v3-turbo model working flat out.
+
 ## [1.0.8] — 2026-07-19
 
 ### Changed
@@ -172,6 +204,11 @@ First public release.
 - Android and Linux desktop builds; release CI with per-ABI APKs, signed
   builds, and provenance attestation.
 
+[1.0.9]: https://github.com/jaromiru/diktafon/compare/v1.0.8...v1.0.9
+[1.0.8]: https://github.com/jaromiru/diktafon/compare/v1.0.7...v1.0.8
+[1.0.7]: https://github.com/jaromiru/diktafon/compare/v1.0.6...v1.0.7
+[1.0.6]: https://github.com/jaromiru/diktafon/compare/v1.0.5...v1.0.6
+[1.0.5]: https://github.com/jaromiru/diktafon/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/jaromiru/diktafon/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/jaromiru/diktafon/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/jaromiru/diktafon/compare/v1.0.1...v1.0.2

@@ -1,0 +1,1 @@
+Background recording: recordings keep running with the screen off or the app in the background, and survive crashes. Transcriptions can be edited by hand. Ten new languages (twenty total), including Arabic, Chinese, Hindi and Japanese, with full right-to-left layouts. Fixes app freezes while transcription or summaries run.
