@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-theme paper (lib/presentation/theme/tape_colors.dart). -->
+    <color name="launch_background">#131210</color>
+</resources>

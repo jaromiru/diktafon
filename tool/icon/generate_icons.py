@@ -13,6 +13,8 @@ Outputs (run from the repo root: `python3 tool/icon/generate_icons.py`):
   android/.../mipmap-anydpi-v26/ic_launcher.xml   adaptive icon definition
   android/.../values/ic_launcher_background.xml   background color
   ios/Runner/Assets.xcassets/AppIcon.appiconset/  all sizes in Contents.json
+  ios/Runner/Assets.xcassets/LaunchImage.imageset/ launch-screen cassette
+                                                  (light + dark, 1x/2x/3x)
   linux/runner/resources/icon.png                 GTK window icon (256)
   assets/images/tape.png                          home-grid sprite (copy)
   media/icon.png                                  README icon (transparent)
@@ -27,6 +29,11 @@ from PIL import Image
 
 # The app's light-theme paper color (lib/presentation/theme/tape_colors.dart).
 PAPER = (0xF5, 0xF4, 0xEF, 0xFF)
+
+# Shell ink swap for the dark launch image — mirrors pixel_tape.dart's dark
+# variant (the one ink that follows the theme; §5.2).
+SHELL = (0x23, 0x1E, 0x20, 0xFF)
+SHELL_DARK = (0x3A, 0x34, 0x2E, 0xFF)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tool', 'icon', 'tape.png')
@@ -116,6 +123,36 @@ def main() -> None:
         scale = int(entry['scale'].rstrip('x'))
         save(scaled(legacy, int(round(points * scale))),
              os.path.join(iconset, name), opaque=True)
+
+    # Launch screen (§5.8): the cassette alone at 188x118 pt, centered by
+    # LaunchScreen.storyboard on the LaunchBackground named color (paper).
+    # Integer NN factors per scale keep the pixels square; the dark variant
+    # is picked by the asset catalog via its luminosity appearance.
+    print('iOS launch screen:')
+    data = list(src.getdata())
+    assert SHELL in data, 'shell ink missing from sprite'
+    dark_src = Image.new('RGBA', src.size)
+    dark_src.putdata([SHELL_DARK if px == SHELL else px for px in data])
+    launchset = os.path.join(ROOT, 'ios', 'Runner', 'Assets.xcassets',
+                             'LaunchImage.imageset')
+    launch_entries = []
+    for scale, factor in ((1, 2), (2, 4), (3, 6)):
+        suffix = f'@{scale}x' if scale > 1 else ''
+        for sprite, stem, dark in ((src, 'LaunchImage', False),
+                                   (dark_src, 'LaunchImageDark', True)):
+            name = f'{stem}{suffix}.png'
+            save(nn_upscale(sprite, factor), os.path.join(launchset, name))
+            entry = {'idiom': 'universal', 'filename': name,
+                     'scale': f'{scale}x'}
+            if dark:
+                entry['appearances'] = [
+                    {'appearance': 'luminosity', 'value': 'dark'}]
+            launch_entries.append(entry)
+    with open(os.path.join(launchset, 'Contents.json'), 'w') as f:
+        json.dump({'images': launch_entries,
+                   'info': {'version': 1, 'author': 'xcode'}}, f, indent=2)
+        f.write('\n')
+    print('  ios/.../LaunchImage.imageset/Contents.json')
 
     print('Desktop / repo / store:')
     save(scaled(legacy, 256),
