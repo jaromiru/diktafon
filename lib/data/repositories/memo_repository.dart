@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -12,15 +11,24 @@ class MemoRepository {
 
   final AppDatabase _db;
 
-  /// Tape order: chronological, append-only (§4.1, D6).
-  Stream<List<Memo>> watchMemosOf(String cassetteId) =>
-      _memosOfQuery(cassetteId)
-          .watch()
-          .map((rows) => rows.map(memoFromRow).toList());
+  /// Tape order: chronological, append-only (§4.1, D6). Transcript JSON
+  /// decodes pooled — a cassette of long memos froze frames for hundreds of
+  /// ms on phones when parsed on the UI isolate per watch emission.
+  Stream<List<Memo>> watchMemosOf(String cassetteId) => _memosOfQuery(
+      cassetteId).watch().asyncMap((rows) => _memosFromRows(rows));
 
   /// One-shot tape-order read (export, §8).
   Future<List<Memo>> memosOf(String cassetteId) async =>
-      (await _memosOfQuery(cassetteId).get()).map(memoFromRow).toList();
+      _memosFromRows(await _memosOfQuery(cassetteId).get());
+
+  Future<List<Memo>> _memosFromRows(List<MemoRow> rows) async {
+    final transcripts = await transcriptsFromJsonAsync(
+        [for (final row in rows) row.transcript]);
+    return [
+      for (var i = 0; i < rows.length; i++)
+        memoFromRow(rows[i], transcript: transcripts[i]),
+    ];
+  }
 
   SimpleSelectStatement<$MemosTable, MemoRow> _memosOfQuery(
           String cassetteId) =>
@@ -32,7 +40,7 @@ class MemoRepository {
           (m) => OrderingTerm.asc(m.id),
         ]);
 
-  Future<void> insert(Memo memo) => _db.into(_db.memos).insert(MemoRow(
+  Future<void> insert(Memo memo) async => _db.into(_db.memos).insert(MemoRow(
         id: memo.id,
         cassetteId: memo.cassetteId,
         filePath: memo.filePath,
@@ -41,7 +49,7 @@ class MemoRepository {
         detectedLang: memo.detectedLang,
         transcript: memo.transcript == null
             ? null
-            : jsonEncode(memo.transcript!.toJson()),
+            : await transcriptToJsonAsync(memo.transcript!),
         memoSummary: memo.memoSummary,
         status: memo.status.name,
       ));
@@ -60,10 +68,10 @@ class MemoRepository {
     String id,
     Transcript transcript,
     MemoStatus status,
-  ) =>
+  ) async =>
       (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
         MemosCompanion(
-          transcript: Value(jsonEncode(transcript.toJson())),
+          transcript: Value(await transcriptToJsonAsync(transcript)),
           detectedLang: Value(transcript.languageCode),
           status: Value(status.name),
         ),
@@ -77,10 +85,10 @@ class MemoRepository {
     String id,
     Transcript transcript,
     MemoStatus status,
-  ) =>
+  ) async =>
       (_db.update(_db.memos)..where((m) => m.id.equals(id))).write(
         MemosCompanion(
-          transcript: Value(jsonEncode(transcript.toJson())),
+          transcript: Value(await transcriptToJsonAsync(transcript)),
           memoSummary: const Value(null),
           status: Value(status.name),
         ),
