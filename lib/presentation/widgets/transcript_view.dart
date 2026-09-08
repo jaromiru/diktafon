@@ -200,31 +200,35 @@ class _TranscriptViewState extends State<TranscriptView> {
       itemBuilder: (context, i) {
         final memo = tape.memos[i];
         final key = _memoKeys.putIfAbsent(memo.id, GlobalKey.new);
-        return Column(
+        // Each memo repaints independently: the moving word highlight in
+        // one paragraph must not repaint the rest of the list.
+        return RepaintBoundary(
           key: key,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _MemoDivider(
-              memo: memo,
-              ordinal: i + 1,
-              hue: context.tape.hues[memoHueIndex(widget.colorSeed, i)],
-              first: i == 0,
-              onRetry: widget.onRetryMemo == null
-                  ? null
-                  : () => widget.onRetryMemo!(memo.id),
-              onCopy: memo.transcript?.isEmpty == false
-                  ? () => _copyTranscript(memo)
-                  : null,
-              onEdit: widget.onEditMemo == null || memo.transcript == null
-                  ? null
-                  : () => widget.onEditMemo!(i),
-              onDelete: widget.onDeleteMemo == null
-                  ? null
-                  : () => widget.onDeleteMemo!(i),
-            ),
-            _memoBody(context, memo, i),
-            const SizedBox(height: 4),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _MemoDivider(
+                memo: memo,
+                ordinal: i + 1,
+                hue: context.tape.hues[memoHueIndex(widget.colorSeed, i)],
+                first: i == 0,
+                onRetry: widget.onRetryMemo == null
+                    ? null
+                    : () => widget.onRetryMemo!(memo.id),
+                onCopy: memo.transcript?.isEmpty == false
+                    ? () => _copyTranscript(memo)
+                    : null,
+                onEdit: widget.onEditMemo == null || memo.transcript == null
+                    ? null
+                    : () => widget.onEditMemo!(i),
+                onDelete: widget.onDeleteMemo == null
+                    ? null
+                    : () => widget.onDeleteMemo!(i),
+              ),
+              _memoBody(context, memo, i),
+              const SizedBox(height: 4),
+            ],
+          ),
         );
       },
     );
@@ -473,8 +477,22 @@ class _MemoParagraph extends StatefulWidget {
 }
 
 class _MemoParagraphState extends State<_MemoParagraph> {
-  final List<TapGestureRecognizer> _recognizers = [];
   final _textKey = GlobalKey();
+
+  /// Global [start, end) of each word on the tape, built once per word set —
+  /// the highlight search below runs on every playback tick and must not
+  /// re-derive offsets per call.
+  List<({int start, int end})> _wordGlobalMs = const [];
+  List<TapGestureRecognizer> _recognizers = const [];
+
+  /// Index of the styled word the cached paragraph was built for (-1 =
+  /// none). A tick that keeps the highlight on the same word reuses the
+  /// previously built widget instead of reallocating a span + recognizer
+  /// per word — with ticks at 5–10 Hz this is what keeps long paragraphs
+  /// from churning the GC on phones.
+  int _builtHighlight = -2;
+  Brightness? _builtBrightness;
+  Widget? _builtBody;
 
   @override
   void dispose() {
@@ -482,6 +500,67 @@ class _MemoParagraphState extends State<_MemoParagraph> {
       r.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_MemoParagraph old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.memo.transcript, widget.memo.transcript) ||
+        !identical(old.tape, widget.tape) ||
+        old.memoIndex != widget.memoIndex) {
+      _buildWords();
+    }
+  }
+
+  /// Recognizers and global word offsets are per word set (memo identity ×
+  /// tape offsets): rebuilt on transcript edits, memo re-flow and index
+  /// shifts, reused across the playback ticks in between.
+  void _buildWords() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    final words = _allWords;
+    final tape = widget.tape;
+    final memoIndex = widget.memoIndex;
+    final onSeek = widget.onSeekGlobalMs;
+    final ranges = <({int start, int end})>[
+      for (final word in words)
+        (
+          start: tape.toGlobalMs(memoIndex, word.startMs),
+          end: tape.toGlobalMs(memoIndex, word.endMs),
+        )
+    ];
+    _recognizers = onSeek == null
+        ? const []
+        : [
+            for (final range in ranges)
+              TapGestureRecognizer()
+                ..onTap = () => onSeek(range.start),
+          ];
+    _wordGlobalMs = ranges;
+    _builtHighlight = -2;
+    _builtBody = null;
+  }
+
+  List<Word> get _allWords => [
+        for (final segment in widget.memo.transcript!.segments) ...segment.words
+      ];
+
+  /// Index of the word under [globalMs] (start ≤ ms < end), or -1 in gaps
+  /// and when no word is live. Binary search: ticks arrive at 5–10 Hz.
+  int _indexOfWordAt(int globalMs) {
+    var lo = 0, hi = _wordGlobalMs.length - 1, result = -1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (_wordGlobalMs[mid].start <= globalMs) {
+        result = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (result >= 0 && globalMs < _wordGlobalMs[result].end) return result;
+    return -1;
   }
 
   /// The paragraph's render object plus the local rect of the word under
@@ -523,31 +602,27 @@ class _MemoParagraphState extends State<_MemoParagraph> {
 
   @override
   Widget build(BuildContext context) {
-    for (final r in _recognizers) {
-      r.dispose();
+    if (_wordGlobalMs.isEmpty && _allWords.isNotEmpty) _buildWords();
+    final highlight = _indexOfWordAt(widget.globalMs);
+    final brightness = Theme.of(context).brightness;
+    if (_builtBody != null &&
+        highlight == _builtHighlight &&
+        brightness == _builtBrightness) {
+      return _builtBody!;
     }
-    _recognizers.clear();
+    _builtHighlight = highlight;
+    _builtBrightness = brightness;
 
     final tape = context.tape;
     final spans = <InlineSpan>[];
-    final words = [
-      for (final segment in widget.memo.transcript!.segments) ...segment.words
-    ];
+    final words = _allWords;
+    final hasRecognizers = _recognizers.isNotEmpty;
     for (var i = 0; i < words.length; i++) {
       final word = words[i];
-      final wordGlobalStart =
-          widget.tape.toGlobalMs(widget.memoIndex, word.startMs);
-      final wordGlobalEnd =
-          widget.tape.toGlobalMs(widget.memoIndex, word.endMs);
-      final isCurrent = widget.globalMs >= wordGlobalStart &&
-          widget.globalMs < wordGlobalEnd;
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () => widget.onSeekGlobalMs?.call(wordGlobalStart);
-      _recognizers.add(recognizer);
       spans.add(TextSpan(
         text: word.text,
-        recognizer: recognizer,
-        style: isCurrent
+        recognizer: hasRecognizers ? _recognizers[i] : null,
+        style: i == highlight
             ? TextStyle(
                 backgroundColor: tape.highlight,
                 fontWeight: FontWeight.w700,
@@ -559,7 +634,7 @@ class _MemoParagraphState extends State<_MemoParagraph> {
         if (separator.isNotEmpty) spans.add(TextSpan(text: separator));
       }
     }
-    return Padding(
+    _builtBody = Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
         onLongPress: widget.onCopy,
@@ -576,6 +651,7 @@ class _MemoParagraphState extends State<_MemoParagraph> {
         ),
       ),
     );
+    return _builtBody!;
   }
 }
 
