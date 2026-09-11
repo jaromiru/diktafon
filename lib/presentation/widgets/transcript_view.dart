@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'
     show RenderAbstractViewport, RenderParagraph;
@@ -479,28 +478,21 @@ class _MemoParagraph extends StatefulWidget {
 class _MemoParagraphState extends State<_MemoParagraph> {
   final _textKey = GlobalKey();
 
-  /// Global [start, end) of each word on the tape, built once per word set —
-  /// the highlight search below runs on every playback tick and must not
-  /// re-derive offsets per call.
+  /// Global [start, end) of each word on the tape and its plain-text char
+  /// range, built once per word set — the highlight search runs on every
+  /// playback tick and tap-to-seek hit-testing maps a tap to a word; both
+  /// must not re-derive offsets per call.
   List<({int start, int end})> _wordGlobalMs = const [];
-  List<TapGestureRecognizer> _recognizers = const [];
+  List<({int start, int end})> _wordChars = const [];
 
   /// Index of the styled word the cached paragraph was built for (-1 =
   /// none). A tick that keeps the highlight on the same word reuses the
-  /// previously built widget instead of reallocating a span + recognizer
-  /// per word — with ticks at 5–10 Hz this is what keeps long paragraphs
-  /// from churning the GC on phones.
+  /// previously built widget instead of reallocating a span per word —
+  /// with ticks at 5–10 Hz this is what keeps long paragraphs from
+  /// churning the GC on phones.
   int _builtHighlight = -2;
   Brightness? _builtBrightness;
   Widget? _builtBody;
-
-  @override
-  void dispose() {
-    for (final r in _recognizers) {
-      r.dispose();
-    }
-    super.dispose();
-  }
 
   @override
   void didUpdateWidget(_MemoParagraph old) {
@@ -512,32 +504,35 @@ class _MemoParagraphState extends State<_MemoParagraph> {
     }
   }
 
-  /// Recognizers and global word offsets are per word set (memo identity ×
-  /// tape offsets): rebuilt on transcript edits, memo re-flow and index
-  /// shifts, reused across the playback ticks in between.
+  /// Word ranges are per word set (memo identity × tape offsets): rebuilt
+  /// on transcript edits, memo re-flow and index shifts, reused across the
+  /// playback ticks in between. No per-word gesture recognizers — tapping
+  /// is hit-tested at the paragraph level (see [_seekAtLocalOffset]);
+  /// one recognizer object per word made scrolling a long transcript an
+  /// allocation storm on phones (thousands of objects per paragraph every
+  /// time it scrolled into the list's build cache).
   void _buildWords() {
-    for (final r in _recognizers) {
-      r.dispose();
-    }
     final words = _allWords;
     final tape = widget.tape;
     final memoIndex = widget.memoIndex;
-    final onSeek = widget.onSeekGlobalMs;
-    final ranges = <({int start, int end})>[
+    _wordGlobalMs = [
       for (final word in words)
         (
           start: tape.toGlobalMs(memoIndex, word.startMs),
           end: tape.toGlobalMs(memoIndex, word.endMs),
         )
     ];
-    _recognizers = onSeek == null
-        ? const []
-        : [
-            for (final range in ranges)
-              TapGestureRecognizer()
-                ..onTap = () => onSeek(range.start),
-          ];
-    _wordGlobalMs = ranges;
+    final chars = <({int start, int end})>[];
+    var offset = 0;
+    for (var i = 0; i < words.length; i++) {
+      final text = words[i].text;
+      chars.add((start: offset, end: offset + text.length));
+      offset += text.length;
+      if (i + 1 < words.length) {
+        offset += wordSeparator(text, words[i + 1].text).length;
+      }
+    }
+    _wordChars = chars;
     _builtHighlight = -2;
     _builtBody = null;
   }
@@ -561,6 +556,29 @@ class _MemoParagraphState extends State<_MemoParagraph> {
     }
     if (result >= 0 && globalMs < _wordGlobalMs[result].end) return result;
     return -1;
+  }
+
+  /// Tap-to-seek (§4.2): translate the tap's text position to a word and
+  /// seek to its start. Taps between words resolve to the nearest word —
+  /// the position the engine's own span hit-testing answered before.
+  void _seekAtLocalOffset(Offset local) {
+    final render = _textKey.currentContext?.findRenderObject();
+    if (render is! RenderParagraph || !render.hasSize) return;
+    final charOffset = render.getPositionForOffset(local).offset;
+    if (charOffset < 0) return;
+    var lo = 0, hi = _wordChars.length - 1, result = -1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (_wordChars[mid].start <= charOffset) {
+        result = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (result >= 0 && result < _wordGlobalMs.length) {
+      widget.onSeekGlobalMs?.call(_wordGlobalMs[result].start);
+    }
   }
 
   /// The paragraph's render object plus the local rect of the word under
@@ -616,12 +634,10 @@ class _MemoParagraphState extends State<_MemoParagraph> {
     final tape = context.tape;
     final spans = <InlineSpan>[];
     final words = _allWords;
-    final hasRecognizers = _recognizers.isNotEmpty;
     for (var i = 0; i < words.length; i++) {
       final word = words[i];
       spans.add(TextSpan(
         text: word.text,
-        recognizer: hasRecognizers ? _recognizers[i] : null,
         style: i == highlight
             ? TextStyle(
                 backgroundColor: tape.highlight,
@@ -638,7 +654,11 @@ class _MemoParagraphState extends State<_MemoParagraph> {
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
         onLongPress: widget.onCopy,
+        onTapUp: widget.onSeekGlobalMs == null
+            ? null
+            : (details) => _seekAtLocalOffset(details.localPosition),
         child: Text.rich(
+          key: _textKey,
           TextSpan(children: spans),
           style: TextStyle(
             fontSize: 12.5,
