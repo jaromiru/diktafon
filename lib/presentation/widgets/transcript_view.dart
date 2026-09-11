@@ -485,14 +485,22 @@ class _MemoParagraphState extends State<_MemoParagraph> {
   List<({int start, int end})> _wordGlobalMs = const [];
   List<({int start, int end})> _wordChars = const [];
 
-  /// Index of the styled word the cached paragraph was built for (-1 =
-  /// none). A tick that keeps the highlight on the same word reuses the
-  /// previously built widget instead of reallocating a span per word —
-  /// with ticks at 5–10 Hz this is what keeps long paragraphs from
-  /// churning the GC on phones.
-  int _builtHighlight = -2;
+  /// The word the amber wash sits on, painted by [_WordHighlightPainter]
+  /// over the (static) text. A ValueNotifier so a highlight move repaints
+  /// only the small overlay layer — styling the word through its TextSpan
+  /// rebuilt every span and, with the old bold face, re-wrapped the whole
+  /// paragraph on every word crossing (2×/s during playback, per paragraph
+  /// — measurable heat on phones).
+  final ValueNotifier<int> _highlight = ValueNotifier(-1);
+
   Brightness? _builtBrightness;
   Widget? _builtBody;
+
+  @override
+  void dispose() {
+    _highlight.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(_MemoParagraph old) {
@@ -533,7 +541,7 @@ class _MemoParagraphState extends State<_MemoParagraph> {
       }
     }
     _wordChars = chars;
-    _builtHighlight = -2;
+    _highlight.value = -1;
     _builtBody = null;
   }
 
@@ -622,13 +630,11 @@ class _MemoParagraphState extends State<_MemoParagraph> {
   Widget build(BuildContext context) {
     if (_wordGlobalMs.isEmpty && _allWords.isNotEmpty) _buildWords();
     final highlight = _indexOfWordAt(widget.globalMs);
+    if (_highlight.value != highlight) _highlight.value = highlight;
     final brightness = Theme.of(context).brightness;
-    if (_builtBody != null &&
-        highlight == _builtHighlight &&
-        brightness == _builtBrightness) {
+    if (_builtBody != null && brightness == _builtBrightness) {
       return _builtBody!;
     }
-    _builtHighlight = highlight;
     _builtBrightness = brightness;
 
     final tape = context.tape;
@@ -636,15 +642,7 @@ class _MemoParagraphState extends State<_MemoParagraph> {
     final words = _allWords;
     for (var i = 0; i < words.length; i++) {
       final word = words[i];
-      spans.add(TextSpan(
-        text: word.text,
-        style: i == highlight
-            ? TextStyle(
-                backgroundColor: tape.highlight,
-                fontWeight: FontWeight.w700,
-              )
-            : null,
-      ));
+      spans.add(TextSpan(text: word.text));
       if (i + 1 < words.length) {
         final separator = wordSeparator(word.text, words[i + 1].text);
         if (separator.isNotEmpty) spans.add(TextSpan(text: separator));
@@ -657,22 +655,79 @@ class _MemoParagraphState extends State<_MemoParagraph> {
         onTapUp: widget.onSeekGlobalMs == null
             ? null
             : (details) => _seekAtLocalOffset(details.localPosition),
-        child: Text.rich(
-          key: _textKey,
-          TextSpan(children: spans),
-          style: TextStyle(
-            fontSize: 12.5,
-            height: 1.75,
-            color: tape.ink,
-            // Han unification: kanji vs hanzi glyph variants follow the
-            // memo's language, not the app locale.
-            locale: contentLocale(widget.memo.transcript!.languageCode),
-          ),
+        child: Stack(
+          children: [
+            Text.rich(
+              key: _textKey,
+              TextSpan(children: spans),
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.75,
+                color: tape.ink,
+                // Han unification: kanji vs hanzi glyph variants follow the
+                // memo's language, not the app locale.
+                locale: contentLocale(widget.memo.transcript!.languageCode),
+              ),
+            ),
+            // §10.3: the playhead's amber wash paints over the static text —
+            // moving it never relayouts (let alone re-wraps) the paragraph.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _WordHighlightPainter(
+                    words: _highlightBoxes,
+                    color: tape.highlight,
+                    index: _highlight,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
     return _builtBody!;
   }
+
+  /// Glyph-run boxes of word [index] in paragraph coordinates — null before
+  /// layout or when the paragraph is gone.
+  List<TextBox>? _highlightBoxes(int index) {
+    if (index < 0 || index >= _wordChars.length) return null;
+    final render = _textKey.currentContext?.findRenderObject();
+    if (render is! RenderParagraph || !render.hasSize) return null;
+    final range = _wordChars[index];
+    return render.getBoxesForSelection(TextSelection(
+      baseOffset: range.start,
+      extentOffset: range.end,
+    ));
+  }
+}
+
+/// Draws the current word's wash ([_MemoParagraphState._highlight] drives
+/// repaints); the text beneath is never touched.
+class _WordHighlightPainter extends CustomPainter {
+  _WordHighlightPainter({
+    required this.words,
+    required this.color,
+    required this.index,
+  }) : super(repaint: index);
+
+  final List<TextBox>? Function(int index) words;
+  final Color color;
+  final ValueNotifier<int> index;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final boxes = words(index.value);
+    if (boxes == null) return;
+    final paint = Paint()..color = color;
+    for (final box in boxes) {
+      canvas.drawRect(box.toRect(), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WordHighlightPainter old) => false;
 }
 
 /// Gentle "transcribing…" placeholder (§5.3) — three sliding-sheen rows.
