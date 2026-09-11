@@ -657,6 +657,20 @@ class _MemoParagraphState extends State<_MemoParagraph> {
             : (details) => _seekAtLocalOffset(details.localPosition),
         child: Stack(
           children: [
+            // §10.3: the playhead's amber wash paints *behind* the static
+            // text (the old span backgroundColor's z-order) — moving it
+            // never relayouts (let alone re-wraps) the paragraph.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _WordHighlightPainter(
+                    words: _highlightBoxes,
+                    color: tape.highlight,
+                    index: _highlight,
+                  ),
+                ),
+              ),
+            ),
             Text.rich(
               key: _textKey,
               TextSpan(children: spans),
@@ -667,19 +681,6 @@ class _MemoParagraphState extends State<_MemoParagraph> {
                 // Han unification: kanji vs hanzi glyph variants follow the
                 // memo's language, not the app locale.
                 locale: contentLocale(widget.memo.transcript!.languageCode),
-              ),
-            ),
-            // §10.3: the playhead's amber wash paints over the static text —
-            // moving it never relayouts (let alone re-wraps) the paragraph.
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _WordHighlightPainter(
-                    words: _highlightBoxes,
-                    color: tape.highlight,
-                    index: _highlight,
-                  ),
-                ),
               ),
             ),
           ],
