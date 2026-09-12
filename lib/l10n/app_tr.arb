@@ -54,6 +54,15 @@
   "memoDivider": "Not {n} — {date}",
   "summarizing": "özetleniyor…",
   "summaryFailedRetry": "özet oluşturulamadı — tekrar denemek için dokunun",
+  "cassetteSummaryFailed": "kaset özeti başarısız — yeniden denemek için dokunun",
+  "importModel": "Dosyadan içe aktar",
+  "importingModel": "Dosya doğrulanıyor…",
+  "modelImported": "{label} içe aktarıldı",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Bu dosya bilinen hiçbir modelle eşleşmiyor",
+  "modelImportFailed": "İçe aktarma başarısız",
+  "importFromFolder": "Klasörden içe aktar",
+  "folderNothingFound": "Bu klasörde eşleşen model dosyası yok",
   "transcribing": "yazıya dökülüyor…",
 
   "settingsTitle": "AYARLAR",
@@ -169,5 +178,6 @@
   "notifDownloading": "{label} indiriliyor",
   "notifModelInstalled": "{label} yüklendi",
   "notifRecording": "Kayıt yapılıyor",
-  "notifRecordingChannel": "Kayıt"
+  "notifRecordingChannel": "Kayıt",
+  "notifPlaybackChannel": "Oynatma"
 }

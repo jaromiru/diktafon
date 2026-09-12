@@ -19,6 +19,11 @@ import androidx.core.app.NotificationCompat
  * the user a recording is live. Started/stopped over `diktafon/system`
  * around every capture; notification copy arrives pre-localized from Dart
  * (a bare Service can't reach gen-l10n).
+ *
+ * The card carries a STOP action (M1): its tap broadcasts
+ * [ACTION_STOP_RECORDING], which MainActivity relays to Dart over the
+ * `diktafon/recording_events` channel so the capture is finalized through
+ * the same RecordingController.stop() path an in-app tap takes.
  */
 class RecordingForegroundService : Service() {
     companion object {
@@ -27,6 +32,10 @@ class RecordingForegroundService : Service() {
         const val NOTIFICATION_ID = 300
         const val EXTRA_TITLE = "title"
         const val EXTRA_CHANNEL_NAME = "channelName"
+        const val EXTRA_STOP_LABEL = "stopLabel"
+
+        /** Sent when the notification's STOP action is tapped. */
+        const val ACTION_STOP_RECORDING = "cz.mod42.diktafon.STOP_RECORDING"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -34,6 +43,7 @@ class RecordingForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Recording"
         val channelName = intent?.getStringExtra(EXTRA_CHANNEL_NAME) ?: "Recording"
+        val stopLabel = intent?.getStringExtra(EXTRA_STOP_LABEL) ?: "Stop"
 
         val manager = getSystemService(NotificationManager::class.java)
         // LOW: visible but silent — the user just pressed record themselves.
@@ -44,6 +54,13 @@ class RecordingForegroundService : Service() {
             this, 0,
             packageManager.getLaunchIntentForPackage(packageName),
             PendingIntent.FLAG_IMMUTABLE)
+        // STOP must reach Dart (finalization inserts the memo and enqueues
+        // the pipeline) — never kill the service directly, or the capture
+        // it guards would die with it mid-write.
+        val stopIntent = PendingIntent.getBroadcast(
+            this, 1,
+            Intent(ACTION_STOP_RECORDING).setPackage(packageName),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
@@ -53,6 +70,7 @@ class RecordingForegroundService : Service() {
             .setUsesChronometer(true)
             .setWhen(System.currentTimeMillis())
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .addAction(0, stopLabel, stopIntent)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

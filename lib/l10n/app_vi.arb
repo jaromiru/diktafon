@@ -54,6 +54,15 @@
   "memoDivider": "Bản ghi {n} — {date}",
   "summarizing": "đang tóm tắt…",
   "summaryFailedRetry": "tóm tắt thất bại — nhấn để thử lại",
+  "cassetteSummaryFailed": "tóm tắt cassette thất bại — chạm để thử lại",
+  "importModel": "Nhập từ tệp",
+  "importingModel": "Đang xác minh tệp…",
+  "modelImported": "Đã nhập {label}",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Tệp này không khớp với mô hình nào đã biết",
+  "modelImportFailed": "Nhập thất bại",
+  "importFromFolder": "Nhập từ thư mục",
+  "folderNothingFound": "Không có tệp mô hình khớp nào trong thư mục này",
   "transcribing": "đang chép lời…",
 
   "settingsTitle": "CÀI ĐẶT",
@@ -169,5 +178,6 @@
   "notifDownloading": "Đang tải {label}",
   "notifModelInstalled": "Đã cài {label}",
   "notifRecording": "Đang thu âm",
-  "notifRecordingChannel": "Thu âm"
+  "notifRecordingChannel": "Thu âm",
+  "notifPlaybackChannel": "Phát lại"
 }

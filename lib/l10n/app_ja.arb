@@ -54,6 +54,15 @@
   "memoDivider": "メモ {n} — {date}",
   "summarizing": "要約中…",
   "summaryFailedRetry": "要約に失敗しました — タップで再試行",
+  "cassetteSummaryFailed": "カセットの要約に失敗しました — タップして再試行",
+  "importModel": "ファイルから取り込む",
+  "importingModel": "ファイルを確認しています…",
+  "modelImported": "{label} を取り込みました",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "このファイルは既知のモデルと一致しません",
+  "modelImportFailed": "読み込みに失敗しました",
+  "importFromFolder": "フォルダから取り込む",
+  "folderNothingFound": "このフォルダに一致するモデルファイルはありません",
   "transcribing": "文字起こし中…",
 
   "settingsTitle": "設定",
@@ -169,5 +178,6 @@
   "notifDownloading": "{label} をダウンロード中",
   "notifModelInstalled": "{label} をインストールしました",
   "notifRecording": "録音中",
-  "notifRecordingChannel": "録音"
+  "notifRecordingChannel": "録音",
+  "notifPlaybackChannel": "再生"
 }

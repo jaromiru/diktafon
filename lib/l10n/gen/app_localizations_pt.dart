@@ -207,6 +207,35 @@ class AppLocalizationsPt extends AppLocalizations {
       'o resumo falhou — toque para tentar de novo';
 
   @override
+  String get cassetteSummaryFailed =>
+      'falha no resumo da cassete — toque para tentar novamente';
+
+  @override
+  String get importModel => 'Importar de arquivo';
+
+  @override
+  String get importingModel => 'Verificando arquivo…';
+
+  @override
+  String modelImported(String label) {
+    return '$label importado';
+  }
+
+  @override
+  String get importNoMatch =>
+      'Este arquivo não corresponde a nenhum modelo conhecido';
+
+  @override
+  String get modelImportFailed => 'Falha na importação';
+
+  @override
+  String get importFromFolder => 'Importar de pasta';
+
+  @override
+  String get folderNothingFound =>
+      'Nenhum arquivo de modelo correspondente nesta pasta';
+
+  @override
   String get transcribing => 'transcrevendo…';
 
   @override
@@ -641,4 +670,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Gravação';
+
+  @override
+  String get notifPlaybackChannel => 'Reprodução';
 }

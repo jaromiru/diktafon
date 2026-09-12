@@ -206,6 +206,33 @@ class AppLocalizationsFa extends AppLocalizations {
       'خلاصه‌سازی ناموفق بود — برای تلاش دوباره لمس کنید';
 
   @override
+  String get cassetteSummaryFailed =>
+      'خلاصه‌ی کاست ناموفق بود — برای تلاش دوباره ضربه بزنید';
+
+  @override
+  String get importModel => 'وارد کردن از فایل';
+
+  @override
+  String get importingModel => 'در حال بررسی فایل…';
+
+  @override
+  String modelImported(String label) {
+    return '$label وارد شد';
+  }
+
+  @override
+  String get importNoMatch => 'این فایل با هیچ مدل شناخته‌شده‌ای مطابقت ندارد';
+
+  @override
+  String get modelImportFailed => 'وارد کردن ناموفق بود';
+
+  @override
+  String get importFromFolder => 'وارد کردن از پوشه';
+
+  @override
+  String get folderNothingFound => 'هیچ فایل مدل منطبقی در این پوشه نیست';
+
+  @override
   String get transcribing => 'در حال رونویسی…';
 
   @override
@@ -638,4 +665,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'ضبط';
+
+  @override
+  String get notifPlaybackChannel => 'پخش';
 }

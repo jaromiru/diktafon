@@ -132,8 +132,9 @@ class ModelManager<M extends ModelSpec> {
     return 0;
   }
 
-  List<ModelState<M>> snapshot() =>
-      [for (final model in catalog) stateOf(model)];
+  List<ModelState<M>> snapshot() => [
+    for (final model in catalog) stateOf(model),
+  ];
 
   /// Total disk footprint of installed models (Settings shows storage used).
   int installedBytes() => catalog
@@ -195,9 +196,11 @@ class ModelManager<M extends ModelSpec> {
       for (final model in catalog)
         if (statusOf(model) == ModelStatus.paused &&
             _partFileOf(model).existsSync())
-          download(model).then<void>((_) {
-            landed = true;
-          }).catchError((_) {}),
+          download(model)
+              .then<void>((_) {
+                landed = true;
+              })
+              .catchError((_) {}),
     ]);
     return landed;
   }
@@ -207,6 +210,108 @@ class ModelManager<M extends ModelSpec> {
   void cancelExcept(String tier) {
     for (final model in catalog) {
       if (model.tier != tier) cancel(model);
+    }
+  }
+
+  /// Installs a model from a file already on the device — no network. The
+  /// file is identified by its pinned sha256 alone (name/location don't
+  /// matter), so a copy parked in Downloads, pulled off another install, or
+  /// kept across reinstalls all work: gigabytes never re-download.
+  ///
+  /// Returns the imported model, null when no catalog entry's hash matches
+  /// the file (unknown or corrupt content). A tier that is already installed
+  /// answers immediately; one that is downloading joins the download instead
+  /// of racing it.
+  Future<M?> importFromFile(
+    String sourcePath, {
+    ProgressSink? onProgress,
+  }) async {
+    final source = File(sourcePath);
+    if (!await source.exists()) return null;
+
+    // Pass 1 — identify: a model is pinned by its full-file sha256, so hash
+    // the source once and match it against the catalog. Size is checked too
+    // (cheap) for a fast reject before the copy pass.
+    final digestSink = _DigestSink();
+    final hasher = sha256.startChunkedConversion(digestSink);
+    final length = await source.length();
+    await for (final chunk in source.openRead()) {
+      hasher.add(chunk);
+    }
+    hasher.close();
+    final hex = digestSink.digest.toString();
+    for (final model in catalog) {
+      if (model.sizeBytes == length && model.sha256Hex == hex) {
+        return _installImported(model, source, onProgress);
+      }
+    }
+    return null;
+  }
+
+  /// Pass 2 — install: copy the verified bytes into place through the same
+  /// `.part`-then-rename choreography a download uses, so a crash mid-copy
+  /// can never leave a half file pretending to be installed. Registered in
+  /// [_downloads] while running, so the picker row shows live progress and a
+  /// racing download of the same tier joins instead of corrupting the slot.
+  Future<M> _installImported(
+    M model,
+    File source,
+    ProgressSink? onProgress,
+  ) async {
+    if (statusOf(model) == ModelStatus.ready) return model;
+    final inFlight = _downloads[model.tier];
+    if (inFlight != null) {
+      await inFlight;
+      return model;
+    }
+    final import = _copyVerified(model, source, onProgress).whenComplete(() {
+      _downloads.remove(model.tier);
+      _progress.remove(model.tier);
+      _changes.add(null);
+    });
+    _downloads[model.tier] = import;
+    _progress[model.tier] = 0;
+    _changes.add(null);
+    return import;
+  }
+
+  Future<M> _copyVerified(
+    M model,
+    File source,
+    ProgressSink? onProgress,
+  ) async {
+    await _dir.create(recursive: true);
+    final part = _partFileOf(model);
+    try {
+      var copied = 0;
+      final total = await source.length();
+      final sink = part.openWrite();
+      try {
+        await for (final chunk in source.openRead()) {
+          sink.add(chunk);
+          copied += chunk.length;
+          final fraction = (copied / total).clamp(0.0, 1.0);
+          _progress[model.tier] = fraction;
+          onProgress?.call(fraction);
+          _changes.add(null);
+        }
+      } finally {
+        await sink.close();
+      }
+      // The hash was verified in pass 1; the size re-check here catches a
+      // source that changed under us between the two passes.
+      if (copied != model.sizeBytes) {
+        throw ModelVerificationException(
+          '${model.fileName}: copied $copied of ${model.sizeBytes} bytes',
+        );
+      }
+      await part.rename(fileOf(model).path);
+      return model;
+    } on Exception {
+      // Bad source or interrupted copy: drop the partial so a later
+      // resumeInterrupted() never tries to "resume" foreign bytes.
+      if (await part.exists()) await part.delete();
+      rethrow;
     }
   }
 
@@ -238,8 +343,8 @@ class ModelManager<M extends ModelSpec> {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
       }
       final response = await request.close();
-      final resumed = existing > 0 &&
-          response.statusCode == HttpStatus.partialContent;
+      final resumed =
+          existing > 0 && response.statusCode == HttpStatus.partialContent;
       if (response.statusCode == HttpStatus.requestedRangeNotSatisfiable) {
         // The remote file no longer matches the partial — start over.
         await part.delete();
@@ -271,8 +376,9 @@ class ModelManager<M extends ModelSpec> {
         _changes.add(null);
       }
 
-      final sink =
-          part.openWrite(mode: resumed ? FileMode.append : FileMode.write);
+      final sink = part.openWrite(
+        mode: resumed ? FileMode.append : FileMode.write,
+      );
       try {
         // A WiFi→cellular handover or a silent carrier drop (no FIN) can
         // freeze the body stream forever with no error — the progress bar
@@ -303,8 +409,9 @@ class ModelManager<M extends ModelSpec> {
       if (received != model.sizeBytes ||
           digestSink.digest.toString() != model.sha256Hex) {
         throw ModelVerificationException(
-            '${model.fileName}: got $received bytes, '
-            'sha256 ${digestSink.digest}');
+          '${model.fileName}: got $received bytes, '
+          'sha256 ${digestSink.digest}',
+        );
       }
       await part.rename(fileOf(model).path);
     } catch (e) {
@@ -336,7 +443,11 @@ class ModelManager<M extends ModelSpec> {
   /// Removes the installed file *and* any partial — the picker's delete
   /// action also discards a paused download the user changed their mind on.
   void delete(M model) {
-    for (final file in [fileOf(model), _partFileOf(model), _pausedFileOf(model)]) {
+    for (final file in [
+      fileOf(model),
+      _partFileOf(model),
+      _pausedFileOf(model),
+    ]) {
       if (file.existsSync()) file.deleteSync();
     }
     _changes.add(null);

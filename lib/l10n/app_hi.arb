@@ -54,6 +54,15 @@
   "memoDivider": "मेमो {n} — {date}",
   "summarizing": "सारांश बन रहा है…",
   "summaryFailedRetry": "सारांश विफल — दोबारा कोशिश के लिए टैप करें",
+  "cassetteSummaryFailed": "कैसेट का सारांश विफल — पुनः प्रयास हेतु टैप करें",
+  "importModel": "फ़ाइल से आयात करें",
+  "importingModel": "फ़ाइल सत्यापित हो रही है…",
+  "modelImported": "{label} आयातित",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "यह फ़ाइल किसी ज्ञात मॉडल से मेल नहीं खाती",
+  "modelImportFailed": "आयात विफल",
+  "importFromFolder": "फ़ोल्डर से आयात करें",
+  "folderNothingFound": "इस फ़ोल्डर में कोई मिलान वाली मॉडल फ़ाइलें नहीं हैं",
   "transcribing": "ट्रांसक्राइब हो रहा है…",
 
   "settingsTitle": "सेटिंग्स",
@@ -169,5 +178,6 @@
   "notifDownloading": "{label} डाउनलोड हो रहा है",
   "notifModelInstalled": "{label} इंस्टॉल हो गया",
   "notifRecording": "रिकॉर्डिंग जारी है",
-  "notifRecordingChannel": "रिकॉर्डिंग"
+  "notifRecordingChannel": "रिकॉर्डिंग",
+  "notifPlaybackChannel": "प्लेबैक"
 }

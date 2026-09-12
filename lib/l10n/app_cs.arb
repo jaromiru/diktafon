@@ -54,6 +54,15 @@
   "memoDivider": "Záznam {n} — {date}",
   "summarizing": "vytváří se souhrn…",
   "summaryFailedRetry": "souhrn selhal — klepnutím to zkusíte znovu",
+  "cassetteSummaryFailed": "shrnutí kazety selhalo — klepněte pro opakování",
+  "importModel": "Importovat ze souboru",
+  "importingModel": "Ověřuje se soubor…",
+  "modelImported": "{label} importován",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Tento soubor neodpovídá žádnému známému modelu",
+  "modelImportFailed": "Import se nezdařil",
+  "importFromFolder": "Importovat ze složky",
+  "folderNothingFound": "V této složce nejsou žádné odpovídající soubory modelů",
   "transcribing": "přepisuje se…",
 
   "settingsTitle": "NASTAVENÍ",
@@ -169,5 +178,6 @@
   "notifDownloading": "Stahuje se {label}",
   "notifModelInstalled": "{label} — nainstalováno",
   "notifRecording": "Probíhá nahrávání",
-  "notifRecordingChannel": "Nahrávání"
+  "notifRecordingChannel": "Nahrávání",
+  "notifPlaybackChannel": "Přehrávání"
 }

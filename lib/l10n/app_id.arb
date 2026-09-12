@@ -54,6 +54,15 @@
   "memoDivider": "Memo {n} — {date}",
   "summarizing": "meringkas…",
   "summaryFailedRetry": "ringkasan gagal — ketuk untuk mencoba lagi",
+  "cassetteSummaryFailed": "ringkasan kaset gagal — ketuk untuk mencoba lagi",
+  "importModel": "Impor dari berkas",
+  "importingModel": "Memverifikasi berkas…",
+  "modelImported": "{label} diimpor",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Berkas ini tidak cocok dengan model mana pun",
+  "modelImportFailed": "Impor gagal",
+  "importFromFolder": "Impor dari folder",
+  "folderNothingFound": "Tidak ada berkas model yang cocok di folder ini",
   "transcribing": "mentranskripsi…",
 
   "settingsTitle": "PENGATURAN",
@@ -169,5 +178,6 @@
   "notifDownloading": "Mengunduh {label}",
   "notifModelInstalled": "{label} terpasang",
   "notifRecording": "Sedang merekam",
-  "notifRecordingChannel": "Perekaman"
+  "notifRecordingChannel": "Perekaman",
+  "notifPlaybackChannel": "Pemutaran"
 }

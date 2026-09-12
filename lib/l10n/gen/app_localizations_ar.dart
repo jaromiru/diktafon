@@ -213,6 +213,32 @@ class AppLocalizationsAr extends AppLocalizations {
   String get summaryFailedRetry => 'فشل التلخيص — انقر لإعادة المحاولة';
 
   @override
+  String get cassetteSummaryFailed => 'فشل ملخص الكاسيت — انقر لإعادة المحاولة';
+
+  @override
+  String get importModel => 'استيراد من ملف';
+
+  @override
+  String get importingModel => 'جارٍ التحقق من الملف…';
+
+  @override
+  String modelImported(String label) {
+    return 'تم استيراد $label';
+  }
+
+  @override
+  String get importNoMatch => 'لا يطابق هذا الملف أي نموذج معروف';
+
+  @override
+  String get modelImportFailed => 'فشل الاستيراد';
+
+  @override
+  String get importFromFolder => 'استيراد من مجلد';
+
+  @override
+  String get folderNothingFound => 'لا توجد ملفات نماذج مطابقة في هذا المجلد';
+
+  @override
   String get transcribing => 'جارٍ التفريغ…';
 
   @override
@@ -674,4 +700,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'التسجيل';
+
+  @override
+  String get notifPlaybackChannel => 'التشغيل';
 }

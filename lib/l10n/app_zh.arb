@@ -54,6 +54,15 @@
   "memoDivider": "备忘 {n} — {date}",
   "summarizing": "正在生成摘要…",
   "summaryFailedRetry": "摘要失败，点按重试",
+  "cassetteSummaryFailed": "卡带摘要生成失败 — 点按重试",
+  "importModel": "从文件导入",
+  "importingModel": "正在校验文件…",
+  "modelImported": "已导入 {label}",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "此文件与任何已知模型都不匹配",
+  "modelImportFailed": "导入失败",
+  "importFromFolder": "从文件夹导入",
+  "folderNothingFound": "此文件夹中没有匹配的模型文件",
   "transcribing": "正在转写…",
 
   "settingsTitle": "设置",
@@ -169,5 +178,6 @@
   "notifDownloading": "正在下载 {label}",
   "notifModelInstalled": "{label} 已安装",
   "notifRecording": "正在录音",
-  "notifRecordingChannel": "录音"
+  "notifRecordingChannel": "录音",
+  "notifPlaybackChannel": "播放"
 }

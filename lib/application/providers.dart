@@ -17,6 +17,7 @@ import '../domain/tape.dart';
 import '../services/audio/audio_transcoder.dart';
 import '../services/audio/capture_recovery.dart';
 import '../services/audio/pcm_decoder.dart';
+import '../services/audio/playback_media_service.dart';
 import '../services/audio/recorder_service.dart';
 import '../services/audio/tape_player_service.dart';
 import '../services/import/cassette_importer.dart';
@@ -124,8 +125,16 @@ final audioTranscoderProvider =
 /// D13: the Android microphone foreground service under a live capture.
 /// A class-shaped seam so controller tests can fake the platform answer.
 class RecordingForegroundGlue {
-  Future<bool> start({required String title, required String channelName}) =>
-      startRecordingForegroundService(title: title, channelName: channelName);
+  Future<bool> start({
+    required String title,
+    required String channelName,
+    required String stopLabel,
+  }) =>
+      startRecordingForegroundService(
+        title: title,
+        channelName: channelName,
+        stopLabel: stopLabel,
+      );
 
   Future<void> stop() => stopRecordingForegroundService();
 }
@@ -210,6 +219,9 @@ final tapePlayerProvider = Provider<TapePlayerService>((ref) {
   final player =
       TapePlayerService(chimeFilePath: ref.watch(chimeFileProvider));
   ref.onDispose(player.dispose);
+  // M1: hand the player to the media session (null off Android/iOS) — the
+  // notification's play/pause/seek/skip drive the very same instance.
+  ref.read(playbackMediaHandlerProvider)?.attach(player);
   // D5: the chime toggle follows settings live, without rebuilding the
   // player (a rebuild would drop the loaded tape mid-session).
   ref.listen(settingsProvider, (_, s) {
@@ -244,6 +256,14 @@ final playbackProvider = StreamProvider<TapePlaybackState>((ref) {
   final player = ref.watch(tapePlayerProvider);
   return player.stateStream;
 });
+
+/// M1: the platform media session (media notification + lock-screen
+/// controls + background playback). Overridden in main() with the handler
+/// audio_service initializes before runApp; null on desktop and in tests —
+/// playback then behaves as before, stopping when the app leaves the
+/// foreground.
+final playbackMediaHandlerProvider =
+    Provider<TapePlaybackMediaHandler?>((ref) => null);
 
 /// Player trouble surfaced to the open cassette screen (§14): a dead
 /// source mid-tape, memos with no audio after a metadata-only restore.

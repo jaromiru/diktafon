@@ -9,6 +9,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../l10n/locale_resolution.dart';
 import '../services/audio/capture_recovery.dart';
 import '../services/audio/recorder_service.dart';
+import '../services/system/system_settings.dart' show recordingStopRequests;
 import 'providers.dart';
 
 /// UI-facing recording state (§5.3): elapsed drives the LCD counter and the
@@ -55,6 +56,7 @@ enum RecordStartOutcome {
 class RecordingController extends Notifier<RecordingState> {
   Timer? _ticker;
   StreamSubscription<void>? _stopsSub;
+  StreamSubscription<void>? _notificationStopsSub;
 
   /// The cassette a start() is in flight for — set before the first await,
   /// so a double-tap can't start twice and deactivate can abort a start
@@ -65,8 +67,14 @@ class RecordingController extends Notifier<RecordingState> {
 
   @override
   RecordingState build() {
+    // M1: the recording notification's STOP button works while the app is
+    // backgrounded — the platform relays the tap onto this channel.
+    _notificationStopsSub ??= recordingStopRequests().listen((_) {
+      if (state.isRecording && !_stopping) unawaited(stop());
+    });
     ref.onDispose(() {
       _stopsSub?.cancel();
+      _notificationStopsSub?.cancel();
       _ticker?.cancel();
     });
     return RecordingState.idle;
@@ -140,6 +148,7 @@ class RecordingController extends Notifier<RecordingState> {
     return ref.read(recordingForegroundGlueProvider).start(
           title: l10n.notifRecording,
           channelName: l10n.notifRecordingChannel,
+          stopLabel: l10n.stopRecording,
         );
   }
 

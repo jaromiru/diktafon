@@ -1,12 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../data/db/database.dart';
 import '../../data/repositories/cassette_repository.dart';
+import '../../data/repositories/mappers.dart';
 import '../../data/repositories/memo_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models.dart';
@@ -82,6 +83,16 @@ class JobQueue {
 
   /// In-flight cancellation handles, by memo id (§14 delete-during-processing).
   final Map<String, CancelToken> _active = {};
+
+  /// Cassette ids whose overview update failed permanently (§14). Memos
+  /// already surface their own failure via the transcript's retry link —
+  /// a cassette job's failure was invisible, so the app listens here and
+  /// offers a retry.
+  final StreamController<String> _summaryIssues =
+      StreamController<String>.broadcast();
+  Stream<String> get summaryIssues => _summaryIssues.stream;
+
+  void _log(String message) => debugPrint('[dk_jobs] $message');
 
   Future<void>? _draining;
   bool _recoveredOrphans = false;
@@ -237,13 +248,37 @@ class JobQueue {
           JobType.updateCassetteSummary.name,
           JobType.recomputeCassetteSummary.name,
         ]);
+      } else {
+        // Both gates skip silently by design (summaries can be off; the
+        // model may never have been downloaded) — but "silent" meant a
+        // user with a stuck download never learned why nothing appeared.
+        // Diagnostic only: never let the probe break the drain (tests
+        // close the DB under a still-draining queue).
+        try {
+          final parked = await (_db.select(_db.jobs)
+                ..where((j) =>
+                    j.status.isIn(['queued', 'failed']) &
+                    j.type.isIn([
+                      JobType.summarizeMemo.name,
+                      JobType.updateCassetteSummary.name,
+                      JobType.recomputeCassetteSummary.name,
+                    ])))
+              .get();
+          if (parked.isNotEmpty) {
+            _log('${parked.length} summary job(s) parked: '
+                '${settings.summariesEnabled ? 'LLM model not ready' : 'summaries disabled in settings'}');
+          }
+        } catch (_) {
+          // Diagnostic only; also covers teardown closing the DB mid-drain.
+        }
       }
 
       final job = await (_db.select(_db.jobs)
             ..where((j) => j.status.equals('queued') & j.type.isIn(runnable))
             ..orderBy([(j) => OrderingTerm.asc(j.createdAt)])
             ..limit(1))
-          .getSingleOrNull();
+          .getSingleOrNull()
+          .catchError((_) => null); // DB closed under a draining queue
       if (job == null) return;
       await _run(job);
     }
@@ -273,17 +308,22 @@ class JobQueue {
     } on TranscriptionCancelled {
       // Memo deleted while transcribing — the job is moot, not failed.
       await (_db.delete(_db.jobs)..where((j) => j.id.equals(job.id))).go();
-    } catch (_) {
+    } catch (error) {
       final attempts = job.attempts + 1;
       final permanent = attempts >= _maxAttempts;
+      _log('job ${type.name} failed '
+          '(attempt $attempts/$_maxAttempts): $error');
       await _setJob(job.id, permanent ? 'failed' : 'queued',
           attempts: attempts);
       if (permanent) {
         // Memo stays playable; a retry affordance is offered (§14). Cassette
         // jobs leave no failed memo — their digests stay unfolded and ride
-        // along with the next successful update.
+        // along with the next successful update — so their failure is
+        // announced instead of vanishing into the jobs table.
         if (type.targetsMemo) {
           await _memos.updateStatus(job.targetId, MemoStatus.failed);
+        } else {
+          _summaryIssues.add(job.targetId);
         }
       } else {
         // The requeued job may park behind a closed drain gate (model
@@ -480,8 +520,8 @@ class JobQueue {
     final transcriptJson = row.transcript;
     if (transcriptJson == null) return; // can't happen; be safe
 
-    final transcript = Transcript.fromJson(
-        (jsonDecode(transcriptJson) as Map).cast<String, dynamic>());
+    final transcript = await transcriptsFromJsonAsync([transcriptJson])
+        .then((list) => list.first!);
     if (transcript.isEmpty) {
       // Nothing to summarize (§6.7) — reachable via retryEnrichment on a
       // silent memo; complete the enrichment instead of prompting the LLM.
@@ -542,7 +582,8 @@ class JobQueue {
         .get();
     final contributing = <(MemoRow, String)>[
       for (final row in rows)
-        if (row.memoSummary ?? _transcriptText(row.transcript)
+        if (row.memoSummary ??
+            await _transcriptText(row.transcript)
             case final text?)
           (row, text), // silent memos yield null and drop out
     ];
@@ -589,10 +630,10 @@ class JobQueue {
 
   /// The digest text of a gistless memo (§6.7): its short transcript,
   /// flattened to one line; null when the memo is silent.
-  String? _transcriptText(String? transcriptJson) {
+  Future<String?> _transcriptText(String? transcriptJson) async {
     if (transcriptJson == null) return null;
-    final transcript = Transcript.fromJson(
-        (jsonDecode(transcriptJson) as Map).cast<String, dynamic>());
+    final transcript =
+        (await transcriptsFromJsonAsync([transcriptJson])).first!;
     if (transcript.isEmpty) return null;
     return transcript.plainText.replaceAll('\n', ' ');
   }
@@ -618,6 +659,14 @@ class JobQueue {
         .get();
     if (queued.isNotEmpty) return;
     await _insertJob(JobType.updateCassetteSummary, cassetteId);
+  }
+
+  /// Re-queues the overview rebuild after a permanent failure — the retry
+  /// affordance behind the app-level snackbar. A queued sibling job makes
+  /// this a no-op; the failed row is superseded either way.
+  Future<void> retryCassetteSummary(String cassetteId) async {
+    await _enqueueCassetteUpdate(cassetteId);
+    await drain();
   }
 
   Future<MemoRow?> _memoRow(String memoId) =>

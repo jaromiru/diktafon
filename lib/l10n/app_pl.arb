@@ -54,6 +54,15 @@
   "memoDivider": "Nagranie {n} — {date}",
   "summarizing": "powstaje podsumowanie…",
   "summaryFailedRetry": "podsumowanie nie powiodło się — dotknij, aby ponowić",
+  "cassetteSummaryFailed": "podsumowanie kasety nie powiodło się — dotknij, aby ponowić",
+  "importModel": "Importuj z pliku",
+  "importingModel": "Sprawdzanie pliku…",
+  "modelImported": "Zaimportowano: {label}",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Ten plik nie pasuje do żadnego znanego modelu",
+  "modelImportFailed": "Importowanie nie powiodło się",
+  "importFromFolder": "Importuj z folderu",
+  "folderNothingFound": "Brak pasujących plików modeli w tym folderze",
   "transcribing": "trwa transkrypcja…",
 
   "settingsTitle": "USTAWIENIA",
@@ -169,5 +178,6 @@
   "notifDownloading": "Pobieranie: {label}",
   "notifModelInstalled": "Zainstalowano {label}",
   "notifRecording": "Trwa nagrywanie",
-  "notifRecordingChannel": "Nagrywanie"
+  "notifRecordingChannel": "Nagrywanie",
+  "notifPlaybackChannel": "Odtwarzanie"
 }

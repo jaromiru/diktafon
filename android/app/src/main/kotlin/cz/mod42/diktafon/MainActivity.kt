@@ -1,6 +1,9 @@
 package cz.mod42.diktafon
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -8,14 +11,17 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.BufferedOutputStream
+import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -24,10 +30,12 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
 
-class MainActivity : FlutterActivity() {
+class MainActivity : AudioServiceActivity() {
     private companion object {
         // Outside the ranges Flutter plugins use for their own picks.
         const val SAVE_DOCUMENT_REQUEST = 7461
+        const val IMPORT_DOCUMENT_REQUEST = 7462
+        const val MODELS_FOLDER_REQUEST = 7463
     }
 
     private val decodeExecutor = Executors.newSingleThreadExecutor()
@@ -38,8 +46,31 @@ class MainActivity : FlutterActivity() {
     private var pendingSaveResult: MethodChannel.Result? = null
     private var pendingSaveSource: String? = null
 
+    // The recording notification's STOP action → Dart ("stopRecording" on
+    // diktafon/recording_events). Registered with the engine, so it lives
+    // as long as the Flutter process does.
+    private var recordingEventsChannel: MethodChannel? = null
+
+    private val stopRecordingReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            recordingEventsChannel?.invokeMethod("stopRecording", null)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        recordingEventsChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "diktafon/recording_events")
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                stopRecordingReceiver,
+                IntentFilter(RecordingForegroundService.ACTION_STOP_RECORDING),
+                ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(
+                stopRecordingReceiver,
+                IntentFilter(RecordingForegroundService.ACTION_STOP_RECORDING))
+        }
         // Counterpart of MediaCodecPcmDecoder (lib/services/audio/pcm_decoder.dart):
         // decodes a memo file to raw f32le 16 kHz mono PCM for whisper.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "diktafon/pcm_decoder")
@@ -81,12 +112,46 @@ class MainActivity : FlutterActivity() {
                     // creates. Answers false when the user backs out.
                     "saveDocument" -> startSaveDocument(call.argument("source"),
                         call.argument("name"), call.argument("mime"), result)
+                    // Model-import pick: stream the picked document into a
+                    // cache staging file. file_selector's Android openFile
+                    // materializes the whole document in RAM, which OOM-kills
+                    // the app on gigabyte models — this copies in 64 KB
+                    // chunks. Answers the staged path, or null on cancel.
+                    "importModelDocument" -> startImportDocument(result)
+                    // Model-import folder: one SAF tree grant covers every
+                    // model in the user's backup folder — Dart lists the
+                    // children, filters by size, and stages+verifies each
+                    // candidate through importModelDocument's choreography.
+                    "pickModelsFolder" -> startModelsFolderPick(result)
+                    "listFolderModels" -> {
+                        val treeUri = Uri.parse(call.argument<String>("tree")!!)
+                        Thread {
+                            try {
+                                mainHandler.post { result.success(listFolderModels(treeUri)) }
+                            } catch (e: Exception) {
+                                mainHandler.post { result.error("list_failed", e.message, null) }
+                            }
+                        }.start()
+                    }
+                    "stageFolderModel" -> {
+                        val treeUri = Uri.parse(call.argument<String>("tree")!!)
+                        val docId = call.argument<String>("documentId")!!
+                        Thread {
+                            try {
+                                mainHandler.post { result.success(
+                                    stageFolderModel(treeUri, docId)) }
+                            } catch (e: Exception) {
+                                mainHandler.post { result.error("copy_failed", e.message, null) }
+                            }
+                        }.start()
+                    }
                     // D13: microphone-type foreground service under a live
                     // capture — false (never an error) when the OS rejects
                     // the start; Dart then falls back to finalize-on-pause.
                     "startRecordingService" -> result.success(
                         startRecordingService(call.argument("title"),
-                            call.argument("channelName")))
+                            call.argument("channelName"),
+                            call.argument("stopLabel")))
                     "stopRecordingService" -> {
                         stopService(Intent(this, RecordingForegroundService::class.java))
                         result.success(null)
@@ -120,13 +185,15 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun startRecordingService(title: String?, channelName: String?): Boolean {
+    private fun startRecordingService(
+        title: String?, channelName: String?, stopLabel: String?): Boolean {
         return try {
             ContextCompat.startForegroundService(
                 this,
                 Intent(this, RecordingForegroundService::class.java).apply {
                     putExtra(RecordingForegroundService.EXTRA_TITLE, title)
                     putExtra(RecordingForegroundService.EXTRA_CHANNEL_NAME, channelName)
+                    putExtra(RecordingForegroundService.EXTRA_STOP_LABEL, stopLabel)
                 })
             true
         } catch (e: Exception) {
@@ -158,7 +225,126 @@ class MainActivity : FlutterActivity() {
             SAVE_DOCUMENT_REQUEST)
     }
 
+    /** Model-import pick (see "importModelDocument" in configureFlutterEngine):
+     *  one SAF document at a time; the result streams to a cache staging file
+     *  whose path Dart verifies (sha256) and installs. */
+    private var pendingImportResult: MethodChannel.Result? = null
+
+    /** One SAF tree grant for the model-import folder ("Import from folder"):
+     *  the grant lives for this call only — Dart lists children and stages
+     *  candidates by document id while the URI is still answerable. */
+    private var pendingFolderResult: MethodChannel.Result? = null
+
+    private fun startModelsFolderPick(result: MethodChannel.Result) {
+        if (pendingFolderResult != null) {
+            result.error("busy", "another folder pick is in progress", null)
+            return
+        }
+        pendingFolderResult = result
+        try {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
+                MODELS_FOLDER_REQUEST)
+        } catch (e: Exception) {
+            pendingFolderResult = null
+            result.error("no_picker", e.message, null)
+        }
+    }
+
+    /** Children of the picked tree as {documentId, name, size} maps — Dart
+     *  filters by catalog sizes and stages only the candidates. */
+    private fun listFolderModels(treeUri: Uri): List<Map<String, Any>> {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+            treeUri, DocumentsContract.getTreeDocumentId(treeUri))
+        val out = mutableListOf<Map<String, Any>>()
+        contentResolver.query(
+            childrenUri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_SIZE,
+                DocumentsContract.Document.COLUMN_MIME_TYPE),
+            null, null, null)?.use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(3) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                    continue
+                }
+                val size = cursor.getLong(2)
+                if (size <= 0) continue
+                out.add(mapOf(
+                    "documentId" to cursor.getString(0),
+                    "name" to cursor.getString(1),
+                    "size" to size))
+            }
+        } ?: throw IOException("cannot query $treeUri")
+        return out
+    }
+
+    /** Streams one folder document into the import staging file (same slot
+     *  the single-document pick uses; imports are strictly sequential). */
+    private fun stageFolderModel(treeUri: Uri, documentId: String): String {
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+        val staged = File(cacheDir, "imported_model")
+        contentResolver.openInputStream(docUri)?.use { input ->
+            staged.outputStream().use { output -> input.copyTo(output, 1 shl 16) }
+        } ?: throw IOException("cannot open $documentId")
+        return staged.absolutePath
+    }
+
+    private fun startImportDocument(result: MethodChannel.Result) {
+        if (pendingImportResult != null) {
+            result.error("busy", "another import pick is in progress", null)
+            return
+        }
+        pendingImportResult = result
+        try {
+            startActivityForResult(
+                Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                },
+                IMPORT_DOCUMENT_REQUEST)
+        } catch (e: Exception) {
+            pendingImportResult = null
+            result.error("no_picker", e.message, null)
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == MODELS_FOLDER_REQUEST) {
+            val result = pendingFolderResult
+            pendingFolderResult = null
+            val uri = data?.data
+            if (result == null || resultCode != RESULT_OK || uri == null) {
+                result?.success(null) // user backed out of the dialog
+                return
+            }
+            result.success(uri.toString())
+            return
+        }
+        if (requestCode == IMPORT_DOCUMENT_REQUEST) {
+            val result = pendingImportResult
+            pendingImportResult = null
+            val uri = data?.data
+            if (result == null || resultCode != RESULT_OK || uri == null) {
+                result?.success(null) // user backed out of the dialog
+                return
+            }
+            // Models are gigabytes — stream, never materialize in RAM.
+            Thread {
+                try {
+                    val staged = File(cacheDir, "imported_model")
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        staged.outputStream().use { output ->
+                            input.copyTo(output, 1 shl 16)
+                        }
+                    } ?: throw IOException("cannot open $uri")
+                    mainHandler.post { result.success(staged.absolutePath) }
+                } catch (e: Exception) {
+                    mainHandler.post { result.error("copy_failed", e.message, null) }
+                }
+            }.start()
+            return
+        }
         if (requestCode != SAVE_DOCUMENT_REQUEST) {
             super.onActivityResult(requestCode, resultCode, data) // plugins' picks
             return

@@ -205,6 +205,33 @@ class AppLocalizationsTr extends AppLocalizations {
       'özet oluşturulamadı — tekrar denemek için dokunun';
 
   @override
+  String get cassetteSummaryFailed =>
+      'kaset özeti başarısız — yeniden denemek için dokunun';
+
+  @override
+  String get importModel => 'Dosyadan içe aktar';
+
+  @override
+  String get importingModel => 'Dosya doğrulanıyor…';
+
+  @override
+  String modelImported(String label) {
+    return '$label içe aktarıldı';
+  }
+
+  @override
+  String get importNoMatch => 'Bu dosya bilinen hiçbir modelle eşleşmiyor';
+
+  @override
+  String get modelImportFailed => 'İçe aktarma başarısız';
+
+  @override
+  String get importFromFolder => 'Klasörden içe aktar';
+
+  @override
+  String get folderNothingFound => 'Bu klasörde eşleşen model dosyası yok';
+
+  @override
   String get transcribing => 'yazıya dökülüyor…';
 
   @override
@@ -636,4 +663,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Kayıt';
+
+  @override
+  String get notifPlaybackChannel => 'Oynatma';
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import 'application/providers.dart';
 import 'data/files/audio_file_store.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'l10n/locale_resolution.dart';
+import 'services/audio/playback_media_service.dart';
 import 'services/notifications/download_notifier.dart';
 import 'services/notifications/local_notifications_sink.dart';
 import 'services/providers/llm/llm_model_manager.dart';
@@ -49,6 +51,13 @@ Future<void> main() async {
         await _materializeAsset('assets/audio/chime.wav', supportDir.path)),
     vadModelFileProvider.overrideWithValue(await _materializeAsset(
         'assets/models/ggml-silero-v5.1.2.bin', modelsDir.path)),
+    // M1: the media session must exist before runApp (audio_service binds
+    // the engine to the platform service at init). Android/iOS only — a
+    // null handler keeps desktop/test playback exactly as it was.
+    playbackMediaHandlerProvider.overrideWithValue(
+        !kIsWeb && (Platform.isAndroid || Platform.isIOS)
+            ? await _startPlaybackMedia()
+            : null),
   ]);
 
   // iOS moves the data container on app updates/reinstalls — repoint stored
@@ -107,6 +116,29 @@ Future<void> main() async {
     container: container,
     child: const DiktafonApp(),
   ));
+}
+
+/// M1: starts the platform media session — the media notification, lock-
+/// screen controls and background playback all forward into TapePlayerService
+/// (see playback_media_service.dart). Best-effort: null → playback behaves
+/// as before (no background mode).
+Future<TapePlaybackMediaHandler?> _startPlaybackMedia() async {
+  try {
+    return await startPlaybackMediaSession(
+      androidNotificationChannelName: _systemL10n().notifPlaybackChannel,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+AppLocalizations _systemL10n() {
+  try {
+    return lookupAppLocalizations(
+        padZhLocale(ui.PlatformDispatcher.instance.locale));
+  } catch (_) {
+    return lookupAppLocalizations(const ui.Locale('en'));
+  }
 }
 
 /// Best-effort, off the critical startup path: no notification backend →

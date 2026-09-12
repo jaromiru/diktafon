@@ -195,6 +195,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get summaryFailedRetry => '要約に失敗しました — タップで再試行';
 
   @override
+  String get cassetteSummaryFailed => 'カセットの要約に失敗しました — タップして再試行';
+
+  @override
+  String get importModel => 'ファイルから取り込む';
+
+  @override
+  String get importingModel => 'ファイルを確認しています…';
+
+  @override
+  String modelImported(String label) {
+    return '$label を取り込みました';
+  }
+
+  @override
+  String get importNoMatch => 'このファイルは既知のモデルと一致しません';
+
+  @override
+  String get modelImportFailed => '読み込みに失敗しました';
+
+  @override
+  String get importFromFolder => 'フォルダから取り込む';
+
+  @override
+  String get folderNothingFound => 'このフォルダに一致するモデルファイルはありません';
+
+  @override
   String get transcribing => '文字起こし中…';
 
   @override
@@ -610,4 +636,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => '録音';
+
+  @override
+  String get notifPlaybackChannel => '再生';
 }

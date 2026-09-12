@@ -12,6 +12,15 @@
  <b>Voice memos on cassette tapes — transcribed and summarised entirely on your device.</b>
 </p>
 
+> **About this fork** — This is a fork of
+> [jaromiru/diktafon](https://github.com/jaromiru/diktafon) carrying a set of
+> performance and quality-of-life changes on top of upstream 1.0.9: background
+> playback with media-notification controls, large transcript scrolling fixes,
+> fail-fast summary diagnostics, and **model import from a file or folder** so
+> reinstalls no longer re-download gigabytes. A prebuilt arm64 release APK is
+> attached to the [v1.0.10 release](../../releases/tag/v1.0.10); details in the
+> [changelog](CHANGELOG.md). The store badges below point to the original app.
+
 <p align="center">
   <img src="media/01-home.png" width="15%" alt="Home shelf with cassettes">
   <img src="media/03-cassette.png" width="15%" alt="Cassette tape with transcript and summary">

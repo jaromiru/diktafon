@@ -54,6 +54,15 @@
   "memoDivider": "Запись {n} — {date}",
   "summarizing": "составляется сводка…",
   "summaryFailedRetry": "сводка не удалась — нажмите, чтобы повторить",
+  "cassetteSummaryFailed": "не удалось суммировать кассету — нажмите, чтобы повторить",
+  "importModel": "Импортировать из файла",
+  "importingModel": "Проверка файла…",
+  "modelImported": "{label} импортирована",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Этот файл не соответствует ни одной известной модели",
+  "modelImportFailed": "Не удалось импортировать",
+  "importFromFolder": "Импортировать из папки",
+  "folderNothingFound": "В этой папке нет подходящих файлов моделей",
   "transcribing": "идёт расшифровка…",
 
   "settingsTitle": "НАСТРОЙКИ",
@@ -169,5 +178,6 @@
   "notifDownloading": "Скачивается {label}",
   "notifModelInstalled": "{label} — установлено",
   "notifRecording": "Идёт запись",
-  "notifRecordingChannel": "Запись"
+  "notifRecordingChannel": "Запись",
+  "notifPlaybackChannel": "Воспроизведение"
 }

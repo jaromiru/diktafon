@@ -91,17 +91,20 @@ class FakePlayer extends TapePlayerService {
 class FakeGlue extends RecordingForegroundGlue {
   bool answer = true;
   int starts = 0, stops = 0;
-  String? lastTitle, lastChannelName;
+  String? lastTitle, lastChannelName, lastStopLabel;
 
   /// Lets the abort test act while the service start is "in flight".
   Completer<void>? gate;
 
   @override
   Future<bool> start(
-      {required String title, required String channelName}) async {
+      {required String title,
+      required String channelName,
+      required String stopLabel}) async {
     starts++;
     lastTitle = title;
     lastChannelName = channelName;
+    lastStopLabel = stopLabel;
     if (gate != null) await gate!.future;
     return answer;
   }

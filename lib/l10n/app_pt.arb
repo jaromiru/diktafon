@@ -54,6 +54,15 @@
   "memoDivider": "Nota {n} — {date}",
   "summarizing": "resumindo…",
   "summaryFailedRetry": "o resumo falhou — toque para tentar de novo",
+  "cassetteSummaryFailed": "falha no resumo da cassete — toque para tentar novamente",
+  "importModel": "Importar de arquivo",
+  "importingModel": "Verificando arquivo…",
+  "modelImported": "{label} importado",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Este arquivo não corresponde a nenhum modelo conhecido",
+  "modelImportFailed": "Falha na importação",
+  "importFromFolder": "Importar de pasta",
+  "folderNothingFound": "Nenhum arquivo de modelo correspondente nesta pasta",
   "transcribing": "transcrevendo…",
 
   "settingsTitle": "CONFIGURAÇÕES",
@@ -169,5 +178,6 @@
   "notifDownloading": "Baixando {label}",
   "notifModelInstalled": "{label} instalado",
   "notifRecording": "Gravando nota",
-  "notifRecordingChannel": "Gravação"
+  "notifRecordingChannel": "Gravação",
+  "notifPlaybackChannel": "Reprodução"
 }

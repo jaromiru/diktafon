@@ -200,6 +200,34 @@ class AppLocalizationsId extends AppLocalizations {
   String get summaryFailedRetry => 'ringkasan gagal — ketuk untuk mencoba lagi';
 
   @override
+  String get cassetteSummaryFailed =>
+      'ringkasan kaset gagal — ketuk untuk mencoba lagi';
+
+  @override
+  String get importModel => 'Impor dari berkas';
+
+  @override
+  String get importingModel => 'Memverifikasi berkas…';
+
+  @override
+  String modelImported(String label) {
+    return '$label diimpor';
+  }
+
+  @override
+  String get importNoMatch => 'Berkas ini tidak cocok dengan model mana pun';
+
+  @override
+  String get modelImportFailed => 'Impor gagal';
+
+  @override
+  String get importFromFolder => 'Impor dari folder';
+
+  @override
+  String get folderNothingFound =>
+      'Tidak ada berkas model yang cocok di folder ini';
+
+  @override
   String get transcribing => 'mentranskripsi…';
 
   @override
@@ -623,4 +651,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Perekaman';
+
+  @override
+  String get notifPlaybackChannel => 'Pemutaran';
 }

@@ -205,6 +205,34 @@ class AppLocalizationsHi extends AppLocalizations {
   String get summaryFailedRetry => 'सारांश विफल — दोबारा कोशिश के लिए टैप करें';
 
   @override
+  String get cassetteSummaryFailed =>
+      'कैसेट का सारांश विफल — पुनः प्रयास हेतु टैप करें';
+
+  @override
+  String get importModel => 'फ़ाइल से आयात करें';
+
+  @override
+  String get importingModel => 'फ़ाइल सत्यापित हो रही है…';
+
+  @override
+  String modelImported(String label) {
+    return '$label आयातित';
+  }
+
+  @override
+  String get importNoMatch => 'यह फ़ाइल किसी ज्ञात मॉडल से मेल नहीं खाती';
+
+  @override
+  String get modelImportFailed => 'आयात विफल';
+
+  @override
+  String get importFromFolder => 'फ़ोल्डर से आयात करें';
+
+  @override
+  String get folderNothingFound =>
+      'इस फ़ोल्डर में कोई मिलान वाली मॉडल फ़ाइलें नहीं हैं';
+
+  @override
   String get transcribing => 'ट्रांसक्राइब हो रहा है…';
 
   @override
@@ -638,4 +666,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'रिकॉर्डिंग';
+
+  @override
+  String get notifPlaybackChannel => 'प्लेबैक';
 }

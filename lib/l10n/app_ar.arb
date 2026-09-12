@@ -54,6 +54,15 @@
   "memoDivider": "المذكرة {n} — {date}",
   "summarizing": "جارٍ التلخيص…",
   "summaryFailedRetry": "فشل التلخيص — انقر لإعادة المحاولة",
+  "cassetteSummaryFailed": "فشل ملخص الكاسيت — انقر لإعادة المحاولة",
+  "importModel": "استيراد من ملف",
+  "importingModel": "جارٍ التحقق من الملف…",
+  "modelImported": "تم استيراد {label}",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "لا يطابق هذا الملف أي نموذج معروف",
+  "modelImportFailed": "فشل الاستيراد",
+  "importFromFolder": "استيراد من مجلد",
+  "folderNothingFound": "لا توجد ملفات نماذج مطابقة في هذا المجلد",
   "transcribing": "جارٍ التفريغ…",
 
   "settingsTitle": "الإعدادات",
@@ -169,5 +178,6 @@
   "notifDownloading": "جارٍ تنزيل {label}",
   "notifModelInstalled": "تم تثبيت {label}",
   "notifRecording": "جارٍ التسجيل",
-  "notifRecordingChannel": "التسجيل"
+  "notifRecordingChannel": "التسجيل",
+  "notifPlaybackChannel": "التشغيل"
 }

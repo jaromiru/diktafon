@@ -9,6 +9,7 @@ import 'dart:ffi';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 import 'llama_bindings.dart';
 
@@ -20,6 +21,13 @@ class LlamaWorkerException implements Exception {
   String toString() => 'LlamaWorkerException: $message';
 }
 
+/// Minimal tagged logging — summaries failed silently on Android for lack
+/// of any diagnosable trace (a dead engine isolate left jobs hanging); the
+/// lines land in logcat under the flutter tag in every build type.
+void logLlm(String message) {
+  debugPrint('[dk_llm] $message');
+}
+
 class LlamaWorker {
   LlamaWorker(this._libraryPath);
 
@@ -28,6 +36,8 @@ class LlamaWorker {
   Isolate? _isolate;
   SendPort? _commands;
   StreamSubscription<dynamic>? _subscription;
+  StreamSubscription<dynamic>? _errorSub;
+  StreamSubscription<dynamic>? _exitSub;
   final Map<int, Completer<Map<dynamic, dynamic>>> _inFlight = {};
   int _nextRequestId = 0;
   Future<void>? _spawning;
@@ -35,6 +45,8 @@ class LlamaWorker {
   Future<void> _ensureSpawned() {
     return _spawning ??= () async {
       final replies = ReceivePort();
+      final errors = ReceivePort();
+      final exited = ReceivePort();
       final ready = Completer<SendPort>();
       _subscription = replies.listen((message) {
         if (message is SendPort) {
@@ -48,9 +60,44 @@ class LlamaWorker {
         _workerMain,
         [replies.sendPort, _libraryPath],
         debugName: 'llama-worker',
+        onError: errors.sendPort,
+        onExit: exited.sendPort,
+        errorsAreFatal: true,
       );
+      // A native crash inside llama.cpp (OOM, corrupt model) kills the
+      // isolate without answering any request — every pending summary used
+      // to hang at "summarizing…" until the process restarted. Fail them
+      // and reset so the next call spawns a fresh worker instead.
+      _errorSub = errors.listen((message) {
+        logLlm('worker error: $message');
+        _failAll('llama worker crashed: $message');
+      });
+      _exitSub = exited.listen((_) {
+        if (_inFlight.isNotEmpty) {
+          logLlm('worker exited with ${_inFlight.length} request(s) pending');
+        }
+        _failAll('llama worker exited unexpectedly');
+      });
       _commands = await ready.future;
     }();
+  }
+
+  void _failAll(String reason) {
+    for (final pending in _inFlight.values) {
+      pending.completeError(LlamaWorkerException(reason));
+    }
+    _inFlight.clear();
+    // The dead worker's ports are useless — drop them so the next
+    // generate() spawns a fresh isolate from scratch.
+    _isolate = null;
+    _commands = null;
+    _spawning = null;
+    unawaited(_subscription?.cancel());
+    unawaited(_errorSub?.cancel());
+    unawaited(_exitSub?.cancel());
+    _subscription = null;
+    _errorSub = null;
+    _exitSub = null;
   }
 
   /// Runs one [system, user] exchange; [cancelFlagAddress] is a caller-owned
@@ -94,6 +141,8 @@ class LlamaWorker {
     _isolate = null;
     _commands = null;
     await _subscription?.cancel();
+    await _errorSub?.cancel();
+    await _exitSub?.cancel();
     for (final pending in _inFlight.values) {
       pending.completeError(const LlamaWorkerException('worker disposed'));
     }
@@ -131,11 +180,16 @@ void _workerMain(List<Object> args) {
           loadedModelPath != modelPath ||
           loadedCtxTokens != nCtx) {
         if (context != nullptr) bindings!.free(context);
+        logLlm('loading model ${modelPath.split('/').last} '
+            '(ctx $nCtx, ${request['threads']} threads)');
+        final sw = Stopwatch()..start();
         context = _initContext(bindings!, modelPath, nCtx,
             threads: request['threads'] as int);
+        logLlm('model loaded in ${sw.elapsedMilliseconds} ms');
         loadedModelPath = modelPath;
         loadedCtxTokens = nCtx;
       }
+      final sw = Stopwatch()..start();
       final text = _generate(
         bindings!,
         context,
@@ -145,8 +199,11 @@ void _workerMain(List<Object> args) {
         temperature: request['temperature'] as double,
         cancelFlagAddress: request['cancel'] as int,
       );
+      logLlm('generate done in ${sw.elapsedMilliseconds} ms '
+          '(${text.length} chars)');
       replyTo.send({'id': id, 'text': text});
     } catch (e) {
+      logLlm('request failed: $e');
       replyTo.send({'id': id, 'error': e.toString()});
     }
   });

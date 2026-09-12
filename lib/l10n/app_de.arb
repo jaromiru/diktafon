@@ -54,6 +54,15 @@
   "memoDivider": "Memo {n} — {date}",
   "summarizing": "wird zusammengefasst…",
   "summaryFailedRetry": "Zusammenfassung fehlgeschlagen — zum Wiederholen tippen",
+  "cassetteSummaryFailed": "Kassetten-Zusammenfassung fehlgeschlagen — zum Wiederholen tippen",
+  "importModel": "Aus Datei importieren",
+  "importingModel": "Datei wird geprüft…",
+  "modelImported": "{label} importiert",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "Diese Datei passt zu keinem bekannten Modell",
+  "modelImportFailed": "Import fehlgeschlagen",
+  "importFromFolder": "Aus Ordner importieren",
+  "folderNothingFound": "Keine passenden Modelldateien in diesem Ordner",
   "transcribing": "wird transkribiert…",
 
   "settingsTitle": "EINSTELLUNGEN",
@@ -169,5 +178,6 @@
   "notifDownloading": "{label} wird heruntergeladen",
   "notifModelInstalled": "{label} installiert",
   "notifRecording": "Aufnahme läuft",
-  "notifRecordingChannel": "Aufnahme"
+  "notifRecordingChannel": "Aufnahme",
+  "notifPlaybackChannel": "Wiedergabe"
 }

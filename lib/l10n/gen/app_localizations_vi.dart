@@ -201,6 +201,34 @@ class AppLocalizationsVi extends AppLocalizations {
   String get summaryFailedRetry => 'tóm tắt thất bại — nhấn để thử lại';
 
   @override
+  String get cassetteSummaryFailed =>
+      'tóm tắt cassette thất bại — chạm để thử lại';
+
+  @override
+  String get importModel => 'Nhập từ tệp';
+
+  @override
+  String get importingModel => 'Đang xác minh tệp…';
+
+  @override
+  String modelImported(String label) {
+    return 'Đã nhập $label';
+  }
+
+  @override
+  String get importNoMatch => 'Tệp này không khớp với mô hình nào đã biết';
+
+  @override
+  String get modelImportFailed => 'Nhập thất bại';
+
+  @override
+  String get importFromFolder => 'Nhập từ thư mục';
+
+  @override
+  String get folderNothingFound =>
+      'Không có tệp mô hình khớp nào trong thư mục này';
+
+  @override
   String get transcribing => 'đang chép lời…';
 
   @override
@@ -623,4 +651,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Thu âm';
+
+  @override
+  String get notifPlaybackChannel => 'Phát lại';
 }

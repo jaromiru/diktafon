@@ -21,15 +21,14 @@ void main() {
   late Completer<void> stallGate;
 
   WhisperModel spec(HttpServer server, {String? sha}) => WhisperModel(
-        tier: 'tiny',
-        label: 'Test model',
-        description: '',
-        fileName: 'model.bin',
-        sizeBytes: payload.length,
-        sha256Hex: sha ?? sha256.convert(payload).toString(),
-        urlOverride: Uri.parse(
-            'http://127.0.0.1:${server.port}/model.bin'),
-      );
+    tier: 'tiny',
+    label: 'Test model',
+    description: '',
+    fileName: 'model.bin',
+    sizeBytes: payload.length,
+    sha256Hex: sha ?? sha256.convert(payload).toString(),
+    urlOverride: Uri.parse('http://127.0.0.1:${server.port}/model.bin'),
+  );
 
   setUp(() async {
     dir = Directory.systemTemp.createTempSync('dk_models_');
@@ -60,8 +59,9 @@ void main() {
           return;
         }
         if (serveRanges && range != null) {
-          final from =
-              int.parse(RegExp(r'bytes=(\d+)-').firstMatch(range)!.group(1)!);
+          final from = int.parse(
+            RegExp(r'bytes=(\d+)-').firstMatch(range)!.group(1)!,
+          );
           request.response.statusCode = HttpStatus.partialContent;
           request.response.add(bytes.sublist(from));
           await request.response.close();
@@ -92,13 +92,16 @@ void main() {
 
   // The catalog hardcodes huggingface URLs; point the request at the local
   // server through a proxying HttpClient instead of patching the spec.
-  HttpClient localClient() => HttpClient()
-    ..findProxy = (_) => 'PROXY 127.0.0.1:${server.port}';
+  HttpClient localClient() =>
+      HttpClient()..findProxy = (_) => 'PROXY 127.0.0.1:${server.port}';
 
   test('download → verify → ready; progress reaches 1.0', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
     expect(manager.statusOf(model), ModelStatus.notInstalled);
 
     final fractions = <double>[];
@@ -108,41 +111,59 @@ void main() {
     expect(fractions.last, 1.0);
     expect(manager.fileOf(model).readAsBytesSync(), payload);
     expect(manager.installedBytes(), payload.length);
-    expect(dir.listSync().whereType<File>().any((f) => f.path.endsWith('.part')),
-        isFalse, reason: 'no stale .part file after success');
+    expect(
+      dir.listSync().whereType<File>().any((f) => f.path.endsWith('.part')),
+      isFalse,
+      reason: 'no stale .part file after success',
+    );
   });
 
   test('sha mismatch → error, nothing installed', () async {
     final model = spec(server, sha: 'deadbeef');
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
 
-    await expectLater(manager.download(model),
-        throwsA(isA<ModelVerificationException>()));
+    await expectLater(
+      manager.download(model),
+      throwsA(isA<ModelVerificationException>()),
+    );
     expect(manager.statusOf(model), ModelStatus.notInstalled);
-    expect(dir.listSync().whereType<File>(), isEmpty,
-        reason: 'failed download leaves no partial file behind');
+    expect(
+      dir.listSync().whereType<File>(),
+      isEmpty,
+      reason: 'failed download leaves no partial file behind',
+    );
   });
 
   test('truncated download → error, retry succeeds', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
 
     corruptNextResponse = true;
-    await expectLater(manager.download(model),
-        throwsA(isA<ModelVerificationException>()));
+    await expectLater(
+      manager.download(model),
+      throwsA(isA<ModelVerificationException>()),
+    );
 
     corruptNextResponse = false;
     await manager.download(model);
     expect(manager.statusOf(model), ModelStatus.ready);
   });
 
-  test('concurrent downloads of one tier join; ready short-circuits',
-      () async {
+  test('concurrent downloads of one tier join; ready short-circuits', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
 
     await Future.wait([manager.download(model), manager.download(model)]);
     expect(manager.statusOf(model), ModelStatus.ready);
@@ -152,8 +173,11 @@ void main() {
 
   test('cancel aborts mid-flight, leaves nothing, retry succeeds', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
 
     stallResponses = true;
     final fractions = <double>[];
@@ -168,65 +192,87 @@ void main() {
     manager.cancel(model);
     await expectLater(download, throwsA(isA<ModelDownloadCancelled>()));
     expect(manager.statusOf(model), ModelStatus.notInstalled);
-    expect(dir.listSync().whereType<File>(), isEmpty,
-        reason: 'cancel leaves no partial file behind');
+    expect(
+      dir.listSync().whereType<File>(),
+      isEmpty,
+      reason: 'cancel leaves no partial file behind',
+    );
 
     stallResponses = false;
     await manager.download(model);
     expect(manager.statusOf(model), ModelStatus.ready);
   });
 
-  test('pause stashes the partial as .paused; the next download resumes it',
-      () async {
-    final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+  test(
+    'pause stashes the partial as .paused; the next download resumes it',
+    () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
 
-    stallResponses = true;
-    final fractions = <double>[];
-    final download = manager.download(model, onProgress: fractions.add);
-    while (fractions.isEmpty) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
+      stallResponses = true;
+      final fractions = <double>[];
+      final download = manager.download(model, onProgress: fractions.add);
+      while (fractions.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
 
-    manager.pause(model);
-    await expectLater(download, throwsA(isA<ModelDownloadPaused>()));
+      manager.pause(model);
+      await expectLater(download, throwsA(isA<ModelDownloadPaused>()));
 
-    final paused = File('${manager.fileOf(model).path}.paused');
-    expect(paused.existsSync(), isTrue,
-        reason: 'pause keeps the bytes, stashed out of .part');
-    expect(paused.lengthSync(), 10);
-    expect(File('${manager.fileOf(model).path}.part').existsSync(), isFalse);
-    expect(manager.statusOf(model), ModelStatus.paused);
-    expect(manager.stateOf(model).progress,
+      final paused = File('${manager.fileOf(model).path}.paused');
+      expect(
+        paused.existsSync(),
+        isTrue,
+        reason: 'pause keeps the bytes, stashed out of .part',
+      );
+      expect(paused.lengthSync(), 10);
+      expect(File('${manager.fileOf(model).path}.part').existsSync(), isFalse);
+      expect(manager.statusOf(model), ModelStatus.paused);
+      expect(
+        manager.stateOf(model).progress,
         closeTo(10 / payload.length, 1e-9),
-        reason: 'a paused tier reports the fraction already on disk');
+        reason: 'a paused tier reports the fraction already on disk',
+      );
 
-    // Resuming asks the server for just the missing tail.
-    stallResponses = false;
-    serveRanges = true;
-    final resumed = manager.download(model);
-    expect(manager.stateOf(model).progress,
+      // Resuming asks the server for just the missing tail.
+      stallResponses = false;
+      serveRanges = true;
+      final resumed = manager.download(model);
+      expect(
+        manager.stateOf(model).progress,
         closeTo(10 / payload.length, 1e-9),
-        reason: 'a resume starts the bar at the stashed fraction, not 0 %');
-    await resumed;
-    expect(seenRanges.last, 'bytes=10-');
-    expect(manager.statusOf(model), ModelStatus.ready);
-    expect(manager.fileOf(model).readAsBytesSync(), payload);
-  });
+        reason: 'a resume starts the bar at the stashed fraction, not 0 %',
+      );
+      await resumed;
+      expect(seenRanges.last, 'bytes=10-');
+      expect(manager.statusOf(model), ModelStatus.ready);
+      expect(manager.fileOf(model).readAsBytesSync(), payload);
+    },
+  );
 
   test('resumeInterrupted puts a killed download back on the wire', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
     // A force-closed app leaves .part behind; no manager state survives.
-    File('${manager.fileOf(model).path}.part')
-        .writeAsBytesSync(payload.sublist(0, 10));
+    File(
+      '${manager.fileOf(model).path}.part',
+    ).writeAsBytesSync(payload.sublist(0, 10));
     expect(manager.statusOf(model), ModelStatus.paused);
 
     serveRanges = true;
-    expect(await manager.resumeInterrupted(), isTrue,
-        reason: 'a model landed — callers drain parked jobs');
+    expect(
+      await manager.resumeInterrupted(),
+      isTrue,
+      reason: 'a model landed — callers drain parked jobs',
+    );
     expect(seenRanges.last, 'bytes=10-');
     expect(manager.statusOf(model), ModelStatus.ready);
     expect(manager.fileOf(model).readAsBytesSync(), payload);
@@ -234,37 +280,54 @@ void main() {
 
   test('resumeInterrupted leaves a user-paused stash alone', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
-    File('${manager.fileOf(model).path}.paused')
-        .writeAsBytesSync(payload.sublist(0, 10));
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
+    File(
+      '${manager.fileOf(model).path}.paused',
+    ).writeAsBytesSync(payload.sublist(0, 10));
 
     expect(await manager.resumeInterrupted(), isFalse);
-    expect(seenRanges, isEmpty,
-        reason: 'an explicit pause never auto-resumes (metered connection)');
+    expect(
+      seenRanges,
+      isEmpty,
+      reason: 'an explicit pause never auto-resumes (metered connection)',
+    );
     expect(manager.statusOf(model), ModelStatus.paused);
   });
 
   test('resumeInterrupted stays quiet when the resume fails', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
     final part = File('${manager.fileOf(model).path}.part')
       ..writeAsBytesSync(payload.sublist(0, 10));
 
     dropMidResponse = true;
     expect(await manager.resumeInterrupted(), isFalse);
-    expect(manager.statusOf(model), ModelStatus.paused,
-        reason: 'the partial waits on disk; a tap in Settings retries');
+    expect(
+      manager.statusOf(model),
+      ModelStatus.paused,
+      reason: 'the partial waits on disk; a tap in Settings retries',
+    );
     expect(part.existsSync(), isTrue);
   });
 
   test('delete discards a paused partial', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
-    File('${manager.fileOf(model).path}.paused')
-        .writeAsBytesSync(payload.sublist(0, 10));
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
+    File(
+      '${manager.fileOf(model).path}.paused',
+    ).writeAsBytesSync(payload.sublist(0, 10));
     expect(manager.statusOf(model), ModelStatus.paused);
 
     manager.delete(model);
@@ -272,47 +335,68 @@ void main() {
     expect(dir.listSync().whereType<File>(), isEmpty);
   });
 
-  test('interrupted download keeps the partial file and resumes with Range',
-      () async {
-    final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+  test(
+    'interrupted download keeps the partial file and resumes with Range',
+    () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
 
-    dropMidResponse = true;
-    await expectLater(manager.download(model), throwsException);
-    final part = File('${manager.fileOf(model).path}.part');
-    expect(part.existsSync(), isTrue,
-        reason: 'a transient failure keeps the partial file for resume');
-    expect(part.lengthSync(), 10);
-    expect(seenRanges, [null]);
+      dropMidResponse = true;
+      await expectLater(manager.download(model), throwsException);
+      final part = File('${manager.fileOf(model).path}.part');
+      expect(
+        part.existsSync(),
+        isTrue,
+        reason: 'a transient failure keeps the partial file for resume',
+      );
+      expect(part.lengthSync(), 10);
+      expect(seenRanges, [null]);
 
-    dropMidResponse = false;
-    serveRanges = true;
-    final fractions = <double>[];
-    await manager.download(model, onProgress: fractions.add);
+      dropMidResponse = false;
+      serveRanges = true;
+      final fractions = <double>[];
+      await manager.download(model, onProgress: fractions.add);
 
-    expect(seenRanges.last, 'bytes=10-',
-        reason: 'the retry asks only for the missing tail');
-    expect(manager.statusOf(model), ModelStatus.ready);
-    expect(manager.fileOf(model).readAsBytesSync(), payload);
-    expect(fractions.first, greaterThanOrEqualTo(10 / payload.length),
-        reason: 'progress restarts from the resumed bytes, not 0');
-    expect(fractions.last, 1.0);
-  });
+      expect(
+        seenRanges.last,
+        'bytes=10-',
+        reason: 'the retry asks only for the missing tail',
+      );
+      expect(manager.statusOf(model), ModelStatus.ready);
+      expect(manager.fileOf(model).readAsBytesSync(), payload);
+      expect(
+        fractions.first,
+        greaterThanOrEqualTo(10 / payload.length),
+        reason: 'progress restarts from the resumed bytes, not 0',
+      );
+      expect(fractions.last, 1.0);
+    },
+  );
 
   test('a stalled body stream times out transiently: the partial is kept '
       'and a later attempt resumes', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient,
-        catalog: [model],
-        stallTimeout: const Duration(milliseconds: 200));
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+      stallTimeout: const Duration(milliseconds: 200),
+    );
     stallResponses = true;
 
     await expectLater(
-        manager.download(model), throwsA(isA<TimeoutException>()));
-    expect(manager.statusOf(model), ModelStatus.paused,
-        reason: 'the partial survives for a resume');
+      manager.download(model),
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(
+      manager.statusOf(model),
+      ModelStatus.paused,
+      reason: 'the partial survives for a resume',
+    );
 
     stallResponses = false;
     serveRanges = true;
@@ -321,32 +405,103 @@ void main() {
     expect(manager.fileOf(model).readAsBytesSync(), payload);
   });
 
-  test('a server without Range support restarts the download cleanly',
-      () async {
-    final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+  test(
+    'a server without Range support restarts the download cleanly',
+    () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
 
-    dropMidResponse = true;
-    await expectLater(manager.download(model), throwsException);
+      dropMidResponse = true;
+      await expectLater(manager.download(model), throwsException);
 
-    // The retry sends Range, the server answers 200 with the whole file —
-    // the partial is overwritten, verification still passes.
-    dropMidResponse = false;
-    serveRanges = false;
-    await manager.download(model);
-    expect(seenRanges.last, 'bytes=10-');
-    expect(manager.statusOf(model), ModelStatus.ready);
-    expect(manager.fileOf(model).readAsBytesSync(), payload);
-  });
+      // The retry sends Range, the server answers 200 with the whole file —
+      // the partial is overwritten, verification still passes.
+      dropMidResponse = false;
+      serveRanges = false;
+      await manager.download(model);
+      expect(seenRanges.last, 'bytes=10-');
+      expect(manager.statusOf(model), ModelStatus.ready);
+      expect(manager.fileOf(model).readAsBytesSync(), payload);
+    },
+  );
 
   test('delete returns the tier to notInstalled', () async {
     final model = spec(server);
-    final manager = WhisperModelManager(dir,
-        httpClientFactory: localClient, catalog: [model]);
+    final manager = WhisperModelManager(
+      dir,
+      httpClientFactory: localClient,
+      catalog: [model],
+    );
     await manager.download(model);
     manager.delete(model);
     expect(manager.statusOf(model), ModelStatus.notInstalled);
     expect(manager.installedBytes(), 0);
+  });
+
+  group('importFromFile (checksum-identified, no network)', () {
+    test('installs the catalog tier whose sha256 matches the file', () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
+      final source = File('${dir.parent.path}/dk_import_src_${model.fileName}');
+      await source.writeAsBytes(payload);
+
+      final imported = await manager.importFromFile(source.path);
+      expect(imported?.tier, model.tier);
+      expect(manager.statusOf(model), ModelStatus.ready);
+      expect(manager.fileOf(model).readAsBytesSync(), payload);
+      await source.delete();
+    });
+
+    test('unknown bytes answer null and install nothing', () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
+      final source = File('${dir.parent.path}/dk_import_unknown.bin');
+      await source.writeAsBytes(utf8.encode('definitely not any known model'));
+
+      expect(await manager.importFromFile(source.path), isNull);
+      expect(manager.statusOf(model), ModelStatus.notInstalled);
+      await source.delete();
+    });
+
+    test('a size mismatch is a fast null before the copy pass', () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
+      // Same hash prefix trick is overkill — a short file can't match the
+      // pinned size, so it must be rejected on size alone.
+      final source = File('${dir.parent.path}/dk_import_short.bin');
+      await source.writeAsBytes(payload.sublist(0, 5));
+      expect(await manager.importFromFile(source.path), isNull);
+      expect(manager.statusOf(model), ModelStatus.notInstalled);
+      await source.delete();
+    });
+
+    test('a vanished source answers null and leaves nothing behind', () async {
+      final model = spec(server);
+      final manager = WhisperModelManager(
+        dir,
+        httpClientFactory: localClient,
+        catalog: [model],
+      );
+      final source = File('${dir.parent.path}/dk_import_gone.bin');
+      expect(await manager.importFromFile(source.path), isNull);
+      expect(File('${manager.fileOf(model).path}.part').existsSync(), isFalse);
+      expect(manager.statusOf(model), ModelStatus.notInstalled);
+    });
   });
 }

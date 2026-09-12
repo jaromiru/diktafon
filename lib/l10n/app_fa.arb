@@ -54,6 +54,15 @@
   "memoDivider": "یادداشت {n} — {date}",
   "summarizing": "در حال خلاصه‌سازی…",
   "summaryFailedRetry": "خلاصه‌سازی ناموفق بود — برای تلاش دوباره لمس کنید",
+  "cassetteSummaryFailed": "خلاصه‌ی کاست ناموفق بود — برای تلاش دوباره ضربه بزنید",
+  "importModel": "وارد کردن از فایل",
+  "importingModel": "در حال بررسی فایل…",
+  "modelImported": "{label} وارد شد",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "این فایل با هیچ مدل شناخته‌شده‌ای مطابقت ندارد",
+  "modelImportFailed": "وارد کردن ناموفق بود",
+  "importFromFolder": "وارد کردن از پوشه",
+  "folderNothingFound": "هیچ فایل مدل منطبقی در این پوشه نیست",
   "transcribing": "در حال رونویسی…",
 
   "settingsTitle": "تنظیمات",
@@ -169,5 +178,6 @@
   "notifDownloading": "در حال دانلود {label}",
   "notifModelInstalled": "{label} نصب شد",
   "notifRecording": "در حال ضبط",
-  "notifRecordingChannel": "ضبط"
+  "notifRecordingChannel": "ضبط",
+  "notifPlaybackChannel": "پخش"
 }

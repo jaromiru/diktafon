@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +13,7 @@ import '../../services/providers/model_manager.dart';
 import '../../services/providers/transcription_provider.dart';
 import '../../services/providers/whisper/whisper_model_manager.dart';
 import '../../services/system/device_ram.dart';
+import '../../services/system/system_settings.dart' show pickModelDocument, pickModelsFolder, listFolderModels, stageFolderModel;
 import '../theme/tape_colors.dart';
 import '../widgets/content_width.dart';
 import '../widgets/directional_chevrons.dart';
@@ -378,7 +380,35 @@ class ModelPickerDialog extends ConsumerWidget {
       installedBytes: manager.installedBytes(),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as WhisperModel),
+      onImport: () => _import(context, ref, manager),
+      onImportFolder: () => _importFromFolder(context, ref, manager),
     );
+  }
+
+  /// Installs a model from a file the user picks (Downloads, a copy kept
+  /// across reinstalls, …) — identified by checksum, no network involved.
+  Future<void> _import(BuildContext context, WidgetRef ref,
+      WhisperModelManager manager) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final sourcePath = await _pickModelPath(messenger);
+    if (sourcePath == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(l10n.importingModel)));
+    try {
+      final model = await manager.importFromFile(sourcePath);
+      if (model == null) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.importNoMatch)));
+        return;
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.modelImported(model.label)),
+      ));
+      await ref.read(jobQueueProvider).drain();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.modelImportFailed)));
+    } finally {
+      await _deleteStagedPick(sourcePath);
+    }
   }
 
   Future<void> _select(BuildContext context, WidgetRef ref,
@@ -440,7 +470,37 @@ class LlmModelPickerDialog extends ConsumerWidget {
           ref.read(settingsRepositoryProvider).setSummariesEnabled(false),
       onSelect: (state) => _select(context, ref, state),
       onDelete: (state) => manager.delete(state.model as LlmModel),
+      onImport: () => _import(context, ref, manager),
+      onImportFolder: () => _importFromFolder(context, ref, manager),
     );
+  }
+
+  /// Installs a model from a file the user picks (Downloads, a copy kept
+  /// across reinstalls, …) — identified by checksum, no network involved.
+  Future<void> _import(
+      BuildContext context, WidgetRef ref, LlmModelManager manager) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final sourcePath = await _pickModelPath(messenger);
+    if (sourcePath == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(l10n.importingModel)));
+    try {
+      final model = await manager.importFromFile(sourcePath);
+      if (model == null) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.importNoMatch)));
+        return;
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.modelImported(model.label)),
+      ));
+      // A model landing releases parked summary jobs, same as a download.
+      await ref.read(settingsRepositoryProvider).setSummariesEnabled(true);
+      await ref.read(jobQueueProvider).drain();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.modelImportFailed)));
+    } finally {
+      await _deleteStagedPick(sourcePath);
+    }
   }
 
   Future<void> _select(BuildContext context, WidgetRef ref,
@@ -470,6 +530,87 @@ class LlmModelPickerDialog extends ConsumerWidget {
 /// model-missing recovery). Selecting a tier cancels any other tier still
 /// downloading (§5.6) — the cancelled/paused future stays silent here, only
 /// real failures earn the snackbar.
+
+/// SAF/file pick for the import affordance: any file goes — the checksum
+/// decides which model it is, so extensions stay unfiltered.
+/// Resolves a picked model file's path. Android streams the SAF document
+/// into a cache staging file through the platform channel (file_selector's
+/// openFile materializes the whole document in RAM and OOM-kills the app on
+/// gigabyte models); everywhere else file_selector's path is direct.
+Future<String?> _pickModelPath(ScaffoldMessengerState messenger) async {
+  if (Platform.isAndroid) {
+    return pickModelDocument();
+  }
+  try {
+    final file = await openFile(acceptedTypeGroups: const [
+      XTypeGroup(label: 'model'),
+    ]);
+    return file?.path;
+  } catch (_) {
+    // The picker itself failed (no file app responded, plugin hiccup).
+    return null;
+  }
+}
+
+/// Removes the Android cache staging file after a finished import — the
+/// manager copied the verified bytes into its own store; gigabytes of
+/// staging must not linger. Silently keeps going on any failure.
+Future<void> _deleteStagedPick(String path) async {
+  if (!Platform.isAndroid) return;
+  if (!path.endsWith('imported_model')) return; // only our staging file
+  try {
+    final staged = File(path);
+    if (await staged.exists()) await staged.delete();
+  } catch (_) {}
+}
+
+/// "Import from folder": one SAF tree grant, then every file in it whose
+/// size matches a catalog spec is staged, checksum-verified and installed —
+/// a full restore from the user's backup folder in one gesture. Entries
+/// whose size matches nothing are never staged; a staged file whose hash
+/// matches no model earns the no-match message (a corrupt copy).
+Future<void> _importFromFolder<M extends ModelSpec>(
+  BuildContext context,
+  WidgetRef ref,
+  ModelManager<M> manager,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final l10n = context.l10n;
+  final tree = await pickModelsFolder();
+  if (tree == null) return; // user backed out of the folder picker
+  messenger.showSnackBar(SnackBar(content: Text(l10n.importingModel)));
+  final entries = await listFolderModels(tree);
+  final bySize = {for (final entry in entries) entry.size: entry};
+  final importedLabels = <String>[];
+  var candidates = 0;
+  try {
+    for (final model in manager.catalog) {
+      final candidate = bySize[model.sizeBytes];
+      if (candidate == null) continue;
+      candidates++;
+      if (manager.statusOf(model) == ModelStatus.ready) continue;
+      final staged = await stageFolderModel(tree, candidate.id);
+      if (staged == null) continue;
+      try {
+        final imported = await manager.importFromFile(staged);
+        if (imported != null) {
+          importedLabels.add(imported.label);
+          messenger.showSnackBar(
+              SnackBar(content: Text(l10n.modelImported(imported.label))));
+        }
+      } finally {
+        await _deleteStagedPick(staged);
+      }
+    }
+    if (importedLabels.isNotEmpty) {
+      await ref.read(jobQueueProvider).drain();
+    } else if (candidates == 0) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.folderNothingFound)));
+    }
+  } catch (_) {
+    messenger.showSnackBar(SnackBar(content: Text(l10n.modelImportFailed)));
+  }
+}
 Future<void> downloadAndDrain(
   ScaffoldMessengerState messenger,
   WidgetRef ref,
@@ -512,6 +653,8 @@ class _EnginePickerDialog extends ConsumerWidget {
     this.offDescription,
     this.offSelected = false,
     this.onOff,
+    this.onImport,
+    this.onImportFolder,
   });
 
   final String title;
@@ -524,6 +667,14 @@ class _EnginePickerDialog extends ConsumerWidget {
   final int installedBytes;
   final void Function(ModelState<ModelSpec>) onSelect;
   final void Function(ModelState<ModelSpec>) onDelete;
+
+  /// Set → an "import from file" row trails the catalog: install a model
+  /// from a checksum-identified file already on the device, no download.
+  final VoidCallback? onImport;
+
+  /// Set → an "import from folder" action joins it: every catalog model
+  /// found in the picked folder is imported in one gesture.
+  final VoidCallback? onImportFolder;
 
   /// Device-aware copy override; null → the catalog description.
   final String Function(ModelSpec)? descriptionOf;
@@ -574,6 +725,33 @@ class _EnginePickerDialog extends ConsumerWidget {
                     state.status == ModelStatus.paused
                 ? () => onDelete(state)
                 : null,
+          ),
+        if (onImport != null || onImportFolder != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (onImport != null)
+                  OutlinedButton.icon(
+                    onPressed: onImport,
+                    icon: const Icon(Icons.file_open_outlined, size: 18),
+                    label: Text(
+                      context.l10n.importModel,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                if (onImportFolder != null)
+                  OutlinedButton.icon(
+                    onPressed: onImportFolder,
+                    icon: const Icon(Icons.folder_open_outlined, size: 18),
+                    label: Text(
+                      context.l10n.importFromFolder,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+              ],
+            ),
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),

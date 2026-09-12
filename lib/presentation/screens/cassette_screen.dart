@@ -60,13 +60,24 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
       final issue = next.value;
       if (issue == null || !mounted) return;
       final (type, count) = issue;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(switch (type) {
-          TapePlayerIssue.playbackError => context.l10n.playbackError,
-          TapePlayerIssue.missingAudio => context.l10n.missingAudio(count),
-        }),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(switch (type) {
+            TapePlayerIssue.playbackError => context.l10n.playbackError,
+            TapePlayerIssue.missingAudio => context.l10n.missingAudio(count),
+          }),
+        ),
+      );
     });
+    // M1: the media notification names the cassette being played — keep the
+    // session's title in sync while this screen is what loaded the tape.
+    ref.listenManual(
+      cassetteProvider(widget.cassetteId),
+      (_, next) => ref
+          .read(playbackMediaHandlerProvider)
+          ?.setNowPlaying(next.value?.label),
+      fireImmediately: true,
+    );
   }
 
   @override
@@ -108,17 +119,14 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
 
   @override
   void deactivate() {
-    // M1 has no lock-screen controls yet: leaving the cassette stops the
-    // session. An in-flight recording is finalized, never lost (§14) — and
-    // a start still waiting on the permission prompt is abandoned, so a
-    // late grant can't begin a headless capture.
-    final notifier = ref.read(recordingControllerProvider.notifier);
-    notifier.abortStartIn(widget.cassetteId);
-    final recording = ref.read(recordingControllerProvider);
-    if (recording.isRecordingIn(widget.cassetteId)) {
-      unawaited(notifier.stop());
-    }
-    unawaited(ref.read(tapePlayerProvider).pause());
+    // M1 (background-first): playback and capture now live in their own
+    // foreground sessions — leaving the cassette screen (or the app) no
+    // longer stops them; the media/mic notifications carry the controls.
+    // A start still waiting on the permission prompt is abandoned, so a
+    // late grant can't begin a headless capture (§14).
+    ref
+        .read(recordingControllerProvider.notifier)
+        .abortStartIn(widget.cassetteId);
     super.deactivate();
   }
 
@@ -127,10 +135,15 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
     final tapeColors = context.tape;
     final cassette = ref.watch(cassetteProvider(widget.cassetteId)).value;
     final tape = ref.watch(tapeProvider(widget.cassetteId));
-    final playback = ref.watch(playbackProvider).value ??
-        ref.read(tapePlayerProvider).state;
-    final recording = ref.watch(recordingControllerProvider);
-    final isRecordingHere = recording.isRecordingIn(widget.cassetteId);
+    // Playback ticks (5–10 Hz) and the 250 ms recording-elapsed ticker are
+    // watched only by the small widgets that display them (below) — a whole
+    // screen rebuild per tick is what turned transcript scrolling into
+    // single-digit fps on Android.
+    final isRecordingHere = ref.watch(
+      recordingControllerProvider.select(
+        (s) => s.isRecordingIn(widget.cassetteId),
+      ),
+    );
     final player = ref.read(tapePlayerProvider);
 
     if (cassette == null) {
@@ -169,127 +182,166 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
             onSelected: (action) => switch (action) {
               'rename' => _rename(cassette),
               'color' => showCassetteColorDialog(
-                  context,
-                  ref,
-                  cassetteId: cassette.id,
-                  currentSeed: cassette.colorSeed,
-                ),
+                context,
+                ref,
+                cassetteId: cassette.id,
+                currentSeed: cassette.colorSeed,
+              ),
               'retranscribe' => _retranscribe(cassette, tape.memoCount),
               _ => _deleteCassette(cassette, tape.memoCount),
             },
             itemBuilder: (_) => [
+              PopupMenuItem(value: 'rename', child: Text(context.l10n.rename)),
               PopupMenuItem(
-                  value: 'rename', child: Text(context.l10n.rename)),
+                value: 'color',
+                child: Text(context.l10n.changeColor),
+              ),
               PopupMenuItem(
-                  value: 'color', child: Text(context.l10n.changeColor)),
+                value: 'retranscribe',
+                enabled: !tape.isEmpty,
+                child: Text(context.l10n.retranscribe),
+              ),
               PopupMenuItem(
-                  value: 'retranscribe',
-                  enabled: !tape.isEmpty,
-                  child: Text(context.l10n.retranscribe)),
-              PopupMenuItem(
-                  value: 'delete', child: Text(context.l10n.deleteCassette)),
+                value: 'delete',
+                child: Text(context.l10n.deleteCassette),
+              ),
             ],
           ),
         ],
       ),
       body: ContentWidth(
-          child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!isRecordingHere)
-            _summaryLine(cassette,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!isRecordingHere)
+              _summaryLine(
+                cassette,
                 // The overview is written in the tape's language (D8: the
                 // first contributing memo's), not the UI locale.
                 languageCode: tape.memos
                     .map((m) => m.detectedLang)
-                    .firstWhere((l) => l != null, orElse: () => null)),
-          // §5.7/§13: the tape face — counters, timeline, transport — is
-          // print on a physical object and a media-player convention: it
-          // stays LTR with Western digits even under an RTL app locale.
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-              child: _tapeTop(playback, tape, recording, isRecordingHere),
-            ),
-          ),
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: TimelineBar(
-              tape: tape,
-              colorSeed: cassette.colorSeed,
-              globalMs: playback.globalMs,
-              recordingElapsed: isRecordingHere ? recording.elapsed : null,
-                onScrub: (ms) => player.seekGlobal(ms),
-                onJumpToMemo: (i) =>
-                    player.seekGlobal(tape.offsetsMs[i]),
-                onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
+                    .firstWhere((l) => l != null, orElse: () => null),
+              ),
+            // §5.7/§13: the tape face — counters, timeline, transport — is
+            // print on a physical object and a media-player convention: it
+            // stays LTR with Western digits even under an RTL app locale.
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                child: RepaintBoundary(
+                  child: isRecordingHere
+                      ? _RecordingTop(tape: tape)
+                      : _PlaybackTop(tape: tape),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: tape.isEmpty && !isRecordingHere
-                ? Center(
-                    child: Text(
-                      context.l10n.blankTape,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: RepaintBoundary(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final playback =
+                          ref.watch(playbackProvider).value ??
+                          ref.read(tapePlayerProvider).state;
+                      return TimelineBar(
+                        tape: tape,
+                        colorSeed: cassette.colorSeed,
+                        globalMs: playback.globalMs,
+                        recordingElapsed: isRecordingHere
+                            ? ref.watch(
+                                recordingControllerProvider.select(
+                                  (s) => s.elapsed,
+                                ),
+                              )
+                            : null,
+                        onScrub: (ms) => player.seekGlobal(ms),
+                        onJumpToMemo: (i) =>
+                            player.seekGlobal(tape.offsetsMs[i]),
+                        onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: tape.isEmpty && !isRecordingHere
+                  ? Center(
+                      child: Text(
+                        context.l10n.blankTape,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
                           fontSize: 13,
                           fontStyle: FontStyle.italic,
-                          color: tapeColors.ink2),
+                          color: tapeColors.ink2,
+                        ),
+                      ),
+                    )
+                  : AnimatedOpacity(
+                      // Context dims while capture takes over (mockup 04).
+                      opacity: isRecordingHere ? 0.55 : 1,
+                      duration: const Duration(milliseconds: 200),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final playback =
+                              ref.watch(playbackProvider).value ??
+                              ref.read(tapePlayerProvider).state;
+                          return TranscriptView(
+                            tape: tape,
+                            colorSeed: cassette.colorSeed,
+                            // While recording, the parked playback position is
+                            // stale context — no word deserves a highlight.
+                            globalMs: isRecordingHere ? -1 : playback.globalMs,
+                            currentMemoIndex: playback.memoIndex,
+                            playing: playback.playing,
+                            seekCount: playback.seekCount,
+                            // modelReady watches are scoped to this subtree:
+                            // model-state changes (a download's progress
+                            // ticks) must not rebuild the whole screen.
+                            modelReady: _modelReady(ref),
+                            onSeekGlobalMs: (ms) => player.seekGlobal(ms),
+                            onRetryMemo: (memoId) => ref
+                                .read(jobQueueProvider)
+                                .retryEnrichment(memoId),
+                            onEditMemo: (i) => _editTranscript(tape.memos[i]),
+                            onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
+                          );
+                        },
+                      ),
                     ),
-                  )
-                : AnimatedOpacity(
-                    // Context dims while capture takes over (mockup 04).
-                    opacity: isRecordingHere ? 0.55 : 1,
-                    duration: const Duration(milliseconds: 200),
-                    child: TranscriptView(
-                      tape: tape,
-                      colorSeed: cassette.colorSeed,
-                      // While recording, the parked playback position is
-                      // stale context — no word deserves a highlight.
-                      globalMs: isRecordingHere ? -1 : playback.globalMs,
-                      currentMemoIndex: playback.memoIndex,
-                      playing: playback.playing,
-                      seekCount: playback.seekCount,
-                      modelReady: _modelReady(),
-                      onSeekGlobalMs: (ms) => player.seekGlobal(ms),
-                      onRetryMemo: (memoId) => ref
-                          .read(jobQueueProvider)
-                          .retryEnrichment(memoId),
-                      onEditMemo: (i) => _editTranscript(tape.memos[i]),
-                      onDeleteMemo: (i) => _deleteMemo(tape.memos[i], i),
-                    ),
-                  ),
-          ),
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: isRecordingHere
-                ? _RecordingPanel(elapsed: recording.elapsed)
-                : _deck(playback, tape),
-          ),
-        ],
-      )),
+            ),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: isRecordingHere
+                  ? const _RecordingPanel()
+                  : _Deck(tape: tape, onStartRecording: _startRecording),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   /// Is the selected transcription tier provisioned? Decides the caption an
   /// untranscribed memo shows (§14 guides the user to Settings → Models).
-  bool _modelReady() {
+  /// Takes the caller's [WidgetRef] so the watches land on the smallest
+  /// enclosing rebuild scope, not the whole screen.
+  bool _modelReady(WidgetRef ref) {
     final tier =
         (ref.watch(settingsProvider).value ?? const AppSettings()).whisperTier;
     final states = ref.watch(whisperModelStatesProvider).value;
-    return states
-            ?.any((s) => s.model.tier == tier && s.status == ModelStatus.ready) ??
+    return states?.any(
+          (s) => s.model.tier == tier && s.status == ModelStatus.ready,
+        ) ??
         false;
   }
 
   Widget _summaryLine(Cassette cassette, {String? languageCode}) {
     final tapeColors = context.tape;
-    final summary =
-        cassette.summary ?? context.l10n.summaryPlaceholder;
+    final summary = cassette.summary ?? context.l10n.summaryPlaceholder;
     return Semantics(
       button: true,
       expanded: _summaryExpanded,
@@ -309,8 +361,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                     fontSize: 11,
                     height: 1.5,
                     color: tapeColors.ink2,
-                    fontStyle:
-                        cassette.summary == null ? FontStyle.italic : null,
+                    fontStyle: cassette.summary == null
+                        ? FontStyle.italic
+                        : null,
                     // Content text (Han unification); the placeholder is
                     // UI chrome and inherits the app locale.
                     locale: cassette.summary == null
@@ -333,124 +386,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
     );
   }
 
-  /// "MEMO 7 / 8    18:22 / 21:47" — the LCD counter row (mockup 03), turning
-  /// red with a pulsing dot while recording (mockup 04).
-  Widget _tapeTop(TapePlaybackState playback, Tape tape,
-      RecordingState recording, bool isRecordingHere) {
-    final tapeColors = context.tape;
-    if (isRecordingHere) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            // The dot rides inside the label as an inline box whose bottom
-            // sits on the text baseline — the mockup's inline-block .rec-dot.
-            child: Text.rich(
-              TextSpan(children: [
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: _RecDot(color: tapeColors.rec),
-                  ),
-                ),
-                TextSpan(text: context.l10n.recordingMemo(tape.memoCount + 1)),
-              ]),
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-                color: tapeColors.rec,
-              ),
-            ),
-          ),
-          Text(
-            formatMs(recording.elapsed.inMilliseconds),
-            style: lcdStyle(context, color: tapeColors.rec),
-          ),
-        ],
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Text(
-            tape.isEmpty
-                ? context.l10n.emptyTape
-                : context.l10n
-                    .memoCounter(playback.memoIndex + 1, tape.memoCount),
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: tapeColors.ink2,
-            ),
-          ),
-        ),
-        Text.rich(
-          TextSpan(children: [
-            TextSpan(text: formatMs(playback.globalMs)),
-            TextSpan(
-              text: ' / ${formatMs(tape.totalDurationMs)}',
-              style: TextStyle(color: tapeColors.ink2),
-            ),
-          ]),
-          style: lcdStyle(context, color: tapeColors.ink),
-        ),
-      ],
-    );
-  }
-
-  /// Transport (§5.3): rewind / play–pause / fast-forward, record at the
-  /// right end. All hops are global across memo boundaries (D5).
-  Widget _deck(TapePlaybackState playback, Tape tape) {
-    final tapeColors = context.tape;
-    final player = ref.read(tapePlayerProvider);
-    return Container(
-      decoration: BoxDecoration(
-        color: tapeColors.surface,
-        border: Border(top: BorderSide(color: tapeColors.ink, width: 2)),
-      ),
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            DeckKey(
-              glyph: DeckGlyph.rewind,
-              semanticLabel: context.l10n.back15,
-              onPressed: tape.isEmpty ? null : () => player.skipBy(-15000),
-            ),
-            const SizedBox(width: 10),
-            DeckKey(
-              glyph: playback.playing ? DeckGlyph.pause : DeckGlyph.play,
-              style: DeckKeyStyle.ink,
-              width: 64,
-              semanticLabel: playback.playing
-                  ? context.l10n.pause
-                  : context.l10n.play,
-              onPressed: tape.isEmpty ? null : player.playPause,
-            ),
-            const SizedBox(width: 10),
-            DeckKey(
-              glyph: DeckGlyph.fastForward,
-              semanticLabel: context.l10n.forward15,
-              onPressed: tape.isEmpty ? null : () => player.skipBy(15000),
-            ),
-            const Spacer(),
-            DeckKey(
-              glyph: DeckGlyph.record,
-              style: DeckKeyStyle.record,
-              semanticLabel: context.l10n.recordNewMemo,
-              onPressed: _startRecording,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  /// "MEMO 7 / 8    18:22 / 21:47" — the LCD counter row (mockup 03). Scoped
+  /// consumers below ([_PlaybackTop]/[_RecordingTop]) so the 5–10 Hz
+  /// playback ticks and the 250 ms capture ticker repaint only this row.
 
   /// The record tap itself asks for the mic permission (the recorder fires
   /// the OS prompt when it's missing) — the bubble appears only after a
@@ -464,35 +402,38 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
       case RecordStartOutcome.started || RecordStartOutcome.ignored:
         break;
       case RecordStartOutcome.denied:
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.l10n.micPermissionNeeded),
-          action: !Platform.isAndroid
-              ? null
-              : SnackBarAction(
-                  label: context.l10n.openSystemSettings,
-                  onPressed: openAppSystemSettings,
-                ),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.micPermissionNeeded),
+            action: !Platform.isAndroid
+                ? null
+                : SnackBarAction(
+                    label: context.l10n.openSystemSettings,
+                    onPressed: openAppSystemSettings,
+                  ),
+          ),
+        );
       case RecordStartOutcome.failed:
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.l10n.recordingFailed),
-        ));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.recordingFailed)));
     }
   }
 
   Future<void> _rename(Cassette cassette) => showRenameCassetteDialog(
-        context,
-        ref,
-        cassetteId: cassette.id,
-        currentLabel: cassette.label,
-      );
+    context,
+    ref,
+    cassetteId: cassette.id,
+    currentLabel: cassette.label,
+  );
 
   /// Re-transcribe the whole cassette — for when a more capable model was
   /// installed after the fact. Destructive to the existing texts, so it
   /// confirms with a note before the queue wipes and re-enriches.
   Future<void> _retranscribe(Cassette cassette, int memoCount) async {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(l10n.retranscribeTitle),
@@ -533,11 +474,17 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
     final transcript = memo.transcript;
     if (transcript == null) return;
     final initial = transcript.plainText;
-    final edited = await showEditTranscriptDialog(context,
-        initialText: initial, languageCode: transcript.languageCode);
+    final edited = await showEditTranscriptDialog(
+      context,
+      initialText: initial,
+      languageCode: transcript.languageCode,
+    );
     if (edited == null || edited == initial) return;
-    final retimed = retimeEditedTranscript(transcript, edited,
-        memoDurationMs: memo.durationMs);
+    final retimed = retimeEditedTranscript(
+      transcript,
+      edited,
+      memoDurationMs: memo.durationMs,
+    );
     if (retimed == null) return; // no words left — nothing to store
     await ref.read(jobQueueProvider).applyTranscriptEdit(memo.id, retimed);
   }
@@ -545,7 +492,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
   /// Long-press a segment → delete memo (§5.3); the tape re-flows (§4.2).
   Future<void> _deleteMemo(Memo memo, int ordinalIndex) async {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(l10n.deleteMemoTitle),
@@ -558,7 +506,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 style: TextButton.styleFrom(
-                    foregroundColor: dialogContext.tape.rec),
+                  foregroundColor: dialogContext.tape.rec,
+                ),
                 child: Text(l10n.deleteAction),
               ),
             ],
@@ -576,6 +525,162 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
   }
 }
 
+/// The LCD counter while a memo plays back (mockup 03).
+class _PlaybackTop extends ConsumerWidget {
+  const _PlaybackTop({required this.tape});
+
+  final Tape tape;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback =
+        ref.watch(playbackProvider).value ?? ref.read(tapePlayerProvider).state;
+    final tapeColors = context.tape;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Text(
+            tape.isEmpty
+                ? context.l10n.emptyTape
+                : context.l10n.memoCounter(
+                    playback.memoIndex + 1,
+                    tape.memoCount,
+                  ),
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: tapeColors.ink2,
+            ),
+          ),
+        ),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: formatMs(playback.globalMs)),
+              TextSpan(
+                text: ' / ${formatMs(tape.totalDurationMs)}',
+                style: TextStyle(color: tapeColors.ink2),
+              ),
+            ],
+          ),
+          style: lcdStyle(context, color: tapeColors.ink),
+        ),
+      ],
+    );
+  }
+}
+
+/// The LCD counter while recording (mockup 04): red, with a pulsing dot.
+class _RecordingTop extends ConsumerWidget {
+  const _RecordingTop({required this.tape});
+
+  final Tape tape;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tapeColors = context.tape;
+    final elapsed = ref.watch(
+      recordingControllerProvider.select((s) => s.elapsed),
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          // The dot rides inside the label as an inline box whose bottom
+          // sits on the text baseline — the mockup's inline-block .rec-dot.
+          child: Text.rich(
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 5),
+                    child: _RecDot(color: tapeColors.rec),
+                  ),
+                ),
+                TextSpan(text: context.l10n.recordingMemo(tape.memoCount + 1)),
+              ],
+            ),
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: tapeColors.rec,
+            ),
+          ),
+        ),
+        Text(
+          formatMs(elapsed.inMilliseconds),
+          style: lcdStyle(context, color: tapeColors.rec),
+        ),
+      ],
+    );
+  }
+}
+
+/// Transport (§5.3): rewind / play–pause / fast-forward, record at the
+/// right end. All hops are global across memo boundaries (D5). Scoped so
+/// the play/pause glyph flip doesn't rebuild the whole screen.
+class _Deck extends ConsumerWidget {
+  const _Deck({required this.tape, required this.onStartRecording});
+
+  final Tape tape;
+  final VoidCallback onStartRecording;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tapeColors = context.tape;
+    final playback =
+        ref.watch(playbackProvider).value ?? ref.read(tapePlayerProvider).state;
+    final player = ref.read(tapePlayerProvider);
+    return Container(
+      decoration: BoxDecoration(
+        color: tapeColors.surface,
+        border: Border(top: BorderSide(color: tapeColors.ink, width: 2)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            DeckKey(
+              glyph: DeckGlyph.rewind,
+              semanticLabel: context.l10n.back15,
+              onPressed: tape.isEmpty ? null : () => player.skipBy(-15000),
+            ),
+            const SizedBox(width: 10),
+            DeckKey(
+              glyph: playback.playing ? DeckGlyph.pause : DeckGlyph.play,
+              style: DeckKeyStyle.ink,
+              width: 64,
+              semanticLabel: playback.playing
+                  ? context.l10n.pause
+                  : context.l10n.play,
+              onPressed: tape.isEmpty ? null : player.playPause,
+            ),
+            const SizedBox(width: 10),
+            DeckKey(
+              glyph: DeckGlyph.fastForward,
+              semanticLabel: context.l10n.forward15,
+              onPressed: tape.isEmpty ? null : () => player.skipBy(15000),
+            ),
+            const Spacer(),
+            DeckKey(
+              glyph: DeckGlyph.record,
+              style: DeckKeyStyle.record,
+              semanticLabel: context.l10n.recordNewMemo,
+              onPressed: onStartRecording,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RecDot extends StatefulWidget {
   const _RecDot({required this.color});
 
@@ -585,8 +690,7 @@ class _RecDot extends StatefulWidget {
   State<_RecDot> createState() => _RecDotState();
 }
 
-class _RecDotState extends State<_RecDot>
-    with SingleTickerProviderStateMixin {
+class _RecDotState extends State<_RecDot> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
@@ -610,55 +714,30 @@ class _RecDotState extends State<_RecDot>
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final t = _controller.value;
-          final wave = t < 0.5 ? t * 2 : (1 - t) * 2;
-          return Opacity(
-            opacity: 1 - 0.55 * wave,
-            child: Container(width: 8, height: 8, color: widget.color),
-          );
-        },
+    animation: _controller,
+    builder: (context, _) {
+      final t = _controller.value;
+      final wave = t < 0.5 ? t * 2 : (1 - t) * 2;
+      return Opacity(
+        opacity: 1 - 0.55 * wave,
+        child: Container(width: 8, height: 8, color: widget.color),
       );
+    },
+  );
 }
 
 /// The recording panel (mockup 04): LCD elapsed, level meter, one STOP key.
-class _RecordingPanel extends ConsumerStatefulWidget {
-  const _RecordingPanel({required this.elapsed});
-
-  final Duration elapsed;
-
-  @override
-  ConsumerState<_RecordingPanel> createState() => _RecordingPanelState();
-}
-
-class _RecordingPanelState extends ConsumerState<_RecordingPanel> {
-  final List<double> _levels = [];
-  StreamSubscription<dynamic>? _amplitudeSub;
+/// Watches the capture state itself — the 250 ms elapsed ticker must not
+/// rebuild the screen above it.
+class _RecordingPanel extends ConsumerWidget {
+  const _RecordingPanel();
 
   @override
-  void initState() {
-    super.initState();
-    _amplitudeSub = ref
-        .read(recorderServiceProvider)
-        .amplitudeStream()
-        .listen((amplitude) {
-      setState(() {
-        _levels.add(amplitude.current.toDouble());
-        if (_levels.length > 60) _levels.removeAt(0);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _amplitudeSub?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tapeColors = context.tape;
+    final elapsed = ref.watch(
+      recordingControllerProvider.select((s) => s.elapsed),
+    );
     return Container(
       decoration: BoxDecoration(
         color: tapeColors.surface,
@@ -671,11 +750,11 @@ class _RecordingPanelState extends ConsumerState<_RecordingPanel> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              formatMs(widget.elapsed.inMilliseconds),
+              formatMs(elapsed.inMilliseconds),
               style: lcdStyle(context, size: 56, color: tapeColors.ink),
             ),
             const SizedBox(height: 13),
-            LevelMeter(levelsDb: _levels),
+            const _LevelMeterPanel(),
             const SizedBox(height: 13),
             DeckKey(
               glyph: DeckGlyph.stop,
@@ -691,4 +770,41 @@ class _RecordingPanelState extends ConsumerState<_RecordingPanel> {
       ),
     );
   }
+}
+
+/// The level meter in its own rebuild scope: amplitude samples arrive
+/// several times a second and only the meter's bars depend on them.
+class _LevelMeterPanel extends ConsumerStatefulWidget {
+  const _LevelMeterPanel();
+
+  @override
+  ConsumerState<_LevelMeterPanel> createState() => _LevelMeterPanelState();
+}
+
+class _LevelMeterPanelState extends ConsumerState<_LevelMeterPanel> {
+  final List<double> _levels = [];
+  StreamSubscription<dynamic>? _amplitudeSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _amplitudeSub = ref.read(recorderServiceProvider).amplitudeStream().listen((
+      amplitude,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        _levels.add(amplitude.current.toDouble());
+        if (_levels.length > 60) _levels.removeAt(0);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _amplitudeSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LevelMeter(levelsDb: _levels);
 }

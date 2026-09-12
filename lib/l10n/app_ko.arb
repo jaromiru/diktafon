@@ -54,6 +54,15 @@
   "memoDivider": "메모 {n} — {date}",
   "summarizing": "요약 중…",
   "summaryFailedRetry": "요약 실패 — 눌러서 다시 시도",
+  "cassetteSummaryFailed": "카세트 요약 실패 — 탭하여 재시도",
+  "importModel": "파일에서 가져오기",
+  "importingModel": "파일 확인 중…",
+  "modelImported": "{label} 가져옴",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "이 파일은 알려진 모델과 일치하지 않습니다",
+  "modelImportFailed": "가져오기 실패",
+  "importFromFolder": "폴더에서 가져오기",
+  "folderNothingFound": "이 폴더에 일치하는 모델 파일이 없습니다",
   "transcribing": "텍스트로 변환 중…",
 
   "settingsTitle": "설정",
@@ -169,5 +178,6 @@
   "notifDownloading": "{label} 다운로드 중",
   "notifModelInstalled": "{label} 설치됨",
   "notifRecording": "녹음 중",
-  "notifRecordingChannel": "녹음"
+  "notifRecordingChannel": "녹음",
+  "notifPlaybackChannel": "재생"
 }

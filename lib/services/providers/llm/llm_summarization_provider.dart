@@ -4,13 +4,14 @@
 /// warm between jobs.
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
 import '../../../domain/models.dart';
 import '../summarization_provider.dart';
 import '../transcription_provider.dart' show ModelStatus, ProgressSink;
-import 'llama_worker.dart';
+import 'llama_worker.dart' show LlamaWorker, logLlm;
 import 'llm_model_manager.dart';
 import 'summary_prompts.dart';
 
@@ -28,6 +29,11 @@ class LocalLlmSummarizationProvider implements SummarizationProvider {
   /// Low but non-zero: greedy decoding loops on repetitive dictation;
   /// the seeded sampler keeps output deterministic per transcript.
   static const _temperature = 0.3;
+
+  /// Hard ceiling for one exchange. A phone-size model answers in well
+  /// under a minute; anything past this is a wedged native call, not a
+  /// slow one — without it a stuck job parks the whole queue forever.
+  static const _generateTimeout = Duration(minutes: 5);
 
   /// Leave headroom for the UI/OS; same policy as the whisper provider.
   static final int _threads = max(1, min(Platform.numberOfProcessors - 2, 8));
@@ -71,19 +77,35 @@ class LocalLlmSummarizationProvider implements SummarizationProvider {
     return cleanTitle(out);
   }
 
-  Future<String> _run(LlmPrompt prompt) {
+  Future<String> _run(LlmPrompt prompt) async {
     if (_models.statusOf(_model) != ModelStatus.ready) {
       throw StateError('summarization model ${_model.tier} is not installed');
     }
-    return _worker.generate(
-      modelPath: _models.fileOf(_model).path,
-      contextTokens: _model.contextTokens,
-      system: prompt.system,
-      user: prompt.user,
-      maxTokens: prompt.maxTokens,
-      temperature: _temperature,
-      cancelFlagAddress: 0, // summarization jobs are short; not cancellable
-      threads: _threads,
-    );
+    final sw = Stopwatch()..start();
+    try {
+      return await _worker
+          .generate(
+            modelPath: _models.fileOf(_model).path,
+            contextTokens: _model.contextTokens,
+            system: prompt.system,
+            user: prompt.user,
+            maxTokens: prompt.maxTokens,
+            temperature: _temperature,
+            cancelFlagAddress: 0, // summarization jobs are short; not cancellable
+            threads: _threads,
+          )
+          .timeout(_generateTimeout);
+    } on TimeoutException {
+      // The queue retries with backoff — but a wedged native generate
+      // would block every later attempt inside one shared isolate, so the
+      // worker is torn down and the retry spawns a fresh one.
+      logLlm('generate timed out after '
+          '${_generateTimeout.inMinutes} min — restarting worker');
+      await _worker.dispose();
+      rethrow;
+    } catch (e) {
+      logLlm('generate failed after ${sw.elapsedMilliseconds} ms: $e');
+      rethrow;
+    }
   }
 }

@@ -196,6 +196,32 @@ class AppLocalizationsKo extends AppLocalizations {
   String get summaryFailedRetry => '요약 실패 — 눌러서 다시 시도';
 
   @override
+  String get cassetteSummaryFailed => '카세트 요약 실패 — 탭하여 재시도';
+
+  @override
+  String get importModel => '파일에서 가져오기';
+
+  @override
+  String get importingModel => '파일 확인 중…';
+
+  @override
+  String modelImported(String label) {
+    return '$label 가져옴';
+  }
+
+  @override
+  String get importNoMatch => '이 파일은 알려진 모델과 일치하지 않습니다';
+
+  @override
+  String get modelImportFailed => '가져오기 실패';
+
+  @override
+  String get importFromFolder => '폴더에서 가져오기';
+
+  @override
+  String get folderNothingFound => '이 폴더에 일치하는 모델 파일이 없습니다';
+
+  @override
   String get transcribing => '텍스트로 변환 중…';
 
   @override
@@ -595,4 +621,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => '녹음';
+
+  @override
+  String get notifPlaybackChannel => '재생';
 }

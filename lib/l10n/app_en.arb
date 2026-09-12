@@ -100,6 +100,15 @@
   },
   "summarizing": "summarising…",
   "summaryFailedRetry": "summary failed — tap to retry",
+  "cassetteSummaryFailed": "cassette summary failed — tap to retry",
+  "importModel": "Import from file",
+  "importingModel": "Verifying file…",
+  "modelImported": "{label} imported",
+  "@modelImported": {"placeholders": {"label": {"type": "String"}}},
+  "importNoMatch": "This file does not match any known model",
+  "modelImportFailed": "Import failed",
+  "importFromFolder": "Import from folder",
+  "folderNothingFound": "No matching model files in this folder",
   "transcribing": "transcribing…",
 
   "settingsTitle": "SETTINGS",
@@ -290,5 +299,6 @@
   "notifModelInstalled": "{label} installed",
   "@notifModelInstalled": {"placeholders": {"label": {"type": "String"}}},
   "notifRecording": "Recording memo",
-  "notifRecordingChannel": "Recording"
+  "notifRecordingChannel": "Recording",
+  "notifPlaybackChannel": "Playback"
 }

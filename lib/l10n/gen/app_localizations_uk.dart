@@ -212,6 +212,34 @@ class AppLocalizationsUk extends AppLocalizations {
       'не вдалося скласти підсумок — натисніть, щоб повторити';
 
   @override
+  String get cassetteSummaryFailed =>
+      'не вдалося підсумувати касету — торкніться, щоб повторити';
+
+  @override
+  String get importModel => 'Імпортувати з файла';
+
+  @override
+  String get importingModel => 'Перевірка файла…';
+
+  @override
+  String modelImported(String label) {
+    return '$label імпортовано';
+  }
+
+  @override
+  String get importNoMatch => 'Цей файл не відповідає жодній відомій моделі';
+
+  @override
+  String get modelImportFailed => 'Імпорт не вдався';
+
+  @override
+  String get importFromFolder => 'Імпортувати з теки';
+
+  @override
+  String get folderNothingFound =>
+      'У цій теці немає відповідних файлів моделей';
+
+  @override
   String get transcribing => 'іде розшифровка…';
 
   @override
@@ -675,4 +703,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Запис';
+
+  @override
+  String get notifPlaybackChannel => 'Відтворення';
 }

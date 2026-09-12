@@ -207,6 +207,34 @@ class AppLocalizationsCs extends AppLocalizations {
   String get summaryFailedRetry => 'souhrn selhal — klepnutím to zkusíte znovu';
 
   @override
+  String get cassetteSummaryFailed =>
+      'shrnutí kazety selhalo — klepněte pro opakování';
+
+  @override
+  String get importModel => 'Importovat ze souboru';
+
+  @override
+  String get importingModel => 'Ověřuje se soubor…';
+
+  @override
+  String modelImported(String label) {
+    return '$label importován';
+  }
+
+  @override
+  String get importNoMatch => 'Tento soubor neodpovídá žádnému známému modelu';
+
+  @override
+  String get modelImportFailed => 'Import se nezdařil';
+
+  @override
+  String get importFromFolder => 'Importovat ze složky';
+
+  @override
+  String get folderNothingFound =>
+      'V této složce nejsou žádné odpovídající soubory modelů';
+
+  @override
   String get transcribing => 'přepisuje se…';
 
   @override
@@ -652,4 +680,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get notifRecordingChannel => 'Nahrávání';
+
+  @override
+  String get notifPlaybackChannel => 'Přehrávání';
 }
