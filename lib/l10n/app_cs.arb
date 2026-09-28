@@ -55,6 +55,7 @@
   "summarizing": "vytváří se souhrn…",
   "summaryFailedRetry": "souhrn selhal — klepnutím to zkusíte znovu",
   "transcribing": "přepisuje se…",
+  "transcribingProgress": "přepisuje se… {percent}",
 
   "settingsTitle": "NASTAVENÍ",
   "groupLanguage": "Jazyk",

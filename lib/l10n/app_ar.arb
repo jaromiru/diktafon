@@ -55,6 +55,7 @@
   "summarizing": "جارٍ التلخيص…",
   "summaryFailedRetry": "فشل التلخيص — انقر لإعادة المحاولة",
   "transcribing": "جارٍ التفريغ…",
+  "transcribingProgress": "جارٍ التفريغ… {percent}",
 
   "settingsTitle": "الإعدادات",
   "groupLanguage": "اللغة",

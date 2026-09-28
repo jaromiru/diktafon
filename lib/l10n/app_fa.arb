@@ -55,6 +55,7 @@
   "summarizing": "در حال خلاصه‌سازی…",
   "summaryFailedRetry": "خلاصه‌سازی ناموفق بود — برای تلاش دوباره لمس کنید",
   "transcribing": "در حال رونویسی…",
+  "transcribingProgress": "در حال رونویسی… {percent}",
 
   "settingsTitle": "تنظیمات",
   "groupLanguage": "زبان",

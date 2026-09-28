@@ -67,7 +67,10 @@ class WhisperWorker {
   }
 
   /// Transcribes the raw PCM file; [cancelFlagAddress] is a caller-owned
-  /// native int32 polled by the engine (non-zero aborts).
+  /// native int32 polled by the engine (non-zero aborts), and
+  /// [progressCellAddress] — when non-zero — one the engine *writes*, 0..100,
+  /// as it advances through the audio (the caller polls it; this isolate
+  /// is busy inside the FFI call and cannot post updates itself).
   /// [beamSize] > 1 selects beam-search decoding (slower, noise-robust);
   /// [vadModelPath] (a Silero ggml file) gates inference to detected
   /// speech regions.
@@ -76,6 +79,7 @@ class WhisperWorker {
     required String pcmPath,
     String? languageCode,
     required int cancelFlagAddress,
+    int progressCellAddress = 0,
     required int threads,
     int beamSize = 0,
     String? vadModelPath,
@@ -90,6 +94,7 @@ class WhisperWorker {
       'pcm': pcmPath,
       'lang': languageCode,
       'cancel': cancelFlagAddress,
+      'progress': progressCellAddress,
       'threads': threads,
       'beam': beamSize,
       'vad': vadModelPath,
@@ -200,6 +205,7 @@ void _workerMain(List<Object> args) {
         pcmPath: request['pcm'] as String,
         languageCode: request['lang'] as String?,
         cancelFlagAddress: request['cancel'] as int,
+        progressCellAddress: request['progress'] as int? ?? 0,
         threads: request['threads'] as int,
         confidenceOut: confidence,
       );
@@ -278,6 +284,7 @@ Transcript _transcribeFile(
   required String pcmPath,
   required String? languageCode,
   required int cancelFlagAddress,
+  int progressCellAddress = 0,
   required int threads,
   List<SegmentConfidence>? confidenceOut,
 }) {
@@ -299,6 +306,8 @@ Transcript _transcribeFile(
       langC,
       threads,
       Pointer<Int32>.fromAddress(cancelFlagAddress),
+      // Address 0 is nullptr: the engine then simply never reports.
+      Pointer<Int32>.fromAddress(progressCellAddress),
     );
     if (ret != 0) {
       // Also the abort path — the provider maps it back to "cancelled" by

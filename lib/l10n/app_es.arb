@@ -55,6 +55,7 @@
   "summarizing": "resumiendo…",
   "summaryFailedRetry": "el resumen falló — toca para reintentar",
   "transcribing": "transcribiendo…",
+  "transcribingProgress": "transcribiendo… {percent}",
 
   "settingsTitle": "AJUSTES",
   "groupLanguage": "Idioma",

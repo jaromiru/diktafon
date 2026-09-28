@@ -55,6 +55,7 @@
   "summarizing": "résumé en cours…",
   "summaryFailedRetry": "résumé échoué — touchez pour réessayer",
   "transcribing": "transcription en cours…",
+  "transcribingProgress": "transcription en cours… {percent}",
 
   "settingsTitle": "RÉGLAGES",
   "groupLanguage": "Langue",

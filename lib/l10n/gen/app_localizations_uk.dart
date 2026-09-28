@@ -215,6 +215,11 @@ class AppLocalizationsUk extends AppLocalizations {
   String get transcribing => 'іде розшифровка…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'іде розшифровка… $percent';
+  }
+
+  @override
   String get settingsTitle => 'НАЛАШТУВАННЯ';
 
   @override

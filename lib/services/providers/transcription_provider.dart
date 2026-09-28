@@ -61,10 +61,17 @@ abstract interface class TranscriptionProvider {
   Future<void> ensureModel({ProgressSink? onProgress});
 
   /// [languageCode] null → auto-detect (D8).
+  ///
+  /// [onProgress] receives the engine's own position through the audio,
+  /// 0..1, as it advances — coarse (whisper reports once per decoding
+  /// window, about 30 s of audio), monotonic, and only while the model is
+  /// actually decoding: decoding the file and any VAD pass come before the
+  /// first report. An engine with nothing to say may never call it.
   Future<Transcript> transcribe(
     AudioRef audio, {
     String? languageCode,
     CancelToken? cancel,
+    ProgressSink? onProgress,
   });
 }
 

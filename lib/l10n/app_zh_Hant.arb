@@ -55,6 +55,7 @@
   "summarizing": "正在產生摘要…",
   "summaryFailedRetry": "摘要失敗，點一下重試",
   "transcribing": "轉錄中…",
+  "transcribingProgress": "轉錄中… {percent}",
 
   "settingsTitle": "設定",
   "groupLanguage": "語言",

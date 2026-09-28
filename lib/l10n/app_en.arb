@@ -101,6 +101,8 @@
   "summarizing": "summarising…",
   "summaryFailedRetry": "summary failed — tap to retry",
   "transcribing": "transcribing…",
+  "transcribingProgress": "transcribing… {percent}",
+  "@transcribingProgress": {"placeholders": {"percent": {"type": "String"}}},
 
   "settingsTitle": "SETTINGS",
   "groupLanguage": "Language",

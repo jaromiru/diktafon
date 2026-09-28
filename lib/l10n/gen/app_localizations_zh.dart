@@ -198,6 +198,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get transcribing => '正在转写…';
 
   @override
+  String transcribingProgress(String percent) {
+    return '正在转写… $percent';
+  }
+
+  @override
   String get settingsTitle => '设置';
 
   @override
@@ -801,6 +806,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get transcribing => '轉錄中…';
+
+  @override
+  String transcribingProgress(String percent) {
+    return '轉錄中… $percent';
+  }
 
   @override
   String get settingsTitle => '設定';

@@ -199,6 +199,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get transcribing => '텍스트로 변환 중…';
 
   @override
+  String transcribingProgress(String percent) {
+    return '텍스트로 변환 중… $percent';
+  }
+
+  @override
   String get settingsTitle => '설정';
 
   @override

@@ -55,6 +55,7 @@
   "summarizing": "wird zusammengefasst…",
   "summaryFailedRetry": "Zusammenfassung fehlgeschlagen — zum Wiederholen tippen",
   "transcribing": "wird transkribiert…",
+  "transcribingProgress": "wird transkribiert… {percent}",
 
   "settingsTitle": "EINSTELLUNGEN",
   "groupLanguage": "Sprache",

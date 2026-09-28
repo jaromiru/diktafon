@@ -10,6 +10,7 @@
 /// only as a *gate* — skip inference entirely when a memo has no speech.
 library;
 
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
@@ -65,11 +66,17 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
   Future<void> ensureModel({ProgressSink? onProgress}) =>
       _models.download(_model, onProgress: onProgress);
 
+  /// How often the progress cell is read while the worker is inside the
+  /// engine. Coarse on purpose: whisper moves the figure once per decoding
+  /// window, so polling faster would only re-read the same number.
+  static const _progressPollInterval = Duration(milliseconds: 300);
+
   @override
   Future<Transcript> transcribe(
     AudioRef audio, {
     String? languageCode,
     CancelToken? cancel,
+    ProgressSink? onProgress,
   }) async {
     // Whisper knows bare codes only — the script-qualified zh-Hans/zh-Hant
     // preference (D8) both force plain `zh` here; the job queue converts
@@ -88,6 +95,21 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
     cancel?.addListener(() {
       if (!flagFreed) cancelFlag.value = 1;
     });
+    // The engine writes its 0..100 here from the worker isolate; this
+    // isolate polls it, because the worker is blocked inside the FFI call
+    // for the whole pass and cannot send messages. Read only while the
+    // timer is live, which ends before the cell is freed.
+    final progressCell = calloc<Int32>();
+    Timer? progressPoll;
+    if (onProgress != null) {
+      var lastPercent = 0;
+      progressPoll = Timer.periodic(_progressPollInterval, (_) {
+        final percent = progressCell.value;
+        if (percent == lastPercent) return;
+        lastPercent = percent;
+        onProgress(percent / 100);
+      });
+    }
     try {
       final pcmPath = '${tmpDir.path}/audio.f32';
       await _decoder.decodeToF32(audio.filePath, pcmPath);
@@ -125,6 +147,7 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
           pcmPath: pcmPath,
           languageCode: languageCode,
           cancelFlagAddress: cancelFlag.address,
+          progressCellAddress: onProgress == null ? 0 : progressCell.address,
           threads: _threads,
           vadModelPath: _isLarge ? null : _vadModelPath,
         );
@@ -134,8 +157,12 @@ class WhisperCppTranscriptionProvider implements TranscriptionProvider {
         rethrow;
       }
     } finally {
+      // Cancel before freeing: a periodic timer never fires again once
+      // cancelled, so no read can land on the released cell.
+      progressPoll?.cancel();
       flagFreed = true;
       calloc.free(cancelFlag);
+      calloc.free(progressCell);
       await tmpDir.delete(recursive: true);
     }
   }

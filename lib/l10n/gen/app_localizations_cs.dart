@@ -210,6 +210,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get transcribing => 'přepisuje se…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'přepisuje se… $percent';
+  }
+
+  @override
   String get settingsTitle => 'NASTAVENÍ';
 
   @override

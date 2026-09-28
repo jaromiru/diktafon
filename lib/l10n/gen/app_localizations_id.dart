@@ -203,6 +203,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get transcribing => 'mentranskripsi…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'mentranskripsi… $percent';
+  }
+
+  @override
   String get settingsTitle => 'PENGATURAN';
 
   @override

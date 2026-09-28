@@ -55,6 +55,7 @@
   "summarizing": "складається підсумок…",
   "summaryFailedRetry": "не вдалося скласти підсумок — натисніть, щоб повторити",
   "transcribing": "іде розшифровка…",
+  "transcribingProgress": "іде розшифровка… {percent}",
 
   "settingsTitle": "НАЛАШТУВАННЯ",
   "groupLanguage": "Мова",

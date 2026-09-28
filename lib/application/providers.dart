@@ -105,16 +105,26 @@ final summarizationProvider = Provider<SummarizationProvider>((ref) {
 
 /// Deliberately *not* watching the two engine providers: the queue survives
 /// a tier switch and resolves them per job instead (see JobQueue docs).
-final jobQueueProvider = Provider<JobQueue>((ref) => JobQueue(
-      ref.watch(appDatabaseProvider),
-      ref.watch(memoRepositoryProvider),
-      ref.watch(cassetteRepositoryProvider),
-      ref.watch(settingsRepositoryProvider),
-      () => ref.read(transcriptionProvider),
-      () => ref.read(summarizationProvider),
-      transcoder: () => ref.read(audioTranscoderProvider),
-      systemZhScript: systemZhScript,
-    ));
+final jobQueueProvider = Provider<JobQueue>((ref) {
+  final queue = JobQueue(
+    ref.watch(appDatabaseProvider),
+    ref.watch(memoRepositoryProvider),
+    ref.watch(cassetteRepositoryProvider),
+    ref.watch(settingsRepositoryProvider),
+    () => ref.read(transcriptionProvider),
+    () => ref.read(summarizationProvider),
+    transcoder: () => ref.read(audioTranscoderProvider),
+    systemZhScript: systemZhScript,
+  );
+  ref.onDispose(queue.dispose);
+  return queue;
+});
+
+/// Which memo whisper is on and how far it has got — null while the engine
+/// idles. The bar under a transcribing memo and the busy line on its
+/// cassette's card both read this.
+final transcriptionProgressProvider = StreamProvider<TranscriptionProgress?>(
+    (ref) => ref.watch(jobQueueProvider).watchTranscriptionProgress());
 
 /// §6.4: WAV capture → archival AAC (MediaCodec/AVAssetWriter on mobile,
 /// ffmpeg CLI on desktop).

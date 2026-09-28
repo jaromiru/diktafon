@@ -55,6 +55,7 @@
   "summarizing": "составляется сводка…",
   "summaryFailedRetry": "сводка не удалась — нажмите, чтобы повторить",
   "transcribing": "идёт расшифровка…",
+  "transcribingProgress": "идёт расшифровка… {percent}",
 
   "settingsTitle": "НАСТРОЙКИ",
   "groupLanguage": "Язык",

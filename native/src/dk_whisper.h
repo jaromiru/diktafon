@@ -41,8 +41,13 @@ DK_EXPORT void dk_whisper_set_vad_model(dk_whisper * dw,
                                         const char * model_path);
 
 /* Transcribes 16 kHz mono float32 PCM.
- * lang    ISO-639-1 code, or NULL to auto-detect (D8).
- * cancel  optional flag; set *cancel to non-zero to abort mid-inference.
+ * lang      ISO-639-1 code, or NULL to auto-detect (D8).
+ * cancel    optional flag; set *cancel to non-zero to abort mid-inference.
+ * progress  optional sink; written with the engine's own progress through
+ *           the audio, 0..100, as it advances (whisper reports once per
+ *           decoding window, ~30 s of audio, so short clips may go
+ *           straight from 0 to 100). Same contract as `cancel`, mirrored:
+ *           caller-owned, polled from another thread, plain int32 store.
  * Returns 0 on success (also when aborted — caller checks its own flag).
  */
 DK_EXPORT int32_t dk_whisper_transcribe(dk_whisper * dw,
@@ -50,7 +55,8 @@ DK_EXPORT int32_t dk_whisper_transcribe(dk_whisper * dw,
                                         int32_t n_samples,
                                         const char * lang,
                                         int32_t n_threads,
-                                        const int32_t * cancel);
+                                        const int32_t * cancel,
+                                        int32_t * progress);
 
 /* Result accessors — valid after a successful transcribe, until the next
  * transcribe/free. Token text is raw UTF-8 bytes and may be a *partial*

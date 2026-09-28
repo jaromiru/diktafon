@@ -55,6 +55,7 @@
   "summarizing": "सारांश बन रहा है…",
   "summaryFailedRetry": "सारांश विफल — दोबारा कोशिश के लिए टैप करें",
   "transcribing": "ट्रांसक्राइब हो रहा है…",
+  "transcribingProgress": "ट्रांसक्राइब हो रहा है… {percent}",
 
   "settingsTitle": "सेटिंग्स",
   "groupLanguage": "भाषा",

@@ -42,9 +42,9 @@ class WhisperBindings {
                 Pointer<Void>, Pointer<Utf8>)>('dk_whisper_set_vad_model'),
         transcribe = lib.lookupFunction<
             Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Pointer<Utf8>,
-                Int32, Pointer<Int32>),
+                Int32, Pointer<Int32>, Pointer<Int32>),
             int Function(Pointer<Void>, Pointer<Float>, int, Pointer<Utf8>,
-                int, Pointer<Int32>)>('dk_whisper_transcribe'),
+                int, Pointer<Int32>, Pointer<Int32>)>('dk_whisper_transcribe'),
         lang = lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>),
             Pointer<Utf8> Function(Pointer<Void>)>('dk_whisper_lang'),
         nSegments = lib.lookupFunction<Int32 Function(Pointer<Void>),
@@ -94,8 +94,12 @@ class WhisperBindings {
   /// Silero VAD ggml model for subsequent transcribes; empty string
   /// disables VAD (the default).
   final void Function(Pointer<Void>, Pointer<Utf8> modelPath) setVadModel;
+  /// [progress] is written 0..100 by the engine as it advances (nullptr
+  /// to opt out) — the mirror image of [cancel], which the caller writes
+  /// and the engine polls.
   final int Function(Pointer<Void>, Pointer<Float> pcm, int nSamples,
-      Pointer<Utf8> lang, int nThreads, Pointer<Int32> cancel) transcribe;
+      Pointer<Utf8> lang, int nThreads, Pointer<Int32> cancel,
+      Pointer<Int32> progress) transcribe;
   final Pointer<Utf8> Function(Pointer<Void>) lang;
   final int Function(Pointer<Void>) nSegments;
   final int Function(Pointer<Void>, int) segmentT0Ms;

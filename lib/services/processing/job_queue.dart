@@ -46,6 +46,24 @@ enum JobType {
 /// old 350-char gate was script-biased; 117 ≈ 350/3 keeps Latin behaviour.
 const int gistTokenThreshold = 117;
 
+/// What the transcription engine is doing right now: which memo, on which
+/// cassette, and how far through its audio it has got ([fraction] 0..1, the
+/// engine's own figure — see [TranscriptionProvider.transcribe]). The
+/// queue publishes one of these while a memo is on the engine and null in
+/// between, so the transcript can draw a bar under the memo and the home
+/// grid can say which tape is busy.
+class TranscriptionProgress {
+  const TranscriptionProgress({
+    required this.memoId,
+    required this.cassetteId,
+    required this.fraction,
+  });
+
+  final String memoId;
+  final String cassetteId;
+  final double fraction;
+}
+
 /// Durable background pipeline (§6.5): jobs persist in the DB so they survive
 /// restarts; ML concurrency is 1 to bound CPU/thermals/battery.
 ///
@@ -82,6 +100,31 @@ class JobQueue {
 
   /// In-flight cancellation handles, by memo id (§14 delete-during-processing).
   final Map<String, CancelToken> _active = {};
+
+  /// Where the engine is, for anyone watching (see [TranscriptionProgress]).
+  /// Broadcast, so several screens can listen; the current value is kept
+  /// beside it so a late subscriber does not wait for the next window.
+  final _progress = StreamController<TranscriptionProgress?>.broadcast();
+  TranscriptionProgress? _currentProgress;
+
+  /// The memo whisper is on and how far it has got — null while the engine
+  /// is idle. Opens with the current state, so a cassette opened mid-memo
+  /// shows the bar at once rather than at the next report.
+  Stream<TranscriptionProgress?> watchTranscriptionProgress() async* {
+    yield _currentProgress;
+    yield* _progress.stream;
+  }
+
+  void _reportProgress(TranscriptionProgress? progress) {
+    _currentProgress = progress;
+    if (!_progress.isClosed) _progress.add(progress);
+  }
+
+  /// Releases the progress stream — a queue outliving its app (tests, a
+  /// disposed provider) must not keep listeners waiting on it.
+  void dispose() {
+    _progress.close();
+  }
 
   Future<void>? _draining;
   bool _recoveredOrphans = false;
@@ -429,10 +472,17 @@ class JobQueue {
     try {
       await _memos.updateStatus(memoId, MemoStatus.transcribing);
       final settings = await _settings.get();
+      // "On it, nothing to report yet" — the decode and any VAD pass come
+      // before the engine's first figure; the memo shows its shimmer for
+      // exactly that long.
+      TranscriptionProgress at(double fraction) => TranscriptionProgress(
+          memoId: memoId, cassetteId: row.cassetteId, fraction: fraction);
+      _reportProgress(at(0));
       final raw = await _transcription().transcribe(
         AudioRef(row.filePath),
         languageCode: settings.appLanguage,
         cancel: cancel,
+        onProgress: (fraction) => _reportProgress(at(fraction)),
       );
       // D8 amendment: Chinese transcripts are stored script-converted under
       // a script-qualified code (forced zh-Hans/zh-Hant, or the system
@@ -462,6 +512,8 @@ class JobQueue {
       }
     } finally {
       _active.remove(memoId);
+      // Done, failed or cancelled alike: the engine is free.
+      _reportProgress(null);
     }
   }
 

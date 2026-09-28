@@ -255,6 +255,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                       playing: playback.playing,
                       seekCount: playback.seekCount,
                       modelReady: _modelReady(),
+                      transcriptionProgress:
+                          ref.watch(transcriptionProgressProvider).value,
                       onSeekGlobalMs: (ms) => player.seekGlobal(ms),
                       onRetryMemo: (memoId) => ref
                           .read(jobQueueProvider)

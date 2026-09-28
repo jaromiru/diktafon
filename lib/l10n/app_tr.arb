@@ -55,6 +55,7 @@
   "summarizing": "özetleniyor…",
   "summaryFailedRetry": "özet oluşturulamadı — tekrar denemek için dokunun",
   "transcribing": "yazıya dökülüyor…",
+  "transcribingProgress": "yazıya dökülüyor… {percent}",
 
   "settingsTitle": "AYARLAR",
   "groupLanguage": "Dil",

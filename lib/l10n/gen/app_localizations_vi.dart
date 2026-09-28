@@ -204,6 +204,11 @@ class AppLocalizationsVi extends AppLocalizations {
   String get transcribing => 'đang chép lời…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'đang chép lời… $percent';
+  }
+
+  @override
   String get settingsTitle => 'CÀI ĐẶT';
 
   @override

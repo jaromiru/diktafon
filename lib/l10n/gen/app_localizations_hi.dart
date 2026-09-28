@@ -208,6 +208,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get transcribing => 'ट्रांसक्राइब हो रहा है…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'ट्रांसक्राइब हो रहा है… $percent';
+  }
+
+  @override
   String get settingsTitle => 'सेटिंग्स';
 
   @override

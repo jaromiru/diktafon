@@ -207,6 +207,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcribing => 'transcribing…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'transcribing… $percent';
+  }
+
+  @override
   String get settingsTitle => 'SETTINGS';
 
   @override

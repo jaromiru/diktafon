@@ -55,6 +55,7 @@
   "summarizing": "正在生成摘要…",
   "summaryFailedRetry": "摘要失败，点按重试",
   "transcribing": "正在转写…",
+  "transcribingProgress": "正在转写… {percent}",
 
   "settingsTitle": "设置",
   "groupLanguage": "语言",
