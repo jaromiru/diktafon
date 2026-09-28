@@ -579,6 +579,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retranscribe => 'Re-transcribe';
 
   @override
+  String get newestFirst => 'Newest first';
+
+  @override
   String get retranscribeTitle => 'RE-TRANSCRIBE CASSETTE?';
 
   @override

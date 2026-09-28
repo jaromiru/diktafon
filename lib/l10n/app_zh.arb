@@ -155,6 +155,7 @@
   "openSystemSettings": "设置",
   "changeColor": "更改颜色",
   "retranscribe": "重新转写",
+  "newestFirst": "最新在前",
   "retranscribeTitle": "重新转写卡带？",
   "retranscribeBody": "{count, plural, other{{count} 条备忘}}将使用当前模型重新转写，摘要也会重新生成。现有转写文本和摘要（包括手动修改）将被替换。这可能需要一些时间。",
   "retranscribeAction": "重新转写",

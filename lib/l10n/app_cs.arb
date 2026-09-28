@@ -155,6 +155,7 @@
   "openSystemSettings": "NASTAVENÍ",
   "changeColor": "Změnit barvu",
   "retranscribe": "Přepsat znovu",
+  "newestFirst": "Nejnovější první",
   "retranscribeTitle": "PŘEPSAT KAZETU ZNOVU?",
   "retranscribeBody": "{count, plural, =1{Záznam se přepíše} few{Všechny {count} záznamy se přepíšou} other{Všech {count} záznamů se přepíše}} znovu aktuálními modely a shrnutí se sestaví nanovo. Stávající přepisy a shrnutí budou nahrazeny, včetně ručních úprav. Může to chvíli trvat.",
   "retranscribeAction": "PŘEPSAT",

@@ -613,6 +613,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get retranscribe => 'إعادة التفريغ';
 
   @override
+  String get newestFirst => 'الأحدث أولًا';
+
+  @override
   String get retranscribeTitle => 'إعادة تفريغ الكاسيت؟';
 
   @override

@@ -554,6 +554,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get retranscribe => '文字起こしをやり直す';
 
   @override
+  String get newestFirst => '新しい順';
+
+  @override
   String get retranscribeTitle => 'カセットを文字起こしし直しますか？';
 
   @override

@@ -587,6 +587,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get retranscribe => 'Neu transkribieren';
 
   @override
+  String get newestFirst => 'Neueste zuerst';
+
+  @override
   String get retranscribeTitle => 'KASSETTE NEU TRANSKRIBIEREN?';
 
   @override

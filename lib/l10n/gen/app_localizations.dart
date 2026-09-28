@@ -997,6 +997,12 @@ abstract class AppLocalizations {
   /// **'Re-transcribe'**
   String get retranscribe;
 
+  /// No description provided for @newestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest first'**
+  String get newestFirst;
+
   /// No description provided for @retranscribeTitle.
   ///
   /// In en, this message translates to:

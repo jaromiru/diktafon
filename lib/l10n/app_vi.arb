@@ -155,6 +155,7 @@
   "openSystemSettings": "CÀI ĐẶT",
   "changeColor": "Đổi màu",
   "retranscribe": "Chép lời lại",
+  "newestFirst": "Mới nhất trước",
   "retranscribeTitle": "CHÉP LỜI LẠI BĂNG CASSETTE?",
   "retranscribeBody": "{count, plural, other{{count} bản ghi}} sẽ được chép lời lại bằng các mô hình hiện tại và bản tóm tắt sẽ được tạo lại. Bản chép lời và tóm tắt hiện có sẽ bị thay thế, kể cả các chỉnh sửa thủ công. Việc này có thể mất một lúc.",
   "retranscribeAction": "CHÉP LỜI LẠI",

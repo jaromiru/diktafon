@@ -155,6 +155,7 @@
   "openSystemSettings": "設定",
   "changeColor": "變更顏色",
   "retranscribe": "重新轉錄",
+  "newestFirst": "最新在前",
   "retranscribeTitle": "重新轉錄卡帶？",
   "retranscribeBody": "{count, plural, other{{count} 則備忘}}將以目前的模型重新轉錄，摘要也會重新產生。現有的逐字稿和摘要（包括手動修改）將被取代。這可能需要一些時間。",
   "retranscribeAction": "重新轉錄",

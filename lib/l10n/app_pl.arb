@@ -155,6 +155,7 @@
   "openSystemSettings": "USTAWIENIA",
   "changeColor": "Zmień kolor",
   "retranscribe": "Transkrybuj ponownie",
+  "newestFirst": "Najnowsze najpierw",
   "retranscribeTitle": "TRANSKRYBOWAĆ KASETĘ PONOWNIE?",
   "retranscribeBody": "{count, plural, one{Nagranie zostanie przepisane} few{Wszystkie {count} nagrania zostaną przepisane} many{Wszystkich {count} nagrań zostanie przepisanych} other{Wszystkie {count} nagrania zostaną przepisane}} od nowa aktualnymi modelami, a podsumowanie powstanie na nowo. Istniejące transkrypcje i podsumowania zostaną zastąpione, w tym ręczne poprawki. To może chwilę potrwać.",
   "retranscribeAction": "TRANSKRYBUJ",

@@ -155,6 +155,7 @@
   "openSystemSettings": "PENGATURAN",
   "changeColor": "Ubah warna",
   "retranscribe": "Transkripsi ulang",
+  "newestFirst": "Terbaru dulu",
   "retranscribeTitle": "TRANSKRIPSI ULANG KASET?",
   "retranscribeBody": "{count, plural, other{{count} memo}} akan ditranskripsi ulang dengan model saat ini, dan ringkasan akan disusun ulang. Transkrip dan ringkasan yang ada akan diganti, termasuk koreksi manual. Proses ini bisa memakan waktu.",
   "retranscribeAction": "TRANSKRIPSI ULANG",

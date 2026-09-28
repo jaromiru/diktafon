@@ -581,6 +581,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get retranscribe => 'दोबारा ट्रांसक्राइब करें';
 
   @override
+  String get newestFirst => 'नवीनतम पहले';
+
+  @override
   String get retranscribeTitle => 'कैसेट दोबारा ट्रांसक्राइब करें?';
 
   @override

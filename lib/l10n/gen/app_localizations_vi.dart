@@ -567,6 +567,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get retranscribe => 'Chép lời lại';
 
   @override
+  String get newestFirst => 'Mới nhất trước';
+
+  @override
   String get retranscribeTitle => 'CHÉP LỜI LẠI BĂNG CASSETTE?';
 
   @override

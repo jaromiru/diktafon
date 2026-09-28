@@ -539,6 +539,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retranscribe => '다시 변환';
 
   @override
+  String get newestFirst => '최신순';
+
+  @override
   String get retranscribeTitle => '카세트를 다시 변환할까요?';
 
   @override

@@ -584,6 +584,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get retranscribe => 'Transcrever de novo';
 
   @override
+  String get newestFirst => 'Mais recentes primeiro';
+
+  @override
   String get retranscribeTitle => 'TRANSCREVER A CASSETE DE NOVO?';
 
   @override
