@@ -3,6 +3,17 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [Unreleased]
+
+### Fixed
+- **Long recordings no longer freeze the cassette screen** (#10). A
+  transcript of thousands of words is decoded off the UI isolate, its
+  paragraph is built once and reused across playback ticks, tapping a
+  word is hit-tested at the paragraph level instead of through one gesture
+  recognizer per word, and the playhead's amber wash is painted over the
+  static text rather than restyling it — so an 80-minute memo opens in a
+  moment and scrolls smoothly where it used to stall for seconds.
+
 ## [1.0.9] — 2026-07-30
 
 ### Added
