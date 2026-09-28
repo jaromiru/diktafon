@@ -581,6 +581,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get retranscribe => 'رونویسی دوباره';
 
   @override
+  String get newestFirst => 'جدیدترین اول';
+
+  @override
   String get retranscribeTitle => 'کاست دوباره رونویسی شود؟';
 
   @override

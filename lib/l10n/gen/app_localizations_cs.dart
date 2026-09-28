@@ -594,6 +594,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get retranscribe => 'Přepsat znovu';
 
   @override
+  String get newestFirst => 'Nejnovější první';
+
+  @override
   String get retranscribeTitle => 'PŘEPSAT KAZETU ZNOVU?';
 
   @override

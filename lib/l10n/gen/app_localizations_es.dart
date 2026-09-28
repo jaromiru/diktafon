@@ -583,6 +583,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get retranscribe => 'Volver a transcribir';
 
   @override
+  String get newestFirst => 'Más recientes primero';
+
+  @override
   String get retranscribeTitle => '¿VOLVER A TRANSCRIBIR EL CASETE?';
 
   @override

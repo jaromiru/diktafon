@@ -10,6 +10,7 @@ class AppSettings {
     this.summariesEnabled = true,
     this.theme = 'system',
     this.firstRunDone = false,
+    this.newestFirst = false,
   });
 
   /// Null → auto-detect per memo (D8), so one tape may mix languages; set →
@@ -26,6 +27,12 @@ class AppSettings {
   /// The first-run setup (§5.6) has been walked through (or skipped).
   final bool firstRunDone;
 
+  /// Reading order of a cassette's transcript: false → tape order, oldest
+  /// at the top (the order the tape plays in); true → the latest memo
+  /// first, for a tape you keep adding to and keep checking on. Playback,
+  /// the timeline and memo numbers stay in tape order either way.
+  final bool newestFirst;
+
   static AppSettings fromRows(Map<String, String> rows) => AppSettings(
         appLanguage: rows['appLanguage'],
         chimeEnabled: rows['chimeEnabled'] != '0',
@@ -36,6 +43,7 @@ class AppSettings {
         // (§6.8 retired 2026-07-13); it is simply ignored.
         theme: rows['theme'] ?? 'system',
         firstRunDone: rows['firstRunDone'] == '1',
+        newestFirst: rows['newestFirst'] == '1',
       );
 }
 
@@ -73,4 +81,5 @@ class SettingsRepository {
       _set('summariesEnabled', on ? '1' : '0');
   Future<void> setTheme(String theme) => _set('theme', theme);
   Future<void> setFirstRunDone() => _set('firstRunDone', '1');
+  Future<void> setNewestFirst(bool on) => _set('newestFirst', on ? '1' : '0');
 }

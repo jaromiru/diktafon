@@ -132,6 +132,8 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
     final recording = ref.watch(recordingControllerProvider);
     final isRecordingHere = recording.isRecordingIn(widget.cassetteId);
     final player = ref.read(tapePlayerProvider);
+    final newestFirst =
+        ref.watch(settingsProvider).value?.newestFirst ?? false;
 
     if (cassette == null) {
       // Deleted while open (e.g. from a dialog) — nothing to show.
@@ -174,6 +176,9 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                   cassetteId: cassette.id,
                   currentSeed: cassette.colorSeed,
                 ),
+              'order' => ref
+                  .read(settingsRepositoryProvider)
+                  .setNewestFirst(!newestFirst),
               'retranscribe' => _retranscribe(cassette, tape.memoCount),
               _ => _deleteCassette(cassette, tape.memoCount),
             },
@@ -182,6 +187,13 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                   value: 'rename', child: Text(context.l10n.rename)),
               PopupMenuItem(
                   value: 'color', child: Text(context.l10n.changeColor)),
+              // A reading preference, kept with the tape rather than in
+              // Settings: it is here, looking at a long tape, that you
+              // want to flip it. Global, because it is about the reader.
+              CheckedPopupMenuItem(
+                  value: 'order',
+                  checked: newestFirst,
+                  child: Text(context.l10n.newestFirst)),
               PopupMenuItem(
                   value: 'retranscribe',
                   enabled: !tape.isEmpty,
@@ -255,6 +267,7 @@ class _CassetteScreenState extends ConsumerState<CassetteScreen>
                       playing: playback.playing,
                       seekCount: playback.seekCount,
                       modelReady: _modelReady(),
+                      newestFirst: newestFirst,
                       onSeekGlobalMs: (ms) => player.seekGlobal(ms),
                       onRetryMemo: (memoId) => ref
                           .read(jobQueueProvider)

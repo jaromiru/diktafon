@@ -155,6 +155,7 @@
   "openSystemSettings": "AYARLAR",
   "changeColor": "Rengi değiştir",
   "retranscribe": "Yeniden yazıya dök",
+  "newestFirst": "Önce en yeniler",
   "retranscribeTitle": "KASET YENİDEN YAZIYA DÖKÜLSÜN MÜ?",
   "retranscribeBody": "{count, plural, =1{Not} other{{count} notun tümü}} güncel modellerle yeniden yazıya dökülecek ve özet yeniden oluşturulacak. Mevcut transkriptler ve özetler, elle yapılan düzeltmeler dahil değiştirilir. Bu biraz sürebilir.",
   "retranscribeAction": "YENİDEN DÖK",

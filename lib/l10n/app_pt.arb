@@ -155,6 +155,7 @@
   "openSystemSettings": "CONFIGURAÇÕES",
   "changeColor": "Mudar a cor",
   "retranscribe": "Transcrever de novo",
+  "newestFirst": "Mais recentes primeiro",
   "retranscribeTitle": "TRANSCREVER A CASSETE DE NOVO?",
   "retranscribeBody": "{count, plural, one{A nota será transcrita} other{As {count} notas serão transcritas}} de novo com os modelos atuais e o resumo será refeito. As transcrições e os resumos existentes serão substituídos, incluindo correções manuais. Isso pode levar um tempo.",
   "retranscribeAction": "TRANSCREVER",

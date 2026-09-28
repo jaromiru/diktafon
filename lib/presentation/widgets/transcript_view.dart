@@ -29,6 +29,7 @@ class TranscriptView extends StatefulWidget {
     required this.playing,
     this.seekCount = 0,
     this.modelReady = false,
+    this.newestFirst = false,
     this.onSeekGlobalMs,
     this.onRetryMemo,
     this.onEditMemo,
@@ -49,6 +50,12 @@ class TranscriptView extends StatefulWidget {
   /// Whether the transcription model is provisioned — decides what a
   /// still-untranscribed memo says while it waits (§14).
   final bool modelReady;
+
+  /// Reading order: tape order (the default — oldest at the top, as the
+  /// tape plays) or the latest memo first. Only the list flips: ordinals,
+  /// the timeline, playback and every index handed to the callbacks stay
+  /// in tape order, so "Memo 12" is the same memo whichever way you read.
+  final bool newestFirst;
   final ValueChanged<int>? onSeekGlobalMs;
 
   /// Failed memo tapped → re-enqueue (§14 retry affordance).
@@ -175,7 +182,10 @@ class _TranscriptViewState extends State<TranscriptView> {
     final position = _scrollController.position;
     final total = widget.tape.totalDurationMs;
     if (attempt >= 3 || total <= 0 || position.maxScrollExtent <= 0) return;
-    position.jumpTo((position.maxScrollExtent * widget.globalMs / total)
+    // Time runs down the list in tape order, up it newest-first.
+    final along = widget.globalMs / total;
+    final fraction = widget.newestFirst ? 1 - along : along;
+    position.jumpTo((position.maxScrollExtent * fraction)
         .clamp(0.0, position.maxScrollExtent));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && generation == _followGeneration) {
@@ -197,7 +207,11 @@ class _TranscriptViewState extends State<TranscriptView> {
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       itemCount: tape.memoCount,
-      itemBuilder: (context, i) {
+      itemBuilder: (context, position) {
+        // Position in the list → index on the tape; everything below
+        // speaks tape indices.
+        final i =
+            widget.newestFirst ? tape.memoCount - 1 - position : position;
         final memo = tape.memos[i];
         final key = _memoKeys.putIfAbsent(memo.id, GlobalKey.new);
         return Column(
@@ -208,7 +222,7 @@ class _TranscriptViewState extends State<TranscriptView> {
               memo: memo,
               ordinal: i + 1,
               hue: context.tape.hues[memoHueIndex(widget.colorSeed, i)],
-              first: i == 0,
+              first: position == 0,
               onRetry: widget.onRetryMemo == null
                   ? null
                   : () => widget.onRetryMemo!(memo.id),

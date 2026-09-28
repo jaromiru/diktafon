@@ -155,6 +155,7 @@
   "openSystemSettings": "RÉGLAGES",
   "changeColor": "Changer la couleur",
   "retranscribe": "Retranscrire",
+  "newestFirst": "Plus récents en premier",
   "retranscribeTitle": "RETRANSCRIRE LA CASSETTE ?",
   "retranscribeBody": "{count, plural, one{Le mémo sera retranscrit} other{Les {count} mémos seront retranscrits}} avec les modèles actuels et le résumé sera reconstruit. Les transcriptions et résumés existants seront remplacés, y compris les corrections manuelles. Cela peut prendre un moment.",
   "retranscribeAction": "RETRANSCRIRE",

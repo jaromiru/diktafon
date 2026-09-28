@@ -3,6 +3,15 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [Unreleased]
+
+### Added
+- **Newest first** — a cassette's ⋮ menu can flip the transcript so the
+  latest memo sits at the top, for a tape you keep adding to and keep
+  checking on. The choice is remembered across cassettes and launches.
+  Memo numbers, the timeline and playback stay in tape order; only the
+  reading order changes.
+
 ## [1.0.9] — 2026-07-30
 
 ### Added

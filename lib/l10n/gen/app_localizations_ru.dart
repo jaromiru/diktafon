@@ -615,6 +615,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retranscribe => 'Расшифровать заново';
 
   @override
+  String get newestFirst => 'Сначала новые';
+
+  @override
   String get retranscribeTitle => 'РАСШИФРОВАТЬ КАССЕТУ ЗАНОВО?';
 
   @override

@@ -155,6 +155,7 @@
   "openSystemSettings": "設定",
   "changeColor": "色を変更",
   "retranscribe": "文字起こしをやり直す",
+  "newestFirst": "新しい順",
   "retranscribeTitle": "カセットを文字起こしし直しますか？",
   "retranscribeBody": "{count, plural, other{{count} 件のメモ}}を現在のモデルで文字起こしし直し、要約を作り直します。既存の文字起こしと要約は、手動での修正も含めて置き換えられます。しばらく時間がかかることがあります。",
   "retranscribeAction": "やり直す",

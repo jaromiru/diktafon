@@ -616,6 +616,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get retranscribe => 'Розшифрувати заново';
 
   @override
+  String get newestFirst => 'Спочатку нові';
+
+  @override
   String get retranscribeTitle => 'РОЗШИФРУВАТИ КАСЕТУ ЗАНОВО?';
 
   @override

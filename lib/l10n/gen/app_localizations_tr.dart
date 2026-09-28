@@ -579,6 +579,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retranscribe => 'Yeniden yazıya dök';
 
   @override
+  String get newestFirst => 'Önce en yeniler';
+
+  @override
   String get retranscribeTitle => 'KASET YENİDEN YAZIYA DÖKÜLSÜN MÜ?';
 
   @override

@@ -155,6 +155,7 @@
   "openSystemSettings": "EINSTELLUNGEN",
   "changeColor": "Farbe ändern",
   "retranscribe": "Neu transkribieren",
+  "newestFirst": "Neueste zuerst",
   "retranscribeTitle": "KASSETTE NEU TRANSKRIBIEREN?",
   "retranscribeBody": "{count, plural, =1{Das Memo wird} other{Alle {count} Memos werden}} mit den aktuellen Modellen neu transkribiert und die Zusammenfassung wird neu erstellt. Bestehende Transkripte und Zusammenfassungen werden ersetzt, einschließlich manueller Korrekturen. Das kann eine Weile dauern.",
   "retranscribeAction": "NEU TRANSKRIBIEREN",
