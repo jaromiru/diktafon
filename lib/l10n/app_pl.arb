@@ -55,6 +55,7 @@
   "summarizing": "powstaje podsumowanie…",
   "summaryFailedRetry": "podsumowanie nie powiodło się — dotknij, aby ponowić",
   "transcribing": "trwa transkrypcja…",
+  "transcribingProgress": "trwa transkrypcja… {percent}",
 
   "settingsTitle": "USTAWIENIA",
   "groupLanguage": "Język",

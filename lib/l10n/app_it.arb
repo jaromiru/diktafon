@@ -55,6 +55,7 @@
   "summarizing": "riassunto in corso…",
   "summaryFailedRetry": "riassunto non riuscito — tocca per riprovare",
   "transcribing": "trascrizione in corso…",
+  "transcribingProgress": "trascrizione in corso… {percent}",
 
   "settingsTitle": "IMPOSTAZIONI",
   "groupLanguage": "Lingua",

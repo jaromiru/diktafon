@@ -55,6 +55,7 @@
   "summarizing": "meringkas…",
   "summaryFailedRetry": "ringkasan gagal — ketuk untuk mencoba lagi",
   "transcribing": "mentranskripsi…",
+  "transcribingProgress": "mentranskripsi… {percent}",
 
   "settingsTitle": "PENGATURAN",
   "groupLanguage": "Bahasa",

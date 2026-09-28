@@ -75,7 +75,9 @@ class _FakeTranscription implements TranscriptionProvider {
 
   @override
   Future<Transcript> transcribe(AudioRef audio,
-          {String? languageCode, CancelToken? cancel}) async =>
+          {String? languageCode,
+          CancelToken? cancel,
+          ProgressSink? onProgress}) async =>
       const Transcript(languageCode: 'en', segments: [
         Segment(startMs: 0, endMs: 900, words: [
           Word(text: 'first', startMs: 0, endMs: 400),

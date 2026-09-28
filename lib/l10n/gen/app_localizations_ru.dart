@@ -215,6 +215,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get transcribing => 'идёт расшифровка…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'идёт расшифровка… $percent';
+  }
+
+  @override
   String get settingsTitle => 'НАСТРОЙКИ';
 
   @override

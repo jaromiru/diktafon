@@ -433,6 +433,12 @@ abstract class AppLocalizations {
   /// **'transcribing…'**
   String get transcribing;
 
+  /// No description provided for @transcribingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'transcribing… {percent}'**
+  String transcribingProgress(String percent);
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:

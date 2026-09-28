@@ -19,11 +19,17 @@ class CassetteCard extends StatelessWidget {
   const CassetteCard({
     super.key,
     required this.overview,
+    this.transcribing,
     this.onTap,
     this.onLongPress,
   });
 
   final CassetteOverview overview;
+
+  /// Set while the engine is on one of this tape's memos: how far through
+  /// it (0..1). The meta strip then says so instead of the last-record
+  /// date, so the grid answers "what is it doing?" without opening a tape.
+  final double? transcribing;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -127,6 +133,16 @@ class CassetteCard extends StatelessWidget {
 
   String _metaLine(BuildContext context) {
     final l10n = context.l10n;
+    final transcribing = this.transcribing;
+    if (transcribing != null) {
+      // Before the engine's first figure the plain "transcribing…" is all
+      // there is to say (see TranscriptView for why no number is invented).
+      if (transcribing <= 0) return l10n.transcribing;
+      final percent = NumberFormat.percentPattern(
+              Localizations.localeOf(context).toString())
+          .format(transcribing);
+      return l10n.transcribingProgress(percent);
+    }
     final count = overview.memoCount;
     if (count == 0) return l10n.cardEmptyMeta;
     final memoPart = l10n.memoCount(count);

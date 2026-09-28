@@ -32,6 +32,18 @@ bool dk_abort_cb(void * user_data) {
     return cancel != nullptr && *cancel != 0;
 }
 
+// The twin of dk_abort_cb, in the other direction: whisper tells us how far
+// through the audio it is (0..100, once per decoding window) and we drop it
+// into the caller's int32 for the Dart side to poll. A volatile store is
+// all the synchronization a monotonic percentage needs.
+void dk_progress_cb(struct whisper_context *, struct whisper_state *,
+                    int progress, void * user_data) {
+    volatile int32_t * sink = static_cast<volatile int32_t *>(user_data);
+    if (sink != nullptr) {
+        *sink = static_cast<int32_t>(progress);
+    }
+}
+
 // Production VAD tuning (design.md §6.3a): upstream defaults (0.5 threshold,
 // 30 ms pad, 100 ms min silence) clip quiet speech onsets — the phase-0
 // bench lost whole words to them. These values were tuned on the verified
@@ -127,8 +139,12 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
                               int32_t n_samples,
                               const char * lang,
                               int32_t n_threads,
-                              const int32_t * cancel) {
+                              const int32_t * cancel,
+                              int32_t * progress) {
     dk_ensure_threadpool(n_threads);
+    if (progress != nullptr) {
+        *static_cast<volatile int32_t *>(progress) = 0;
+    }
     DkThreadBackgroundScope bg;
     const bool beam = dw->beam_size > 1;
     whisper_full_params wparams = whisper_full_default_params(
@@ -163,10 +179,19 @@ int32_t dk_whisper_transcribe(dk_whisper * dw,
     wparams.abort_callback   = dk_abort_cb;
     wparams.abort_callback_user_data =
         const_cast<void *>(static_cast<const void *>(cancel));
+    if (progress != nullptr) {
+        wparams.progress_callback           = dk_progress_cb;
+        wparams.progress_callback_user_data = progress;
+    }
 
     const int ret = whisper_full(dw->ctx, wparams, pcm, n_samples);
     if (ret != 0) {
         return ret;
+    }
+    if (progress != nullptr) {
+        // whisper's last report comes at the top of its final window, not
+        // after it; say "done" ourselves so the sink never ends short.
+        *static_cast<volatile int32_t *>(progress) = 100;
     }
 
     const char * used = (lang != nullptr && lang[0] != '\0')

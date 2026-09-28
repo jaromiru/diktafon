@@ -209,6 +209,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get transcribing => 'در حال رونویسی…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'در حال رونویسی… $percent';
+  }
+
+  @override
   String get settingsTitle => 'تنظیمات';
 
   @override

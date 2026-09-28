@@ -55,6 +55,7 @@
   "summarizing": "resumindo…",
   "summaryFailedRetry": "o resumo falhou — toque para tentar de novo",
   "transcribing": "transcrevendo…",
+  "transcribingProgress": "transcrevendo… {percent}",
 
   "settingsTitle": "CONFIGURAÇÕES",
   "groupLanguage": "Idioma",

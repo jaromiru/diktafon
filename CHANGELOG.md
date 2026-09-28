@@ -3,6 +3,16 @@
 All notable changes to Diktafon are documented in this file. Versions
 correspond to git tags (`v*`); dates are tag dates.
 
+## [Unreleased]
+
+### Added
+- **Transcription progress** — a memo being transcribed shows how far the
+  engine has got: an ink bar and a percentage under its heading, and the
+  same figure on its cassette's card in the home grid, so a phone busy
+  with a long recording says so instead of showing "transcribing…" for
+  minutes. The number is whisper's own (reported once per ~30 s decoding
+  window), so short memos may keep the shimmer until they finish.
+
 ## [1.0.9] — 2026-07-30
 
 ### Added

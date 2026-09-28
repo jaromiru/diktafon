@@ -55,6 +55,7 @@
   "summarizing": "đang tóm tắt…",
   "summaryFailedRetry": "tóm tắt thất bại — nhấn để thử lại",
   "transcribing": "đang chép lời…",
+  "transcribingProgress": "đang chép lời… {percent}",
 
   "settingsTitle": "CÀI ĐẶT",
   "groupLanguage": "Ngôn ngữ",

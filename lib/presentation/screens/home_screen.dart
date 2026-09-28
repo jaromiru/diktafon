@@ -19,6 +19,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overviews = ref.watch(cassetteOverviewsProvider);
+    // Which tape the engine is on, if any — its card says so.
+    final progress = ref.watch(transcriptionProgressProvider).value;
     final tape = context.tape;
     final l10n = context.l10n;
 
@@ -67,6 +69,9 @@ class HomeScreen extends ConsumerWidget {
                 itemCount: items.length,
                 itemBuilder: (context, i) => CassetteCard(
                   overview: items[i],
+                  transcribing: progress?.cassetteId == items[i].cassette.id
+                      ? progress!.fraction
+                      : null,
                   onTap: () => _open(context, items[i].cassette.id),
                   onLongPress: () => _contextMenu(context, ref, items[i]),
                 ),

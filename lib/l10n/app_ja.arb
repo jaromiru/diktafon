@@ -55,6 +55,7 @@
   "summarizing": "要約中…",
   "summaryFailedRetry": "要約に失敗しました — タップで再試行",
   "transcribing": "文字起こし中…",
+  "transcribingProgress": "文字起こし中… {percent}",
 
   "settingsTitle": "設定",
   "groupLanguage": "言語",

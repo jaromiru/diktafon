@@ -198,6 +198,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get transcribing => '文字起こし中…';
 
   @override
+  String transcribingProgress(String percent) {
+    return '文字起こし中… $percent';
+  }
+
+  @override
   String get settingsTitle => '設定';
 
   @override

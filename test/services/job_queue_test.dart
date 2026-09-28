@@ -54,6 +54,10 @@ class FakeTranscriptionProvider implements TranscriptionProvider {
   /// Lets a test cancel a "running" transcription deterministically.
   Completer<void>? gate;
 
+  /// Fractions reported through `onProgress` before the result is
+  /// returned — what the queue's progress stream is tested against.
+  List<double> progressSteps = const [];
+
   @override
   String get id => 'fake/test';
 
@@ -68,12 +72,16 @@ class FakeTranscriptionProvider implements TranscriptionProvider {
     AudioRef audio, {
     String? languageCode,
     CancelToken? cancel,
+    ProgressSink? onProgress,
   }) async {
     calls++;
     lastLanguageCode = languageCode;
     if (gate != null) await gate!.future;
     if (honourCancel && (cancel?.isCancelled ?? false)) {
       throw const TranscriptionCancelled();
+    }
+    for (final fraction in progressSteps) {
+      onProgress?.call(fraction);
     }
     if (failuresBeforeSuccess > 0) {
       failuresBeforeSuccess--;

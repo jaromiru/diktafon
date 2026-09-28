@@ -216,6 +216,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get transcribing => 'جارٍ التفريغ…';
 
   @override
+  String transcribingProgress(String percent) {
+    return 'جارٍ التفريغ… $percent';
+  }
+
+  @override
   String get settingsTitle => 'الإعدادات';
 
   @override

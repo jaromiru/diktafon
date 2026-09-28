@@ -55,6 +55,7 @@
   "summarizing": "요약 중…",
   "summaryFailedRetry": "요약 실패 — 눌러서 다시 시도",
   "transcribing": "텍스트로 변환 중…",
+  "transcribingProgress": "텍스트로 변환 중… {percent}",
 
   "settingsTitle": "설정",
   "groupLanguage": "언어",
